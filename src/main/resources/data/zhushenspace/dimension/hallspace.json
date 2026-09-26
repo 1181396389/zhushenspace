@@ -1,0 +1,15 @@
+{
+  "type": "zhushenspace:hallspace",
+  "generator": {
+    "type": "minecraft:flat",
+    "settings": {
+      "layers": [
+        {
+          "block": "minecraft:white_concrete",
+          "height": 1
+        }
+      ],
+      "biome": "minecraft:snowy_plains"
+    }
+  }
+}

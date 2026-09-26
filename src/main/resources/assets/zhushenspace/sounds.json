@@ -1,0 +1,110 @@
+{
+  "envelope_open": {
+    "subtitle": "subtitles.zhushenspace.envelope_open",
+    "sounds": [
+      {
+        "name": "zhushenspace:envelope_open",
+        "volume": 0.8,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "glitch": {
+    "subtitle": "subtitles.zhushenspace.glitch",
+    "sounds": [
+      {
+        "name": "zhushenspace:glitch",
+        "volume": 1.0,
+        "pitch": 1.2,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "weak_point_hit": {
+    "subtitle": "subtitles.zhushenspace.weak_point_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:weak_point_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "tai_chi_move": {
+    "subtitle": "subtitles.zhushenspace.tai_chi_move",
+    "sounds": [
+      {
+        "name": "zhushenspace:tai_chi_move",
+        "volume": 0.9,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "tai_chi_tingjin": {
+    "subtitle": "subtitles.zhushenspace.tai_chi_tingjin",
+    "sounds": [
+      {
+        "name": "zhushenspace:tai_chi_tingjin",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "tai_chi_wall": {
+    "subtitle": "subtitles.zhushenspace.tai_chi_wall",
+    "sounds": [
+      {
+        "name": "zhushenspace:tai_chi_wall",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "neili_chime": {
+    "subtitle": "subtitles.zhushenspace.neili_chime",
+    "sounds": [
+      {
+        "name": "zhushenspace:neili_chime",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "neili_meditate_start": {
+    "subtitle": "subtitles.zhushenspace.neili_meditate_start",
+    "sounds": [
+      {
+        "name": "zhushenspace:neili_meditate_start",
+        "volume": 0.9,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "neili_meditate_done": {
+    "subtitle": "subtitles.zhushenspace.neili_meditate_done",
+    "sounds": [
+      {
+        "name": "zhushenspace:neili_meditate_done",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  }
+}

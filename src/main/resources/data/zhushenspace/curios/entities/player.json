@@ -1,0 +1,15 @@
+{
+  "entities": [
+    "minecraft:player"
+  ],
+  "slots": [
+    "bloodline",
+    "modification",
+    "eyes",
+    "grimoire",
+    "cultivation",
+    "other",
+    "title",
+    "school"
+  ]
+}
