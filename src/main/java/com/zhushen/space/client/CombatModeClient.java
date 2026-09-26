@@ -50,9 +50,13 @@ public class CombatModeClient {
         if (event.getKey() == ClientSetup.TOGGLE_COMBAT.getKey().getValue()
                 && event.getAction() == GLFW.GLFW_PRESS) {
             combatMode = !combatMode;
-            if (combatMode) combatSince = ZsAnim.nowMs();
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.UI_BUTTON_CLICK.value(), combatMode ? 1.2f : 0.8f));
+            if (combatMode) {
+                combatSince = ZsAnim.nowMs();
+                DrawFx.play(BladeBar.Sword.ofBar(ClientUiConfig.get().activeBar)); // 宝具拔出演出
+            } else {
+                DrawFx.stop();
+                mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 0.8f));
+            }
             return;
         }
 
@@ -62,8 +66,7 @@ public class CombatModeClient {
             ClientUiConfig.Data cfg = ClientUiConfig.get();
             cfg.activeBar = cfg.activeBar == 0 ? 1 : 0;
             ClientUiConfig.save();
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.UI_BUTTON_CLICK.value(), cfg.activeBar == 0 ? 1.0f : 1.1f));
+            DrawFx.play(BladeBar.Sword.ofBar(cfg.activeBar)); // 换剑：重新拔出
             return;
         }
 
@@ -129,7 +132,8 @@ public class CombatModeClient {
 
         // 进入战斗模式：巨剑自下方升起，同时剑身由护手向剑尖「出鞘」展开
         float in = ZsAnim.easeOutCubic((ZsAnim.nowMs() - combatSince) / 250f);
-        float draw = ZsAnim.easeOutCubic((ZsAnim.nowMs() - combatSince - 80) / 380f);
+        float draw = DrawFx.drawProgress();
+        DrawFx.renderUnder(g, barX, barY);
         g.pose().pushPose();
         g.pose().translate(0, (1 - in) * 30, 0);
         int reveal = barX + 30 + (int) ((BladeBar.W - 30) * draw);
@@ -166,6 +170,7 @@ public class CombatModeClient {
         g.disableScissor();
 
         g.pose().popPose();
+        DrawFx.renderOver(g, font, barX, barY);
 
         // 原版物品栏（战斗模式下缩小为右侧无边框竖排）
         renderSideHotbar(g, mc, font);

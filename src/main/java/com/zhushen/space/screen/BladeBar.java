@@ -46,6 +46,13 @@ public final class BladeBar {
             this.aura = aura;
         }
 
+        public int aura() { return aura; }
+        public int letterColor() { return letter; }
+        /** 光效内焰：誓约胜利之剑为蓝白，乖离剑为赤白 */
+        public int core() { return this == EXCALIBUR ? 0xFFCFE6FF : 0xFFFFB49A; }
+        public String trueName() { return this == EXCALIBUR ? "誓约胜利之剑" : "乖离剑"; }
+        public String romanName() { return this == EXCALIBUR ? "EXCALIBUR" : "EA"; }
+
         /** 栏位 → 剑：A（0）誓约胜利之剑，B（1）乖离剑 */
         public static Sword ofBar(int bar) {
             return bar == 0 ? EXCALIBUR : EA;
