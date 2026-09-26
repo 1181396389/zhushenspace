@@ -134,7 +134,8 @@ public class CombatModeClient {
         g.pose().translate(0, (1 - in) * 30, 0);
         int reveal = barX + 30 + (int) ((BladeBar.W - 30) * draw);
         g.enableScissor(barX - 4, barY - 8, reveal, barY + BladeBar.H + 34); // 下沿含升起位移
-        BladeBar.draw(g, font, barX, barY, 1f, activeBar == 0 ? "A" : "B", true);
+        // A 栏誓约胜利之剑 / B 栏乖离剑
+        BladeBar.draw(g, font, barX, barY, 1f, BladeBar.Sword.ofBar(activeBar), activeBar == 0 ? "A" : "B", true);
 
         for (int slot = 0; slot < 9; slot++) {
             int sx = BladeBar.slotX(barX, slot, 1f);

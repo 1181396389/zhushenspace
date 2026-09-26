@@ -21,11 +21,36 @@ public final class BladeBar {
     public static final int SLOT0 = 36, PITCH = 21, SLOT = 20, SLOT_Y = 5;
     public static final int GEM_X = 23, GEM_Y = 15;
 
-    private static final ResourceLocation BAR =
-            ResourceLocation.fromNamespaceAndPath("zhushenspace", "textures/gui/anim/blade_bar.png");
-    private static final ZsAnim.Sprite GLOW = new ZsAnim.Sprite(
-            ResourceLocation.fromNamespaceAndPath("zhushenspace", "textures/gui/anim/blade_glow.png"),
-            480, 60, 20, 70);
+    /**
+     * 两柄剑：A 栏 = 誓约胜利之剑（金蓝护手、银白剑身、金色镶纹、风王结界风痕），
+     * B 栏 = 乖离剑（三段黑色圆柱反向旋转、赤色刻纹、段间金环、剑尖赤色漩涡）。
+     * 贴图由 tools/gen_holy_swords.py 生成，槽位布局与本类常量一致。
+     */
+    public enum Sword {
+        EXCALIBUR("excalibur", 0xFF1C3E96, 0xFF6FA8FF, 0xFFFFE9A8, 0xFFFFD27A),
+        EA("ea", 0xFF6A0A0E, 0xFFFF3A2E, 0xFFFFE0D0, 0xFFFF5A3C);
+
+        final ResourceLocation bar;
+        final ZsAnim.Sprite glow;
+        /** 护手宝石：暗色 / 亮色（活跃呼吸在两者间），字母颜色，外焰色 */
+        final int gemDark, gemLight, letter, aura;
+
+        Sword(String id, int gemDark, int gemLight, int letter, int aura) {
+            this.bar = ResourceLocation.fromNamespaceAndPath("zhushenspace", "textures/gui/anim/" + id + "_bar.png");
+            this.glow = new ZsAnim.Sprite(
+                    ResourceLocation.fromNamespaceAndPath("zhushenspace", "textures/gui/anim/" + id + "_glow.png"),
+                    480, 60, 20, 70);
+            this.gemDark = gemDark;
+            this.gemLight = gemLight;
+            this.letter = letter;
+            this.aura = aura;
+        }
+
+        /** 栏位 → 剑：A（0）誓约胜利之剑，B（1）乖离剑 */
+        public static Sword ofBar(int bar) {
+            return bar == 0 ? EXCALIBUR : EA;
+        }
+    }
 
     // 锻铁配色
     public static final int EMBER = 0xFFFF9A3C;
@@ -47,32 +72,33 @@ public final class BladeBar {
     }
 
     /**
-     * 绘制剑栏本体 + 流光。active=当前使用的栏（宝石燃起、刃光明亮），letter=护手宝石上的栏位字母。
+     * 绘制剑栏本体 + 流光。active=当前使用的栏（宝石亮起、剑光全开、外焰），letter=护手宝石上的栏位字母。
      */
-    public static void draw(GuiGraphics g, Font font, int x, int y, float scale, String letter, boolean active) {
+    public static void draw(GuiGraphics g, Font font, int x, int y, float scale, Sword sword, String letter,
+                            boolean active) {
         int w = Math.round(W * scale), h = Math.round(H * scale);
         float p = ZsAnim.pulse(1600);
-        // 底部投影 + 活跃栏外焰
+        // 底部投影 + 活跃栏外焰（誓约胜利之剑金光 / 乖离剑赤光）
         g.fill(x + 2, y + h - 2, x + w - 6, y + h + 1, 0x66000000);
         if (active) {
-            int glow = ZsAnim.withAlpha(EMBER, 0.12f + 0.18f * p);
+            int glow = ZsAnim.withAlpha(sword.aura, 0.12f + 0.18f * p);
             g.fill(x + Math.round(30 * scale), y - 2, x + w - Math.round(10 * scale), y + h + 2, glow);
         }
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        g.blit(BAR, x, y, w, h, 0, 0, 480, 60, 480, 60);
+        g.blit(sword.bar, x, y, w, h, 0, 0, 480, 60, 480, 60);
         RenderSystem.disableBlend();
-        GLOW.draw(g, x, y, w, h, active ? 0xFFFFFFFF : 0x55FFFFFF);
+        sword.glow.draw(g, x, y, w, h, active ? 0xFFFFFFFF : 0x55FFFFFF);
 
-        // 护手宝石：活跃栏熔金色呼吸，非活跃为暗红
+        // 护手宝石：活跃时在暗/亮色间呼吸，非活跃保持暗色
         int gx = x + Math.round(GEM_X * scale), gy = y + Math.round(GEM_Y * scale);
         int r = Math.round(6 * scale);
-        int gem = active ? ZsAnim.lerpColor(0xFFB84A10, 0xFFFFB040, p) : 0xFF4A1410;
+        int gem = active ? ZsAnim.lerpColor(sword.gemDark, sword.gemLight, p) : sword.gemDark;
         for (int dy = -r; dy <= r; dy++) {
             int half = (int) Math.sqrt(r * r - dy * dy);
             g.fill(gx - half, gy + dy, gx + half + 1, gy + dy + 1, gem);
         }
-        g.drawCenteredString(font, letter, gx + 1, gy - 3, active ? 0xFFFFF4D8 : IRON_SUB);
+        g.drawCenteredString(font, letter, gx + 1, gy - 3, active ? sword.letter : IRON_SUB);
     }
 
     /**
@@ -149,5 +175,73 @@ public final class BladeBar {
             if (px < x1 || px >= x2) continue;
             g.fill(px, y, px + 1, y + 1, ZsAnim.withAlpha(EMBER, 1 - Math.abs(i) / 24f));
         }
+    }
+
+    // ===== 面板外框（战斗预设页：锻铁 + 余烬，与剑冢背景统一） =====
+
+    public static final int CHROME_BG = 0xF2140A07;
+    public static final int BRONZE = 0xFF7A5634;
+    public static final int IRON_BTN = 0xFF2A1A12;
+    public static final int IRON_BTN_HOVER = 0xFF4A2414;
+
+    /**
+     * 锻铁面板：深铁底 + 铜边（边缘余烬呼吸）+ 四角铆钉 + 顶沿炽热细线 + 沿边游走的火星。
+     */
+    public static void chrome(GuiGraphics g, int x, int y, int w, int h) {
+        float p = ZsAnim.pulse(2600);
+        g.fill(x - 2, y - 2, x + w + 2, y + h + 2, ZsAnim.withAlpha(EMBER, 0.08f + 0.12f * p));
+        g.fill(x, y, x + w, y + h, CHROME_BG);
+        g.renderOutline(x, y, w, h, BRONZE);
+        g.renderOutline(x + 1, y + 1, w - 2, h - 2, 0x663A2418);
+        g.fillGradient(x + 1, y + 1, x + w - 1, y + 3, ZsAnim.withAlpha(EMBER, 0.55f + 0.35f * p), 0x00FF9A3C);
+        // 四角铆钉
+        for (int[] c : new int[][]{{x + 3, y + 3}, {x + w - 5, y + 3}, {x + 3, y + h - 5}, {x + w - 5, y + h - 5}}) {
+            g.fill(c[0], c[1], c[0] + 2, c[1] + 2, 0xFFB08050);
+            g.fill(c[0] + 1, c[1] + 1, c[0] + 2, c[1] + 2, 0xFF3A2418);
+        }
+        // 沿底边游走的火星（带拖尾）
+        float ph = ZsAnim.phase(4200);
+        int head = x + (int) (w * ph);
+        for (int i = 0; i < 18; i++) {
+            int px = head - i;
+            if (px < x || px >= x + w) continue;
+            g.fill(px, y + h - 1, px + 1, y + h, ZsAnim.withAlpha(EMBER_HOT, 1 - i / 18f));
+        }
+    }
+
+    /**
+     * 选项卡：未选中深铁 + 铜字，悬停转暖，选中为余烬渐变 + 亮字；炽焰下划线在选项卡间平滑滑动。
+     */
+    public static void tabs(GuiGraphics g, Font font, int mx, int my, int[] xs, int[] ws, int y, int h,
+                            net.minecraft.network.chat.Component[] labels, int selected) {
+        for (int i = 0; i < xs.length; i++) {
+            boolean sel = i == selected;
+            boolean hover = ZsTheme.over(mx, my, xs[i], y, ws[i], h);
+            float t = ZsAnim.tween(ZsAnim.key(41, xs[i], y), sel ? 1 : 0, 16);
+            float hv = ZsAnim.tween(ZsAnim.key(42, xs[i], y), hover && !sel ? 1 : 0, 18);
+            int top = ZsAnim.lerpColor(ZsAnim.lerpColor(IRON_BTN, IRON_BTN_HOVER, hv), 0xFF7A3414, t);
+            int bot = ZsAnim.lerpColor(ZsAnim.lerpColor(0xFF180E0A, 0xFF2A1008, hv), 0xFF3A140A, t);
+            g.fillGradient(xs[i], y, xs[i] + ws[i], y + h, top, bot);
+            g.renderOutline(xs[i], y, ws[i], h, ZsAnim.lerpColor(0xFF4A3020, EMBER, Math.max(t, hv * 0.6f)));
+            int tc = ZsAnim.lerpColor(ZsAnim.lerpColor(IRON_SUB, IRON_TEXT, hv), 0xFFFFF4D8, t);
+            g.drawCenteredString(font, labels[i], xs[i] + ws[i] / 2, y + (h - 8) / 2, tc);
+        }
+        float ux = ZsAnim.tween(ZsAnim.key(43, 0, y), xs[selected], 18);
+        float uw = ZsAnim.tween(ZsAnim.key(43, 1, y), ws[selected], 18);
+        float p = ZsAnim.pulse(1200);
+        g.fill((int) ux, y + h, (int) (ux + uw), y + h + 1, ZsAnim.lerpColor(EMBER, EMBER_HOT, p));
+        g.fill((int) ux + 2, y + h + 1, (int) (ux + uw) - 2, y + h + 2, ZsAnim.withAlpha(EMBER, 0.45f));
+    }
+
+    /** 锻铁小按钮：深铁底铜边，悬停时烧红 + 火光扫过 */
+    public static void button(GuiGraphics g, Font font, int mx, int my, int x, int y, int w, int h,
+                              net.minecraft.network.chat.Component label) {
+        boolean hover = ZsTheme.over(mx, my, x, y, w, h);
+        float t = ZsAnim.tween(ZsAnim.key(44, x, y), hover ? 1 : 0, 18);
+        g.fillGradient(x, y, x + w, y + h, ZsAnim.lerpColor(IRON_BTN, IRON_BTN_HOVER, t),
+                ZsAnim.lerpColor(0xFF180E0A, 0xFF2A1008, t));
+        g.renderOutline(x, y, w, h, ZsAnim.lerpColor(BRONZE, EMBER, t));
+        if (t > 0.05f) emberSweep(g, x, y, w, h, t);
+        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, ZsAnim.lerpColor(IRON_SUB, 0xFFFFF4D8, t));
     }
 }

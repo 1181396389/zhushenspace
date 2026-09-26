@@ -270,6 +270,11 @@ public class GodPanelScreen extends Screen {
             XytStyle.chrome(g, panelX, panelY, panelW, panelH);
             return;
         }
+        if (tab == Tab.PRESET) {
+            // 战斗预设页：锻铁 + 余烬外框，与剑冢背景统一
+            BladeBar.chrome(g, panelX, panelY, panelW, panelH);
+            return;
+        }
         ZsTheme.panel(g, panelX, panelY, panelW, panelH);
         // 面板中央缓慢旋转的法阵水印
         int sz = Math.min(panelW, panelH) - 40;
@@ -292,6 +297,8 @@ public class GodPanelScreen extends Screen {
         }
         if (tab == Tab.SKILLS) {
             XytStyle.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
+        } else if (tab == Tab.PRESET) {
+            BladeBar.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
         } else {
             ZsTheme.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal(), 1);
         }
@@ -303,6 +310,7 @@ public class GodPanelScreen extends Screen {
                 ? "screen.zhushenspace.godpanel.leave_hall"
                 : "screen.zhushenspace.godpanel.enter_hall");
         if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
+        else if (tab == Tab.PRESET) BladeBar.button(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         else renderSmallButton(g, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         if (over(mouseX, mouseY, hallX, panelY + 5, 32, TAB_H)) {
             g.renderTooltip(font, List.of(Component.translatable(
@@ -312,6 +320,7 @@ public class GodPanelScreen extends Screen {
 
         // 能量池界面设置入口（⚙，标签行最右）
         if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
+        else if (tab == Tab.PRESET) BladeBar.button(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         else renderSmallButton(g, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         if (over(mouseX, mouseY, gearX, panelY + 5, 20, TAB_H)) {
             g.renderTooltip(font, List.of(Component.translatable(
@@ -319,7 +328,8 @@ public class GodPanelScreen extends Screen {
         }
 
         // 分隔线
-        ZsTheme.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
+        if (tab == Tab.PRESET) BladeBar.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
+        else ZsTheme.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
 
         // 第二行统计（按选项卡）
         switch (tab) {
@@ -348,7 +358,7 @@ public class GodPanelScreen extends Screen {
                         Component.translatable("screen.zhushenspace.preset.hint"), panelW - 16);
                 int y = panelY + 22;
                 for (int i = 0; i < lines.size() && i < 2; i++) {
-                    g.drawString(font, lines.get(i), panelX + 8, y, TEXT_SUB, true);
+                    g.drawString(font, lines.get(i), panelX + 8, y, BladeBar.IRON_SUB, true);
                     y += 10;
                 }
             }
@@ -363,7 +373,8 @@ public class GodPanelScreen extends Screen {
             int maxHp = Math.round(minecraft.player.getMaxHealth());
             String intact = Component.translatable("screen.zhushenspace.health.intact",
                     Math.max(0, maxHp - ClientHealthData.total())).getString();
-            g.drawString(font, intact, panelX + 8, hy, tab == Tab.SKILLS ? XytStyle.CHROME_TEXT : ACCENT, tab != Tab.SKILLS);
+            int intactColor = tab == Tab.SKILLS ? XytStyle.CHROME_TEXT : tab == Tab.PRESET ? BladeBar.IRON_SUB : ACCENT;
+            g.drawString(font, intact, panelX + 8, hy, intactColor, tab != Tab.SKILLS);
             int hx = panelX + 8 + font.width(intact) + 6;
             hx = drawWoundSegment(g, "B", ClientHealthData.b(), 0xFFF5D76E, hx, hy);
             hx = drawWoundSegment(g, "L", ClientHealthData.l(), 0xFFE8873A, hx, hy);
@@ -376,7 +387,7 @@ public class GodPanelScreen extends Screen {
                 ClientProgressData.branch(2), ClientProgressData.branch(3),
                 ClientProgressData.branch(4), ClientProgressData.score()).getString();
         g.drawString(font, currency, panelX + 8, panelY + panelH - 12,
-                tab == Tab.SKILLS ? XytStyle.ORANGE : CURRENCY, tab != Tab.SKILLS);
+                tab == Tab.SKILLS ? XytStyle.ORANGE : tab == Tab.PRESET ? BladeBar.EMBER : CURRENCY, tab != Tab.SKILLS);
     }
 
     /** 可购买按钮外圈呼吸金光，吸引注意 */
@@ -713,7 +724,8 @@ public class GodPanelScreen extends Screen {
         for (int bar = 0; bar < slots.length; bar++) {
             int sy = slotsY(bar);
             boolean activeBar = com.zhushen.space.client.ClientUiConfig.get().activeBar == bar;
-            BladeBar.draw(g, font, barX(), barY(bar), BAR_SCALE, bar == 0 ? "A" : "B", activeBar);
+            BladeBar.draw(g, font, barX(), barY(bar), BAR_SCALE, BladeBar.Sword.ofBar(bar), bar == 0 ? "A" : "B",
+                    activeBar);
             for (int slot = 0; slot < 9; slot++) {
                 int sx = slotX(slot);
                 int abilityId = slots[bar][slot];
@@ -763,12 +775,10 @@ public class GodPanelScreen extends Screen {
         if (totalRows > visibleRows) {
             String page = (chipScroll / visibleRows + 1) + "/" + (int) Math.ceil(totalRows / (double) visibleRows);
             int pgY = chipsBottom + 2;
-            renderSmallButton(g, mouseX, mouseY, panelX + panelW / 2 - 48, pgY, 14, 12,
-                    Component.literal("<"));
-            renderSmallButton(g, mouseX, mouseY, panelX + panelW / 2 + 34, pgY, 14, 12,
-                    Component.literal(">"));
+            BladeBar.button(g, font, mouseX, mouseY, panelX + panelW / 2 - 48, pgY, 14, 12, Component.literal("<"));
+            BladeBar.button(g, font, mouseX, mouseY, panelX + panelW / 2 + 34, pgY, 14, 12, Component.literal(">"));
             g.drawCenteredString(font, Component.translatable("screen.zhushenspace.preset.page", page),
-                    panelX + panelW / 2, pgY + 2, TEXT_SUB);
+                    panelX + panelW / 2, pgY + 2, BladeBar.IRON_SUB);
         }
 
         // 拖拽中的技能跟随鼠标
