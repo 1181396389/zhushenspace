@@ -265,6 +265,11 @@ public class GodPanelScreen extends Screen {
     }
 
     private void renderPanel(GuiGraphics g) {
+        if (tab == Tab.SKILLS) {
+            // 技能页：整块面板统一为新月同行冷灰外框（不叠星云与法阵）
+            XytStyle.chrome(g, panelX, panelY, panelW, panelH);
+            return;
+        }
         ZsTheme.panel(g, panelX, panelY, panelW, panelH);
         // 面板中央缓慢旋转的法阵水印
         int sz = Math.min(panelW, panelH) - 40;
@@ -285,15 +290,20 @@ public class GodPanelScreen extends Screen {
             boolean dirty = (i == 0 && attrList.dirty()) || (i == 1 && skillList.dirty());
             tabLabels[i] = Component.literal(dirty ? labels[i] + "*" : labels[i]);
         }
-        ZsTheme.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal(), 1);
+        if (tab == Tab.SKILLS) {
+            XytStyle.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
+        } else {
+            ZsTheme.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal(), 1);
+        }
 
         // 主神空间大厅（标签行，齿轮左侧）：进入大厅 / 返回主世界
         boolean inHall = minecraft != null && minecraft.player != null
                 && minecraft.player.level().dimension() == HallManager.HALL_DIMENSION;
-        renderSmallButton(g, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H,
-                Component.translatable(inHall
-                        ? "screen.zhushenspace.godpanel.leave_hall"
-                        : "screen.zhushenspace.godpanel.enter_hall"));
+        Component hallLabel = Component.translatable(inHall
+                ? "screen.zhushenspace.godpanel.leave_hall"
+                : "screen.zhushenspace.godpanel.enter_hall");
+        if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
+        else renderSmallButton(g, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         if (over(mouseX, mouseY, hallX, panelY + 5, 32, TAB_H)) {
             g.renderTooltip(font, List.of(Component.translatable(
                     inHall ? "screen.zhushenspace.hall.tooltip_leave"
@@ -301,7 +311,8 @@ public class GodPanelScreen extends Screen {
         }
 
         // 能量池界面设置入口（⚙，标签行最右）
-        renderSmallButton(g, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
+        if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
+        else renderSmallButton(g, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         if (over(mouseX, mouseY, gearX, panelY + 5, 20, TAB_H)) {
             g.renderTooltip(font, List.of(Component.translatable(
                     "screen.zhushenspace.energy_config.entry").getVisualOrderText()), mouseX, mouseY);
@@ -312,7 +323,8 @@ public class GodPanelScreen extends Screen {
 
         // 第二行统计（按选项卡）
         switch (tab) {
-            case ATTRIBUTES, SKILLS -> {
+            case SKILLS -> renderXytHeader(g, mouseX, mouseY);
+            case ATTRIBUTES -> {
                 PointList list = activeList();
                 String free = Component.translatable(tab == Tab.ATTRIBUTES
                         ? "screen.zhushenspace.free_points"
@@ -351,7 +363,7 @@ public class GodPanelScreen extends Screen {
             int maxHp = Math.round(minecraft.player.getMaxHealth());
             String intact = Component.translatable("screen.zhushenspace.health.intact",
                     Math.max(0, maxHp - ClientHealthData.total())).getString();
-            g.drawString(font, intact, panelX + 8, hy, ACCENT, true);
+            g.drawString(font, intact, panelX + 8, hy, tab == Tab.SKILLS ? XytStyle.CHROME_TEXT : ACCENT, tab != Tab.SKILLS);
             int hx = panelX + 8 + font.width(intact) + 6;
             hx = drawWoundSegment(g, "B", ClientHealthData.b(), 0xFFF5D76E, hx, hy);
             hx = drawWoundSegment(g, "L", ClientHealthData.l(), 0xFFE8873A, hx, hy);
@@ -363,7 +375,8 @@ public class GodPanelScreen extends Screen {
                 ClientProgressData.branch(0), ClientProgressData.branch(1),
                 ClientProgressData.branch(2), ClientProgressData.branch(3),
                 ClientProgressData.branch(4), ClientProgressData.score()).getString();
-        g.drawString(font, currency, panelX + 8, panelY + panelH - 12, CURRENCY, true);
+        g.drawString(font, currency, panelX + 8, panelY + panelH - 12,
+                tab == Tab.SKILLS ? XytStyle.ORANGE : CURRENCY, tab != Tab.SKILLS);
     }
 
     /** 可购买按钮外圈呼吸金光，吸引注意 */
@@ -387,7 +400,123 @@ public class GodPanelScreen extends Screen {
 
     // ===== 属性 / 技能页（共用） =====
 
+    // ===== 技能页：新月同行风格（纪念） =====
+
+    /** 技能页纸面区域：标签行下方至列表底部 */
+    private int xytTop() {
+        return panelY + 20;
+    }
+
+    /** 技能页头部：档案纸底 + 标题牌 + 英文注释 / π 纸带 + 点数计 + 重置/确认 + 刻度分隔线 */
+    private void renderXytHeader(GuiGraphics g, int mouseX, int mouseY) {
+        int top = xytTop();
+        XytStyle.paper(g, panelX + 1, top, panelW - 2, listBottom + 2 - top);
+
+        int y = actionY;
+        int x = XytStyle.titlePlate(g, font, panelX + 7, y,
+                Component.translatable("screen.zhushenspace.godpanel.tab.skills"));
+        XytStyle.tiny(g, font, "SKILL ARCHIVE / " + String.format("%02d", SkillType.COUNT), x + 4, y + 1, XytStyle.INK);
+        XytStyle.piTape(g, font, x + 4, y + 7, 62);
+
+        XytStyle.counter(g, font, x + 72, y + 1,
+                Component.translatable("screen.zhushenspace.xyt.points").getString(), skillList.free());
+
+        boolean dirty = skillList.dirty();
+        XytStyle.button(g, font, mouseX, mouseY, resetX, actionY, resetW, actionH,
+                Component.translatable("screen.zhushenspace.reset"), dirty, false);
+        XytStyle.button(g, font, mouseX, mouseY, confirmX, actionY, confirmW, actionH,
+                Component.translatable("screen.zhushenspace.apply"), dirty, true);
+
+        XytStyle.rule(g, panelX + 6, panelX + panelW - 6, panelY + HEADER_HEIGHT - 3);
+    }
+
+    /** 技能列表：编号 + 名称 + 等级刻度计 + 等级 + 消耗 + ±；逐行错峰滑入，切页时橙色扫描线 */
+    private void renderXytSkillTab(GuiGraphics g, int mouseX, int mouseY) {
+        PointList list = skillList;
+        list.hovered = -1;
+        int x0 = panelX + 6;
+        int rw = panelW - 15;
+        long now = ZsAnim.nowMs();
+        g.enableScissor(panelX + 1, listTop, panelX + panelW - 1, listBottom);
+        for (int i = 0; i < list.count; i++) {
+            if (!rowVisible(list, i)) continue;
+            int ry = rowY(list, i);
+            if (over(mouseX, mouseY, panelX + 5, ry, panelW - 10, ROW_HEIGHT)
+                    && mouseY >= listTop && mouseY < listBottom) list.hovered = i;
+            // 错峰滑入（每行延迟 35ms）
+            float e = ZsAnim.easeOutCubic((now - tabChangedAt - i * 35L) / 260f);
+            g.pose().pushPose();
+            g.pose().translate((1 - e) * 14, 0, 0);
+            renderXytRow(g, mouseX, mouseY, list, i, x0, ry, rw);
+            g.pose().popPose();
+        }
+        // 自动获得 / 流派状态：橙色方点 + 墨色文字
+        int footerY = rowY(list, list.count) + 4;
+        if (ClientEnergyData.hasPool(ClientEnergyData.NEILI_ID)) {
+            g.fill(x0 + 2, footerY + 2, x0 + 5, footerY + 5, XytStyle.ORANGE);
+            g.drawString(font, Component.translatable("screen.zhushenspace.skill.acquired_neili"),
+                    x0 + 9, footerY, XytStyle.INK, false);
+            footerY += 10;
+        }
+        if (ClientProgressData.taiChiUnlocked()) {
+            g.fill(x0 + 2, footerY + 2, x0 + 5, footerY + 5, XytStyle.ORANGE);
+            g.drawString(font, Component.translatable("screen.zhushenspace.skill.school_owned"),
+                    x0 + 9, footerY, XytStyle.INK, false);
+        }
+        XytStyle.scan(g, panelX + 1, listTop, panelW - 2, listBottom - listTop, tabChangedAt);
+        g.disableScissor();
+        XytStyle.scrollbar(g, panelX + panelW - 6, listTop + 2, listBottom - 2,
+                list.count * ROW_HEIGHT + 22, list.scroll, list.maxScroll);
+
+        if (list.hovered >= 0 && mouseX < minusX()) {
+            g.renderTooltip(font, buildSkillTooltip(SkillType.values()[list.hovered]), mouseX, mouseY);
+        }
+    }
+
+    private void renderXytRow(GuiGraphics g, int mouseX, int mouseY, PointList list, int i, int x0, int ry, int rw) {
+        int h = ROW_HEIGHT - 1;
+        XytStyle.row(g, x0, ry, rw, h, i == list.hovered);
+        int ty = ry + (h - 8) / 2 + 1;
+        // 编号（档案式 01~08）+ 竖发丝线
+        g.drawString(font, String.format("%02d", i + 1), x0 + 5, ty, XytStyle.INK_FAINT, false);
+        g.fill(x0 + 19, ry + 3, x0 + 20, ry + h - 3, XytStyle.HAIRLINE);
+        g.drawString(font, Component.translatable(SkillType.values()[i].nameKey()), x0 + 24, ty, XytStyle.INK, false);
+
+        int saved = list.saved[i], cur = list.cur[i];
+        int end = XytStyle.gauge(g, font, panelX + 76, ry + (h - 5) / 2, list.max, saved, cur,
+                ZsAnim.key(35, i, 0));
+        Component lv;
+        int lvColor;
+        if (cur >= list.max) {
+            lv = Component.literal("MAX").withStyle(net.minecraft.ChatFormatting.BOLD);
+            lvColor = XytStyle.ORANGE;
+        } else {
+            lv = Component.literal("Lv." + cur);
+            lvColor = cur != saved ? XytStyle.ORANGE : XytStyle.INK;
+        }
+        g.drawString(font, lv, end + 3, ty, lvColor, false);
+
+        int by = ry + (ROW_HEIGHT - PM_BTN) / 2;
+        int step = list.step(i);
+        if (step > 0) {
+            String cost = "×" + step;
+            g.drawString(font, cost, minusX() - font.width(cost) - 4, ty,
+                    list.free() >= step ? XytStyle.INK_SUB : XytStyle.WARN, false);
+        }
+        XytStyle.stepButton(g, font, mouseX, mouseY, minusX(), by, PM_BTN, false, list.canDown(i));
+        XytStyle.stepButton(g, font, mouseX, mouseY, plusX(), by, PM_BTN, true, list.canUp(i));
+    }
+
+    /** 当前是否处于技能页（悬停提示框切换为新月同行风格） */
+    public boolean xytStyle() {
+        return tab == Tab.SKILLS;
+    }
+
     private void renderPointTab(GuiGraphics g, int mouseX, int mouseY, PointList list) {
+        if (list == skillList) {
+            renderXytSkillTab(g, mouseX, mouseY);
+            return;
+        }
         boolean attr = list == attrList;
         list.hovered = -1;
         g.enableScissor(panelX + 1, listTop, panelX + panelW - 1, listBottom);
@@ -552,11 +681,19 @@ public class GodPanelScreen extends Screen {
     private void renderBattlefield(GuiGraphics g) {
         int top = panelY + HEADER_HEIGHT - 2;
         int x = panelX + 1, w = panelW - 2, h = panelY + panelH - 1 - top;
-        int dh = Math.max(h, w * 192 / 256);
-        g.enableScissor(x, top, x + w, top + h);
-        ZsAnim.UBW.draw(g, x, top + h - dh, w, dh);
-        g.disableScissor();
-        // 顶部压暗，使剑栏在明亮天幕上清晰；底部压暗承托芯片区
+        // 完整显示整幅动图（等比缩放装入内容区，居中），两侧以同色暗底衔接
+        g.fill(x, top, x + w, top + h, 0xFF120806);
+        float sc = Math.min(w / 256f, h / 192f);
+        int dw = Math.round(256 * sc), dh = Math.round(192 * sc);
+        int dx = x + (w - dw) / 2, dy = top + (h - dh) / 2;
+        ZsAnim.UBW.draw(g, dx, dy, dw, dh);
+        // 画幅边缘柔化：左右渐隐进暗底
+        int fade = 10;
+        for (int i = 0; i < fade; i++) {
+            int a = (int) (0xFF * (1 - i / (float) fade));
+            g.fill(dx + i, dy, dx + i + 1, dy + dh, a << 24 | 0x120806);
+            g.fill(dx + dw - 1 - i, dy, dx + dw - i, dy + dh, a << 24 | 0x120806);
+        }
         g.fillGradient(x, top, x + w, top + 20, 0xCC120806, 0x00120806);
         int chipTop = barY(1) + BAR_H + 6;
         g.fillGradient(x, chipTop, x + w, top + h, 0x55120806, 0xAA120806);

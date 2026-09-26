@@ -278,5 +278,6 @@
   "subtitles.zhushenspace.neili_meditate_done": "内力尽复",
   "screen.zhushenspace.apply": "确认",
   "screen.zhushenspace.reset": "重置",
-  "hud.zhushenspace.meditating": "盘坐调息中… %s%%"
+  "hud.zhushenspace.meditating": "盘坐调息中… %s%%",
+  "screen.zhushenspace.xyt.points": "点数"
 }

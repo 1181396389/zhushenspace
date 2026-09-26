@@ -278,5 +278,6 @@
   "subtitles.zhushenspace.neili_meditate_done": "Neili restored",
   "screen.zhushenspace.apply": "Apply",
   "screen.zhushenspace.reset": "Reset",
-  "hud.zhushenspace.meditating": "Meditating… %s%%"
+  "hud.zhushenspace.meditating": "Meditating… %s%%",
+  "screen.zhushenspace.xyt.points": "PTS"
 }

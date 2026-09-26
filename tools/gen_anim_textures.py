@@ -59,7 +59,7 @@ def nebula():
                 g = 14 + 70 * v
                 b = 28 + 120 * v
                 px[x, y] = (clamp(r), clamp(g), clamp(b), 255)
-        d = ImageDraw.Draw(img)
+        img = img.convert("RGB"); d = ImageDraw.Draw(img, "RGBA")  # 混合绘制：半透明星点叠加而非覆盖
         for sx, sy, ph, big in stars:
             a = (math.sin(ph + TAU * t * (2 if big > 0.8 else 1)) + 1) / 2
             c = (clamp(170 + 85 * a), clamp(200 + 55 * a), 255, clamp(80 + 175 * a))
@@ -67,7 +67,7 @@ def nebula():
             if big > 0.85 and a > 0.6:
                 for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     d.point((sx + dx, sy + dy), fill=(150, 200, 255, clamp(120 * a)))
-        frames.append(img)
+        frames.append(img.convert("RGBA"))
     save("nebula", frames, 90)
 
 
@@ -222,7 +222,7 @@ def cosmos():
             vig = 1 - 0.45 * (vx * vx + vy * vy)
             px[x, y] = (clamp(r * vig), clamp(g * vig), clamp(b * vig), 255)
     # 银河尘埃：带内密集小星
-    d0 = ImageDraw.Draw(base)
+    base = base.convert("RGB"); d0 = ImageDraw.Draw(base, "RGBA")
     for _ in range(900):
         x = rnd.uniform(0, W)
         y = H * 0.75 - x * 0.45 + rnd.gauss(0, 20)
@@ -244,7 +244,7 @@ def cosmos():
         gd.point((x, y), fill=(210, 200, 255, max(20, a)))
     gd.ellipse([gx - 4, gy - 2, gx + 4, gy + 2], fill=(255, 240, 220, 255))
     gal = Image.alpha_composite(gal.filter(ImageFilter.GaussianBlur(1.2)), gal)
-    base.alpha_composite(gal)
+    base = base.convert("RGBA"); base.alpha_composite(gal)
     base.alpha_composite(base.filter(ImageFilter.GaussianBlur(0.6)).point(lambda v: v // 3))
 
     stars = [(rnd.randrange(W), rnd.randrange(H), rnd.uniform(0, TAU), rnd.random(),
@@ -254,7 +254,7 @@ def cosmos():
     for n in range(N):
         t = n / N
         img = base.copy()
-        d = ImageDraw.Draw(img)
+        img = img.convert("RGB"); d = ImageDraw.Draw(img, "RGBA")
         for sx, sy, ph, big, col in stars:
             a = (math.sin(ph + TAU * t * (2 if big > 0.7 else 1)) + 1) / 2
             d.point((sx, sy), fill=col + (clamp(60 + 195 * a),))
@@ -271,7 +271,7 @@ def cosmos():
                 a = clamp(255 * (1 - i / 18) * (1 - p * 0.5))
                 d.point((hx - i * 2, hy - i * 0.93), fill=(230, 240, 255, a))
                 d.point((hx - i * 2 + 1, hy - i * 0.93), fill=(230, 240, 255, a // 2))
-        frames.append(img)
+        frames.append(img.convert("RGBA"))
     save("cosmos", frames, 100)
 
 

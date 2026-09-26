@@ -136,8 +136,8 @@ def ubw():
         gl = gl.resize((W, H), Image.LANCZOS)
         img.alpha_composite(gl)
         img.alpha_composite(swords)
-        # 火星升腾
-        d = ImageDraw.Draw(img)
+        # 火星升腾（混合绘制）
+        img = img.convert("RGB"); d = ImageDraw.Draw(img, "RGBA")
         for ex, ey, sp, ph, big in embers:
             yy = (ey - t * H * sp) % H
             xx = ex + 4 * math.sin(ph + TAU * t * 2)
@@ -147,7 +147,7 @@ def ubw():
             if big > 0.75:
                 d.point((xx, yy + 1), fill=(255, 120, 30, clamp(90 * a)))
                 d.point((xx + 1, yy), fill=(255, 190, 80, clamp(110 * a)))
-        frames.append(img)
+        frames.append(img.convert("RGBA"))
     save("ubw", frames, 90)
 
 
