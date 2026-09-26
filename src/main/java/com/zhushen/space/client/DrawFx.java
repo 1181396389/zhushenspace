@@ -85,7 +85,7 @@ public final class DrawFx {
         }
 
         // 聚光：光粒螺旋汇向宝石
-        int gx = barX + BladeBar.GEM_X, gy = barY + BladeBar.GEM_Y;
+        int gx = barX + sword.gemX, gy = barY + sword.gemY;
         if (t < GATHER_END + 60) {
             additive();
             for (int i = 0; i < 22; i++) {
@@ -113,7 +113,7 @@ public final class DrawFx {
         long t = elapsed();
         if (t > TOTAL) return;
         int sw = g.guiWidth();
-        int gx = barX + BladeBar.GEM_X, gy = barY + BladeBar.GEM_Y;
+        int gx = barX + sword.gemX, gy = barY + sword.gemY;
         int tipX = barX + BladeBar.W - 4, midY = barY + BladeBar.H / 2;
         int core = sword.core(), aura = sword.aura();
 
@@ -194,7 +194,7 @@ public final class DrawFx {
 
         // 真名：宝具名 + 罗马字，拉开字距淡入，缓慢上浮后淡出
         float name = ZsAnim.clamp01((t - 750) / 350f) * (1 - ZsAnim.clamp01((t - 2000) / 600f));
-        if (name > 0.02f) {
+        if (name > 0.02f && ClientUiConfig.get().showSwordNames) {
             float rise = (1 - ZsAnim.easeOutCubic(ZsAnim.clamp01((t - 750) / 900f))) * 6;
             int cx = barX + BladeBar.W / 2;
             float ty = barY - 30 + rise;

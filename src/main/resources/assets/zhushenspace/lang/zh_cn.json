@@ -282,5 +282,8 @@
   "screen.zhushenspace.xyt.points": "点数",
   "screen.zhushenspace.sg.meter": "世界线变动率探测仪",
   "screen.zhushenspace.sg.meter_sg": "当前读数 %s%%——命运石之门世界线。El Psy Kongroo。",
-  "screen.zhushenspace.sg.meter_alpha": "读数漂移至 %s%%（α 世界线）。确认加点后，世界线将收束。"
+  "screen.zhushenspace.sg.meter_alpha": "读数漂移至 %s%%（α 世界线）。确认加点后，世界线将收束。",
+  "screen.zhushenspace.preset.names_on": "剑名：开",
+  "screen.zhushenspace.preset.names_off": "剑名：关",
+  "screen.zhushenspace.preset.names_tip": "切换战斗模式 / 换栏时是否浮现宝具名（誓约胜利之剑 / 乖离剑）"
 }

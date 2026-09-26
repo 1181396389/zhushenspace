@@ -282,5 +282,8 @@
   "screen.zhushenspace.xyt.points": "PTS",
   "screen.zhushenspace.sg.meter": "Divergence Meter",
   "screen.zhushenspace.sg.meter_sg": "Reading %s%% — the Steins;Gate world line. El Psy Kongroo.",
-  "screen.zhushenspace.sg.meter_alpha": "Reading drifted to %s%% (Alpha world line). Apply to converge the world line."
+  "screen.zhushenspace.sg.meter_alpha": "Reading drifted to %s%% (Alpha world line). Apply to converge the world line.",
+  "screen.zhushenspace.preset.names_on": "Names: On",
+  "screen.zhushenspace.preset.names_off": "Names: Off",
+  "screen.zhushenspace.preset.names_tip": "Show the Noble Phantasm name (Excalibur / Ea) when drawing the blade"
 }

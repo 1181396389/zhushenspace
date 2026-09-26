@@ -19,7 +19,6 @@ public final class BladeBar {
 
     public static final int W = 240, H = 30;
     public static final int SLOT0 = 36, PITCH = 21, SLOT = 20, SLOT_Y = 5;
-    public static final int GEM_X = 23, GEM_Y = 15;
 
     /**
      * 两柄剑：A 栏 = 誓约胜利之剑（金蓝护手、银白剑身、金色镶纹、风王结界风痕），
@@ -27,19 +26,25 @@ public final class BladeBar {
      * 贴图由 tools/gen_holy_swords.py 生成，槽位布局与本类常量一致。
      */
     public enum Sword {
-        EXCALIBUR("excalibur", 0xFF1C3E96, 0xFF6FA8FF, 0xFFFFE9A8, 0xFFFFD27A),
-        EA("ea", 0xFF6A0A0E, 0xFFFF3A2E, 0xFFFFE0D0, 0xFFFF5A3C);
+        // 字母位置：Excalibur = 护手下蓝色饰板中央；Ea = 护手蓝圆（与 tools/gen_holy_swords.py 一致）
+        EXCALIBUR("excalibur", 0xFF1C3E96, 0xFF6FA8FF, 0xFFFFE9A8, 0xFFFFD27A, 28, 15),
+        EA("ea", 0xFF6A0A0E, 0xFFFF3A2E, 0xFFFFE0D0, 0xFFFF5A3C, 22, 9);
 
         final ResourceLocation bar;
         final ZsAnim.Sprite glow;
         /** 护手宝石：暗色 / 亮色（活跃呼吸在两者间），字母颜色，外焰色 */
         final int gemDark, gemLight, letter, aura;
 
-        Sword(String id, int gemDark, int gemLight, int letter, int aura) {
+        /** 栏位字母中心（逻辑坐标） */
+        public final int gemX, gemY;
+
+        Sword(String id, int gemDark, int gemLight, int letter, int aura, int gemX, int gemY) {
+            this.gemX = gemX;
+            this.gemY = gemY;
             this.bar = ResourceLocation.fromNamespaceAndPath("zhushenspace", "textures/gui/anim/" + id + "_bar.png");
             this.glow = new ZsAnim.Sprite(
                     ResourceLocation.fromNamespaceAndPath("zhushenspace", "textures/gui/anim/" + id + "_glow.png"),
-                    480, 60, 20, 70);
+                    960, 120, 20, 70);
             this.gemDark = gemDark;
             this.gemLight = gemLight;
             this.letter = letter;
@@ -93,19 +98,19 @@ public final class BladeBar {
         }
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        g.blit(sword.bar, x, y, w, h, 0, 0, 480, 60, 480, 60);
+        g.blit(sword.bar, x, y, w, h, 0, 0, 960, 120, 960, 120);
         RenderSystem.disableBlend();
         sword.glow.draw(g, x, y, w, h, active ? 0xFFFFFFFF : 0x55FFFFFF);
 
-        // 护手宝石：活跃时在暗/亮色间呼吸，非活跃保持暗色
-        int gx = x + Math.round(GEM_X * scale), gy = y + Math.round(GEM_Y * scale);
-        int r = Math.round(6 * scale);
-        int gem = active ? ZsAnim.lerpColor(sword.gemDark, sword.gemLight, p) : sword.gemDark;
-        for (int dy = -r; dy <= r; dy++) {
-            int half = (int) Math.sqrt(r * r - dy * dy);
-            g.fill(gx - half, gy + dy, gx + half + 1, gy + dy + 1, gem);
-        }
-        g.drawCenteredString(font, letter, gx + 1, gy - 3, active ? sword.letter : IRON_SUB);
+        // 栏位字母：刻在饰板 / 蓝圆上（贴图自带底座），活跃时在字母色与宝石亮色间呼吸
+        float gx = x + (sword.gemX + 0.5f) * scale, gy = y + sword.gemY * scale;
+        float ls = 0.75f * scale;
+        int lc = active ? ZsAnim.lerpColor(sword.letter, sword.gemLight, p * 0.5f) : IRON_SUB;
+        g.pose().pushPose();
+        g.pose().translate(gx, gy, 0);
+        g.pose().scale(ls, ls, 1);
+        g.drawString(font, letter, -font.width(letter) / 2, -4, lc, true);
+        g.pose().popPose();
     }
 
     /**

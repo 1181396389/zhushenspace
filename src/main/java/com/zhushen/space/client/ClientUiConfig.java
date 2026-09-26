@@ -28,6 +28,8 @@ public class ClientUiConfig {
         public float energyScale = 1.0f;
         /** 战斗模式当前生效的预设栏（0=A，1=B） */
         public int activeBar = 0;
+        /** 拔剑演出时是否浮现宝具名（誓约胜利之剑 / 乖离剑） */
+        public boolean showSwordNames = true;
     }
 
     public static Data get() {

@@ -799,6 +799,16 @@ public class GodPanelScreen extends Screen {
                     panelX + panelW / 2, pgY + 2, BladeBar.IRON_SUB);
         }
 
+        // 宝具名显示开关（右下角）
+        {
+            boolean on = com.zhushen.space.client.ClientUiConfig.get().showSwordNames;
+            Component lbl = Component.translatable(on ? "screen.zhushenspace.preset.names_on" : "screen.zhushenspace.preset.names_off");
+            int w = font.width(lbl) + 10, nx = panelX + panelW - 8 - w, ny = listBottom - 12;
+            BladeBar.button(g, font, mouseX, mouseY, nx, ny, w, 12, lbl);
+            if (over(mouseX, mouseY, nx, ny, w, 12)) hoverTip = List.of(
+                    Component.translatable("screen.zhushenspace.preset.names_tip").getVisualOrderText());
+        }
+
         // 拖拽中的技能跟随鼠标
         if (dragging >= 0) {
             // 拖拽：图标跟随鼠标，外圈金色呼吸光
@@ -1347,6 +1357,17 @@ public class GodPanelScreen extends Screen {
 
     /** 预设页按下：从已解锁列表拾取技能（未购/未生效的太极招式不可拖），或从格子中取出 */
     private boolean handlePresetClick(double mouseX, double mouseY) {
+        {
+            var cfg = com.zhushen.space.client.ClientUiConfig.get();
+            Component lbl = Component.translatable(cfg.showSwordNames ? "screen.zhushenspace.preset.names_on" : "screen.zhushenspace.preset.names_off");
+            int w = font.width(lbl) + 10;
+            if (over(mouseX, mouseY, panelX + panelW - 8 - w, listBottom - 12, w, 12)) {
+                cfg.showSwordNames = !cfg.showSwordNames;
+                com.zhushen.space.client.ClientUiConfig.save();
+                playClick(cfg.showSwordNames ? 1.2f : 0.9f);
+                return true;
+            }
+        }
         for (int bar = 0; bar < slots.length; bar++) {
             for (int slot = 0; slot < 9; slot++) {
                 if (over(mouseX, mouseY, slotX(slot), slotsY(bar), SLOT_SIZE, SLOT_SIZE)) {
