@@ -279,5 +279,8 @@
   "screen.zhushenspace.apply": "Apply",
   "screen.zhushenspace.reset": "Reset",
   "hud.zhushenspace.meditating": "Meditating… %s%%",
-  "screen.zhushenspace.xyt.points": "PTS"
+  "screen.zhushenspace.xyt.points": "PTS",
+  "screen.zhushenspace.sg.meter": "Divergence Meter",
+  "screen.zhushenspace.sg.meter_sg": "Reading %s%% — the Steins;Gate world line. El Psy Kongroo.",
+  "screen.zhushenspace.sg.meter_alpha": "Reading drifted to %s%% (Alpha world line). Apply to converge the world line."
 }

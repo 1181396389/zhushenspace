@@ -188,7 +188,10 @@ public class GodPanelScreen extends Screen {
 
     @Override
     protected void init() {
-        if (openedAt < 0) openedAt = tabChangedAt = ZsAnim.nowMs();
+        if (openedAt < 0) {
+            openedAt = tabChangedAt = ZsAnim.nowMs();
+            SgStyle.rollIn();
+        }
         panelW = Math.min(270, this.width - 40);
         panelH = Math.min(this.height - 20, HEADER_HEIGHT + AttributeType.COUNT * ROW_HEIGHT + 32);
         panelX = (this.width - panelW) / 2;
@@ -270,6 +273,11 @@ public class GodPanelScreen extends Screen {
             XytStyle.chrome(g, panelX, panelY, panelW, panelH);
             return;
         }
+        if (tab == Tab.ATTRIBUTES) {
+            // 属性页：命运石之门 —— 交错同调外框
+            SgStyle.chrome(g, panelX, panelY, panelW, panelH);
+            return;
+        }
         if (tab == Tab.PRESET) {
             // 战斗预设页：锻铁 + 余烬外框，与剑冢背景统一
             BladeBar.chrome(g, panelX, panelY, panelW, panelH);
@@ -297,6 +305,8 @@ public class GodPanelScreen extends Screen {
         }
         if (tab == Tab.SKILLS) {
             XytStyle.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
+        } else if (tab == Tab.ATTRIBUTES) {
+            SgStyle.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
         } else if (tab == Tab.PRESET) {
             BladeBar.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
         } else {
@@ -310,6 +320,7 @@ public class GodPanelScreen extends Screen {
                 ? "screen.zhushenspace.godpanel.leave_hall"
                 : "screen.zhushenspace.godpanel.enter_hall");
         if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
+        else if (tab == Tab.ATTRIBUTES) SgStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         else if (tab == Tab.PRESET) BladeBar.button(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         else renderSmallButton(g, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         if (over(mouseX, mouseY, hallX, panelY + 5, 32, TAB_H)) {
@@ -320,6 +331,7 @@ public class GodPanelScreen extends Screen {
 
         // 能量池界面设置入口（⚙，标签行最右）
         if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
+        else if (tab == Tab.ATTRIBUTES) SgStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         else if (tab == Tab.PRESET) BladeBar.button(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         else renderSmallButton(g, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         if (over(mouseX, mouseY, gearX, panelY + 5, 20, TAB_H)) {
@@ -328,31 +340,14 @@ public class GodPanelScreen extends Screen {
         }
 
         // 分隔线
-        if (tab == Tab.PRESET) BladeBar.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
+        if (tab == Tab.ATTRIBUTES) SgStyle.rule(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
+        else if (tab == Tab.PRESET) BladeBar.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
         else ZsTheme.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
 
         // 第二行统计（按选项卡）
         switch (tab) {
             case SKILLS -> renderXytHeader(g, mouseX, mouseY);
-            case ATTRIBUTES -> {
-                PointList list = activeList();
-                String free = Component.translatable(tab == Tab.ATTRIBUTES
-                        ? "screen.zhushenspace.free_points"
-                        : "screen.zhushenspace.skill.free_points", list.free()).getString();
-                int sx = panelX + 8;
-                g.drawString(font, free, sx, actionY + 3, list.free() > 0 ? ACCENT : TEXT_SUB, true);
-                sx += font.width(free) + 8;
-                if (tab == Tab.ATTRIBUTES) {
-                    String legend = Component.translatable("screen.zhushenspace.legendary_points",
-                            AttributeType.legendaryCount(attrList.cur)).getString();
-                    g.drawString(font, legend, sx, actionY + 3, GOLD, true);
-                }
-                boolean dirty = list.dirty();
-                ZsTheme.button(g, font, mouseX, mouseY, resetX, actionY, resetW, actionH,
-                        Component.translatable("screen.zhushenspace.reset"), dirty, false);
-                ZsTheme.button(g, font, mouseX, mouseY, confirmX, actionY, confirmW, actionH,
-                        Component.translatable("screen.zhushenspace.apply"), dirty, false);
-            }
+            case ATTRIBUTES -> renderSgHeader(g, mouseX, mouseY);
             case PRESET -> {
                 List<FormattedCharSequence> lines = font.split(
                         Component.translatable("screen.zhushenspace.preset.hint"), panelW - 16);
@@ -373,7 +368,8 @@ public class GodPanelScreen extends Screen {
             int maxHp = Math.round(minecraft.player.getMaxHealth());
             String intact = Component.translatable("screen.zhushenspace.health.intact",
                     Math.max(0, maxHp - ClientHealthData.total())).getString();
-            int intactColor = tab == Tab.SKILLS ? XytStyle.CHROME_TEXT : tab == Tab.PRESET ? BladeBar.IRON_SUB : ACCENT;
+            int intactColor = tab == Tab.SKILLS ? XytStyle.CHROME_TEXT : tab == Tab.PRESET ? BladeBar.IRON_SUB
+                    : tab == Tab.ATTRIBUTES ? SgStyle.TEXT_SUB : ACCENT;
             g.drawString(font, intact, panelX + 8, hy, intactColor, tab != Tab.SKILLS);
             int hx = panelX + 8 + font.width(intact) + 6;
             hx = drawWoundSegment(g, "B", ClientHealthData.b(), 0xFFF5D76E, hx, hy);
@@ -387,7 +383,8 @@ public class GodPanelScreen extends Screen {
                 ClientProgressData.branch(2), ClientProgressData.branch(3),
                 ClientProgressData.branch(4), ClientProgressData.score()).getString();
         g.drawString(font, currency, panelX + 8, panelY + panelH - 12,
-                tab == Tab.SKILLS ? XytStyle.ORANGE : tab == Tab.PRESET ? BladeBar.EMBER : CURRENCY, tab != Tab.SKILLS);
+                tab == Tab.SKILLS ? XytStyle.ORANGE : tab == Tab.PRESET ? BladeBar.EMBER
+                        : tab == Tab.ATTRIBUTES ? SgStyle.NIXIE : CURRENCY, tab != Tab.SKILLS);
     }
 
     /** 可购买按钮外圈呼吸金光，吸引注意 */
@@ -518,90 +515,110 @@ public class GodPanelScreen extends Screen {
         XytStyle.stepButton(g, font, mouseX, mouseY, plusX(), by, PM_BTN, true, list.canUp(i));
     }
 
+    // ===== 属性页：命运石之门风格 =====
+
+    /** 属性页头部：世界线变动率探测仪 + 剩余点数辉光管 + 传奇点数 + 重置（冈部白）/ 确认（红莉栖红） */
+    private void renderSgHeader(GuiGraphics g, int mouseX, int mouseY) {
+        boolean dirty = attrList.dirty();
+        int x = panelX + 7, y = actionY;
+        String reading = dirty ? SgStyle.alphaReading(attrList.cur) : SgStyle.STEINS_GATE;
+        int end = SgStyle.meter(g, x, y, reading);
+        boolean overMeter = over(mouseX, mouseY, x, y, end - x, SgStyle.TUBE_H);
+
+        int lx = end + 6;
+        String pts = Component.translatable("screen.zhushenspace.xyt.points").getString();
+        g.drawString(font, pts, lx, y + 3, SgStyle.TEXT_SUB, false);
+        lx += font.width(pts) + 3;
+        lx = SgStyle.nixieNumber(g, lx, y, attrList.free(), 2) + 6;
+        g.drawString(font, "★", lx, y + 3, GOLD, false);
+        lx += font.width("★") + 2;
+        SgStyle.nixieNumber(g, lx, y, AttributeType.legendaryCount(attrList.cur), 1);
+
+        SgStyle.button(g, font, mouseX, mouseY, resetX, actionY, resetW, actionH,
+                Component.translatable("screen.zhushenspace.reset"), dirty, true);
+        SgStyle.button(g, font, mouseX, mouseY, confirmX, actionY, confirmW, actionH,
+                Component.translatable("screen.zhushenspace.apply"), dirty, false);
+
+        if (overMeter) {
+            List<FormattedCharSequence> tip = new ArrayList<>();
+            tip.add(Component.translatable("screen.zhushenspace.sg.meter").getVisualOrderText());
+            tip.addAll(font.split(Component.translatable(dirty
+                    ? "screen.zhushenspace.sg.meter_alpha" : "screen.zhushenspace.sg.meter_sg", reading), TOOLTIP_WIDTH));
+            g.renderTooltip(font, tip, mouseX, mouseY);
+        }
+    }
+
+    /** 属性列表：研究所徽章 / Amadeus 水印 + 世界线刻度计；切页时画面撕裂 + 行错位 */
+    private void renderSgAttrTab(GuiGraphics g, int mouseX, int mouseY) {
+        PointList list = attrList;
+        list.hovered = -1;
+        int x0 = panelX + 6, rw = panelW - 15;
+        g.enableScissor(panelX + 1, listTop, panelX + panelW - 1, listBottom);
+        SgStyle.watermarks(g, panelX + 6, listTop, panelW - 12, listBottom - listTop);
+        for (int i = 0; i < list.count; i++) {
+            if (!rowVisible(list, i)) continue;
+            int ry = rowY(list, i);
+            if (over(mouseX, mouseY, panelX + 5, ry, panelW - 10, ROW_HEIGHT)
+                    && mouseY >= listTop && mouseY < listBottom) list.hovered = i;
+            g.pose().pushPose();
+            g.pose().translate(SgStyle.jitter(i, tabChangedAt), 0, 0);
+            renderSgRow(g, mouseX, mouseY, list, i, x0, ry, rw);
+            g.pose().popPose();
+        }
+        SgStyle.shift(g, panelX + 1, listTop, panelW - 2, listBottom - listTop, tabChangedAt);
+        g.disableScissor();
+        SgStyle.scrollbar(g, panelX + panelW - 6, listTop + 2, listBottom - 2,
+                list.count * ROW_HEIGHT, list.scroll, list.maxScroll);
+        if (list.hovered >= 0 && mouseX < minusX()) {
+            g.renderTooltip(font, buildTooltip(AttributeType.values()[list.hovered]), mouseX, mouseY);
+        }
+    }
+
+    private void renderSgRow(GuiGraphics g, int mouseX, int mouseY, PointList list, int i, int x0, int ry, int rw) {
+        int h = ROW_HEIGHT - 1;
+        boolean hover = i == list.hovered;
+        SgStyle.row(g, x0, ry, rw, h, hover, i % 2 != 0);
+        int ty = ry + (h - 8) / 2 + 1;
+        g.drawString(font, String.format("%02d", i + 1), x0 + 5, ty, hover ? SgStyle.NIXIE : SgStyle.NIXIE_DIM, false);
+        g.fill(x0 + 19, ry + 3, x0 + 20, ry + h - 3, 0x33B08A4A);
+        g.drawString(font, Component.translatable(AttributeType.values()[i].nameKey()), x0 + 24, ty,
+                hover ? 0xFFFFFFFF : SgStyle.TEXT, false);
+
+        int saved = list.saved[i], cur = list.cur[i];
+        int end = SgStyle.worldlineGauge(g, panelX + 80, ry + h / 2, list.max, saved, cur, ZsAnim.key(49, i, 0));
+        String value;
+        if (AttributeType.values()[i] == AttributeType.INTELLIGENCE && ClientSkillData.intelligenceBonus() > 0) {
+            value = cur + "(+" + ClientSkillData.intelligenceBonus() + ")";
+        } else {
+            value = cur >= list.max ? "MAX" : cur + "/" + list.max;
+        }
+        int vc = cur != saved ? SgStyle.KURISU : cur >= list.max ? SgStyle.NIXIE_HOT : SgStyle.NIXIE;
+        g.drawString(font, value, end + 3, ty, vc, false);
+
+        int by = ry + (ROW_HEIGHT - PM_BTN) / 2;
+        int step = list.step(i);
+        if (step > 0) {
+            String cost = "×" + step;
+            g.drawString(font, cost, minusX() - font.width(cost) - 4, ty,
+                    list.free() >= step ? SgStyle.TEXT_SUB : SgStyle.KURISU, false);
+        }
+        SgStyle.stepButton(g, mouseX, mouseY, minusX(), by, PM_BTN, false, list.canDown(i));
+        SgStyle.stepButton(g, mouseX, mouseY, plusX(), by, PM_BTN, true, list.canUp(i));
+    }
+
+    /** 当前是否处于属性页（悬停提示框切换为命运石之门风格） */
+    public boolean sgStyle() {
+        return tab == Tab.ATTRIBUTES;
+    }
+
     /** 当前是否处于技能页（悬停提示框切换为新月同行风格） */
     public boolean xytStyle() {
         return tab == Tab.SKILLS;
     }
 
     private void renderPointTab(GuiGraphics g, int mouseX, int mouseY, PointList list) {
-        if (list == skillList) {
-            renderXytSkillTab(g, mouseX, mouseY);
-            return;
-        }
-        boolean attr = list == attrList;
-        list.hovered = -1;
-        g.enableScissor(panelX + 1, listTop, panelX + panelW - 1, listBottom);
-        for (int i = 0; i < list.count; i++) {
-            if (!rowVisible(list, i)) continue;
-            int ry = rowY(list, i);
-            if (over(mouseX, mouseY, panelX + 5, ry, panelW - 10, ROW_HEIGHT)
-                    && mouseY >= listTop && mouseY < listBottom) list.hovered = i;
-            renderPointRow(g, mouseX, mouseY, list, i, ry, attr);
-        }
-        if (!attr) {
-            // 已自动获得的能力（内力系随内力池）与流派购买状态提示
-            int footerY = rowY(list, list.count) + 3;
-            if (ClientEnergyData.hasPool(ClientEnergyData.NEILI_ID)) {
-                g.drawString(font, Component.translatable("screen.zhushenspace.skill.acquired_neili"),
-                        panelX + 8, footerY, 0xFF4DE0C0, true);
-                footerY += 10;
-            }
-            if (ClientProgressData.taiChiUnlocked()) {
-                g.drawString(font, Component.translatable("screen.zhushenspace.skill.school_owned"),
-                        panelX + 8, footerY, GOLD, true);
-            }
-        }
-        g.disableScissor();
-        int footer = attr ? 0 : 22;
-        ZsTheme.scrollbar(g, panelX + panelW - 5, listTop + 2, listBottom - 2,
-                list.count * ROW_HEIGHT + footer, list.scroll, list.maxScroll);
-
-        // 悬停 +/- 按钮时不弹大提示框，避免遮挡
-        if (list.hovered >= 0 && mouseX < minusX()) {
-            g.renderTooltip(font, attr
-                    ? buildTooltip(AttributeType.values()[list.hovered])
-                    : buildSkillTooltip(SkillType.values()[list.hovered]), mouseX, mouseY);
-        }
-    }
-
-    private void renderPointRow(GuiGraphics g, int mouseX, int mouseY, PointList list,
-                                int index, int ry, boolean attr) {
-        boolean hover = index == list.hovered;
-        ZsTheme.row(g, panelX + 5, ry, panelW - 10, ROW_HEIGHT - 1, hover, index % 2 != 0);
-
-        Component name = Component.translatable(attr
-                ? AttributeType.values()[index].nameKey()
-                : SkillType.values()[index].nameKey());
-        g.drawString(font, name, panelX + 12, ry + 5, TEXT_MAIN, true);
-
-        int cur = list.cur[index];
-        int dotsX = panelX + (attr ? 46 : 62);
-        int end = ZsTheme.dots(g, dotsX, ry + (ROW_HEIGHT - 5) / 2, 5, 3,
-                list.max, list.saved[index], cur);
-
-        String value;
-        if (attr && AttributeType.values()[index] == AttributeType.INTELLIGENCE
-                && ClientSkillData.intelligenceBonus() > 0) {
-            // 智力行显示技能转化加成：基础(+技能加成)
-            value = cur + "(+" + ClientSkillData.intelligenceBonus() + ")";
-        } else {
-            value = cur + "/" + list.max;
-        }
-        int valueColor = cur != list.saved[index] ? PENDING : cur >= list.max ? GOLD : TEXT_SUB;
-        g.drawString(font, value, end + 2, ry + 5, valueColor, true);
-
-        // 下一级消耗 + 加减按钮
-        int by = ry + (ROW_HEIGHT - PM_BTN) / 2;
-        int step = list.step(index);
-        if (step > 0) {
-            String cost = "×" + step;
-            g.drawString(font, cost, minusX() - font.width(cost) - 3, ry + 5,
-                    list.free() >= step ? TEXT_SUB : WARN, true);
-        }
-        ZsTheme.button(g, font, mouseX, mouseY, minusX(), by, PM_BTN, PM_BTN,
-                Component.literal("-"), list.canDown(index), false);
-        ZsTheme.button(g, font, mouseX, mouseY, plusX(), by, PM_BTN, PM_BTN,
-                Component.literal("+"), list.canUp(index), false);
+        if (list == skillList) renderXytSkillTab(g, mouseX, mouseY);
+        else renderSgAttrTab(g, mouseX, mouseY);
     }
 
     /** 加点页点击：+/-、重置、确认 */
@@ -617,6 +634,7 @@ public class GodPanelScreen extends Screen {
             } else {
                 PacketDistributor.sendToServer(new com.zhushen.space.network.CommitSkillAllocationPayload(list.cur.clone()));
             }
+            if (list == attrList) SgStyle.converge(); // 世界线收束
             // 乐观更新：视为已保存，服务端回包后 refresh 会校正
             System.arraycopy(list.cur, 0, list.saved, 0, list.count);
             list.awaitUntil = System.currentTimeMillis() + 1500;
@@ -1294,7 +1312,10 @@ public class GodPanelScreen extends Screen {
             // 选项卡切换
             for (int i = 0; i < 4; i++) {
                 if (over(mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H)) {
-                    if (tab != Tab.values()[i]) tabChangedAt = ZsAnim.nowMs();
+                    if (tab != Tab.values()[i]) {
+                        tabChangedAt = ZsAnim.nowMs();
+                        if (Tab.values()[i] == Tab.ATTRIBUTES) SgStyle.rollIn();
+                    }
                     tab = Tab.values()[i];
                     dragging = -1;
                     dragFromSlot = -1;

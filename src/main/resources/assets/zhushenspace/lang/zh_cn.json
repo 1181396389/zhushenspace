@@ -279,5 +279,8 @@
   "screen.zhushenspace.apply": "确认",
   "screen.zhushenspace.reset": "重置",
   "hud.zhushenspace.meditating": "盘坐调息中… %s%%",
-  "screen.zhushenspace.xyt.points": "点数"
+  "screen.zhushenspace.xyt.points": "点数",
+  "screen.zhushenspace.sg.meter": "世界线变动率探测仪",
+  "screen.zhushenspace.sg.meter_sg": "当前读数 %s%%——命运石之门世界线。El Psy Kongroo。",
+  "screen.zhushenspace.sg.meter_alpha": "读数漂移至 %s%%（α 世界线）。确认加点后，世界线将收束。"
 }

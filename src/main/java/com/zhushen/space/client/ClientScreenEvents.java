@@ -45,6 +45,13 @@ public class ClientScreenEvents {
             event.setBorderEnd(0xFF5A6068);
             return;
         }
+        if (screen instanceof com.zhushen.space.screen.GodPanelScreen sg && sg.sgStyle()) {
+            // 属性页（命运石之门）：显像管黑底 + 辉光橙→红莉栖红边框
+            event.setBackground(0xF20C0B0E);
+            event.setBorderStart(com.zhushen.space.screen.ZsAnim.lerpColor(0xFFFF8A2A, 0xFFFFC27A, p));
+            event.setBorderEnd(0xFFD2413A);
+            return;
+        }
         if (screen instanceof com.zhushen.space.screen.GodPanelScreen gp && gp.forgeStyle()) {
             // 战斗预设页：锻铁底 + 暗铜→炽焰边框
             event.setBackground(0xF2140A07);
