@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        PayloadRegistrar registrar = event.registrar("2"); // 协议版本：移除 UseEnergyAbilityPayload 后升级
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -77,13 +77,6 @@ public class ModNetworking {
         registrar.playToClient(HitFeedbackPayload.TYPE, HitFeedbackPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientCameraShake.trigger(payload.power(), payload.ticks())));
-        // 能量池附带技能（内力吐息开关 / 打坐）
-        registrar.playToServer(UseEnergyAbilityPayload.TYPE, UseEnergyAbilityPayload.STREAM_CODEC,
-                (payload, ctx) -> ctx.enqueueWork(() -> {
-                    if (ctx.player() instanceof ServerPlayer serverPlayer) {
-                        EnergyManager.useEnergyAbility(serverPlayer, payload.ability());
-                    }
-                }));
 
         // ===== 主神空间进度（货币 / 流派） =====
         registrar.playToClient(SyncProgressPayload.TYPE, SyncProgressPayload.STREAM_CODEC,

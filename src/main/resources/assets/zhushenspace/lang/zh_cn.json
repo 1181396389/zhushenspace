@@ -10,13 +10,10 @@
   "screen.zhushenspace.meaning_of_life.title": "生命的意义",
   "screen.zhushenspace.yes": "Yes",
   "screen.zhushenspace.no": "No",
-  "screen.zhushenspace.allocation.title": "属性加点",
-  "screen.zhushenspace.allocation.hint": "单属性上限 5 点 · 第 5 点消耗 2 点",
   "screen.zhushenspace.confirm": "确认加点",
   "screen.zhushenspace.free_points": "剩余自由点数：%s",
   "screen.zhushenspace.legendary_points": "★ 传奇点数：%s",
   "screen.zhushenspace.used_points": "已用点数：%s / %s",
-  "screen.zhushenspace.go_allocate": "前往加点",
   "screen.zhushenspace.godpanel.tab": "主神面板",
   "screen.zhushenspace.godpanel.enter_hall": "大厅",
   "screen.zhushenspace.godpanel.leave_hall": "返回",
@@ -27,54 +24,35 @@
   "msg.zhushenspace.hall.missing": "主神空间大厅维度尚未加载，请退出并重新进入世界。",
   "screen.zhushenspace.godpanel.title": "主神面板 · 属性一览",
   "screen.zhushenspace.godpanel.hint": "悬停查看属性详情",
-
   "attribute.zhushenspace.strength": "力量",
   "attribute.zhushenspace.strength.desc": "增加攻击伤害、攻击速度、移动速度与击退抗性。",
   "attribute.zhushenspace.strength.legend": "★ 传奇加成（力量满 5 点后生效）：每点传奇点数 +3 攻击伤害",
-
   "attribute.zhushenspace.agility": "敏捷",
   "attribute.zhushenspace.agility.desc": "增加护甲值、跳跃高度、摔落安全高度；蛛网、灵魂沙等减速方块中的移速每点 +5%，液体移速每点 +10%。",
   "attribute.zhushenspace.agility.legend": "★ 传奇加成（敏捷满 5 点后生效）：每点传奇点数 +1 护甲值、+3 护甲韧性",
-
   "attribute.zhushenspace.endurance": "耐力",
   "attribute.zhushenspace.endurance.desc": "增加最大生命与生命回复，延长水下呼吸时间；每 5 点使受到的负面效果持续时间降低 15%。",
   "attribute.zhushenspace.endurance.legend": "★ 传奇加成（耐力满 5 点后生效）：每点传奇点数 +1 最大生命，饱食度消耗逐级降低（1 点 = 1/1.5，2 点 = 1/2，依此类推）",
-
   "attribute.zhushenspace.intelligence": "智力",
   "attribute.zhushenspace.intelligence.desc": "提升各类物品的解锁与使用要求（实际功能暂未开放）。",
   "attribute.zhushenspace.intelligence.legend": "★ 传奇加成（智力满 5 点后生效）：每点传奇点数 +4 经验红利（经验红利暂未开放）",
-
   "attribute.zhushenspace.perception": "感知",
   "attribute.zhushenspace.perception.desc": "勘破生物弱点：攻击时概率在目标身上显现黄色弱点光点（每点感知 +5% 出现概率），只有命中光点才造成 1.5 倍弱点伤害，命中时伴随清脆音效与粒子反馈；洞察常人无法观察之物（部分功能暂未开放）。",
   "attribute.zhushenspace.perception.legend": "★ 传奇加成（感知满 5 点后生效）：每点传奇点数 +1 护甲韧性、感知范围 +20m（感知范围暂未开放）",
-
   "attribute.zhushenspace.resolve": "决心",
   "attribute.zhushenspace.resolve.desc": "影响 SAN 值与各类体系技能的获取（实际功能暂未开放）。",
   "attribute.zhushenspace.resolve.legend": "★ 传奇加成（决心满 5 点后生效）：每点传奇点数 +3 主能量池上限；攻击命中敌人时恢复造成伤害的 25%",
-
   "attribute.zhushenspace.charm": "风度",
   "attribute.zhushenspace.charm.desc": "影响技能的获取（实际功能暂未开放）。",
   "attribute.zhushenspace.charm.legend": "★ 传奇加成（风度满 5 点后生效）：每点传奇点数基因锁开启概率 +1（基因锁暂未开放）",
-
   "attribute.zhushenspace.operation": "操作",
   "attribute.zhushenspace.operation.desc": "影响技能获取、召唤与指挥类能力（实际功能暂未开放）。",
   "attribute.zhushenspace.operation.legend": "★ 传奇加成（操作满 5 点后生效）：每点传奇点数暴击率 +1%，暴击伤害 1.5 倍",
-
   "attribute.zhushenspace.composure": "沉着",
   "attribute.zhushenspace.composure.desc": "影响技能的获取（实际功能暂未开放）。",
   "attribute.zhushenspace.composure.legend": "★ 传奇加成（沉着满 5 点后生效）：每点传奇点数 +3 主能量池上限（与决心叠加）、移速 +20%；原地静立或潜行时每秒恢复 1 点主能量池",
-
-  "screen.zhushenspace.to_skills": "技能加点 →",
-  "screen.zhushenspace.to_attributes": "← 属性加点",
-  "screen.zhushenspace.skill.allocation.title": "技能加点",
-  "screen.zhushenspace.skill.hint": "单技能上限 5 点 · 3→4、4→5 各消耗 2 点",
-  "screen.zhushenspace.skill.confirm": "确认加点",
   "screen.zhushenspace.skill.free_points": "剩余技能点数：%s",
-  "screen.zhushenspace.skill.unlock_list": "解锁主动技能：%s",
   "screen.zhushenspace.skill.unlock_line": "%s级·%s：%s",
-  "screen.zhushenspace.skill.level_suffix": "级",
-  "screen.zhushenspace.skill.list_separator": " · ",
-  "screen.zhushenspace.go_skill_allocate": "前往技能加点",
   "screen.zhushenspace.godpanel.tab.attributes": "属性",
   "screen.zhushenspace.godpanel.tab.skills": "技能",
   "screen.zhushenspace.godpanel.tab.preset": "战斗预设",
@@ -82,7 +60,6 @@
   "key.categories.zhushenspace": "诸神空间",
   "key.zhushenspace.toggle_combat": "切换战斗模式",
   "key.zhushenspace.switch_bar": "切换战斗预设栏（A/B）",
-
   "screen.zhushenspace.energy_config.entry": "主神空间界面设置…",
   "screen.zhushenspace.energy_config.title": "主神空间 · 界面设置",
   "screen.zhushenspace.energy_config.hint": "按住能量池拖动调整位置 · 滚轮或 +/- 调整缩放",
@@ -90,12 +67,10 @@
   "screen.zhushenspace.energy_config.scale_down": "缩小 -",
   "screen.zhushenspace.energy_config.scale_value": "缩放：%s%%",
   "screen.zhushenspace.energy_config.reset": "重置位置与缩放",
-
   "commands.zhushenspace.energy.give": "已为 %s 发放能量池 [%s]，上限 %s",
   "commands.zhushenspace.energy.remove": "已移除 %s 的能量池 [%s]",
   "commands.zhushenspace.energy.set": "已设置 %s 的能量池 [%s] 为 %s",
   "commands.zhushenspace.energy.clear": "已清空 %s 的全部能量池",
-
   "skill.zhushenspace.athletics": "运动",
   "skill.zhushenspace.athletics.desc": "锻炼身体的综合素质，无被动加成；3/4/5 点时分别解锁主动技能：自我保护、跳跃、攀爬。",
   "skill.zhushenspace.brawl": "肉搏",
@@ -112,7 +87,6 @@
   "skill.zhushenspace.animal_communication.desc": "与动物交流的能力（暂无额外加成）。",
   "skill.zhushenspace.expression": "表达",
   "skill.zhushenspace.expression.desc": "表达与感染他人的能力（暂无额外加成）。",
-
   "ability.zhushenspace.self_protection": "自我保护",
   "ability.zhushenspace.self_protection.short": "自我",
   "ability.zhushenspace.self_protection.desc": "极短时间内护甲增加（敏捷+运动）点数，持续 5 秒，冷却 30 秒。",
@@ -134,7 +108,6 @@
   "ability.zhushenspace.blade_block": "白刃格挡",
   "ability.zhushenspace.blade_block.short": "白刃",
   "ability.zhushenspace.blade_block.desc": "短时间内增加相当于白刃点数的护甲，持续 5 秒，冷却 20 秒。",
-
   "curios.identifier.bloodline": "血统",
   "curios.identifier.modification": "改造",
   "curios.identifier.eyes": "瞳术",
@@ -143,9 +116,6 @@
   "curios.identifier.other": "其他",
   "curios.identifier.title": "称号",
   "curios.identifier.school": "流派",
-
-  "key.zhushenspace.toggle_breath": "内力吐息开关（近战消耗内力强化）",
-  "key.zhushenspace.meditate": "打坐（禁步回满内力）",
   "msg.zhushenspace.neili.none": "你尚未拥有内力",
   "msg.zhushenspace.neili.full": "内力已满，无需打坐",
   "msg.zhushenspace.neili.sleep": "一觉醒来，内力尽复",
@@ -154,14 +124,12 @@
   "msg.zhushenspace.meditate.start": "闭目打坐，气沉丹田……",
   "msg.zhushenspace.meditate.done": "打坐完成，内力尽复",
   "msg.zhushenspace.meditate.cd": "打坐冷却中，剩余 %s 秒",
-
   "ability.zhushenspace.neili_breath": "内力吐息",
   "ability.zhushenspace.neili_breath.short": "吐息",
   "ability.zhushenspace.neili_breath.desc": "自动档：开启后近战攻击（含普攻）消耗 1 点内力，+6 伤害。再次使用关闭。",
   "ability.zhushenspace.neili_meditate": "打坐",
   "ability.zhushenspace.neili_meditate.short": "打坐",
   "ability.zhushenspace.neili_meditate.desc": "禁步打坐 5 秒后回满内力（耐力+感知），冷却 5 分钟。",
-
   "school.zhushenspace.tai_chi": "太极拳",
   "ability.zhushenspace.tc_ward_off": "掤",
   "ability.zhushenspace.tc_ward_off.short": "掤",
@@ -211,7 +179,6 @@
   "ability.zhushenspace.tc_dissolve": "太极化劲",
   "ability.zhushenspace.tc_dissolve.short": "化劲",
   "ability.zhushenspace.tc_dissolve.desc": "待势 5 秒：期间受到使用能量池的近战攻击时，对攻击者发起近战肉搏反击，命中后可连锁施展一次揽雀尾/云手/海底针（需已习得）。若反击造成伤害或连锁成功，则封印其能量池 1 分钟（期间不可消耗/吐息）；结算消耗 5 内力，冷却 20 秒。",
-
   "msg.zhushenspace.neili.lack": "内力不足",
   "msg.zhushenspace.taiji.no_target": "视线内没有目标",
   "msg.zhushenspace.taiji.locked": "尚未解锁太极拳",
@@ -235,14 +202,12 @@
   "msg.zhushenspace.taiji.dissolve_chain_grapple": "化劲连锁·云手：擒抱了 %s",
   "msg.zhushenspace.neili.sealed": "能量池被封印，无法使用",
   "msg.zhushenspace.taiji.eight_powers_jin": "八劲·%s",
-
   "msg.zhushenspace.health.converted_bl": "伤势恶化：%s 点冲击伤转为严重伤",
   "msg.zhushenspace.health.converted_la": "伤势恶化：%s 点严重伤转为恶性伤",
   "msg.zhushenspace.health.unconscious": "伤势满载——你昏了过去……",
   "msg.zhushenspace.health.unconscious_hint": "昏迷中……治愈全部严重伤势（L）才能苏醒",
   "msg.zhushenspace.health.wake": "严重伤势已被治愈——你从昏迷中挣扎着醒来……",
   "screen.zhushenspace.health.intact": "完好 %s",
-
   "screen.zhushenspace.currency": "支线 S%s A%s B%s C%s D%s · 分数 %s",
   "screen.zhushenspace.currency.title": "主神空间货币",
   "screen.zhushenspace.currency.hint1": "按住拖拽支线到相邻等级槽位：3 个低级拼 1 个高级",
@@ -263,7 +228,6 @@
   "commands.zhushenspace.school.lack_skill": "前提不满足：肉搏技能等级需 2 以上",
   "commands.zhushenspace.school.lack_currency": "货币不足：需要 B 支线×1 + 4000 奖励点数",
   "msg.zhushenspace.school.purchased": "已购得流派「%s」——获得流派饰品，装备到流派栏后生效",
-
   "screen.zhushenspace.godpanel.tab.shop": "商城",
   "screen.zhushenspace.shop.hint": "使用支线与奖励点数兑换流派",
   "screen.zhushenspace.shop.owned": "已拥有",
@@ -273,16 +237,14 @@
   "screen.zhushenspace.shop.req_unmet": "前提未满足",
   "school.zhushenspace.tai_chi.desc": "以柔克刚的东方武学。购买后获得流派饰品「太极拳徽记」；装备到流派饰品栏时获得内力能量池并激活被动，八式招式需在商城详情页购买，听劲随流派赠送。",
   "school.zhushenspace.tai_chi.passive": "太极被动：徒手（双手没有任何武器）时，天生武器攻击 +6、护甲 +6；肉搏格挡期间额外格挡护甲 +8。",
-  "screen.zhushenspace.skill.acquired_neili": "已随内力池获得：内力吐息 · 打坐（K 吐息开关 / H 打坐）",
+  "screen.zhushenspace.skill.acquired_neili": "已随内力池获得：内力吐息 · 打坐（拖入战斗预设栏使用）",
   "screen.zhushenspace.skill.acquired_school": "已随太极拳获得：听劲（八式招式需在商城购买）",
   "screen.zhushenspace.skill.school_owned": "已购买流派：太极拳（饰品装备于流派栏后生效）",
-
   "item.zhushenspace.tai_chi_emblem": "太极拳徽记",
   "item.zhushenspace.tai_chi_emblem.tooltip.intro": "太极拳流派徽记——装备于流派饰品栏后生效",
   "item.zhushenspace.tai_chi_emblem.tooltip.passive": "太极被动：徒手时天生武器攻击 +6、护甲 +6",
   "item.zhushenspace.tai_chi_emblem.tooltip.pool": "装备后获得内力能量池（耐力+感知），附赠内力吐息与打坐",
   "item.zhushenspace.tai_chi_emblem.tooltip.skills": "已购买的太极招式（商城购买）装备后可拖入战斗预设使用",
-
   "msg.zhushenspace.taiji.equipped_on": "太极拳已生效：获得内力池，太极被动启动",
   "msg.zhushenspace.taiji.equipped_off": "太极拳已失效：内力池移除，被动与招式停用",
   "msg.zhushenspace.school.skill_purchased": "已购得招式「%s」",
@@ -291,11 +253,9 @@
   "commands.zhushenspace.school.not_owned": "尚未拥有该流派",
   "commands.zhushenspace.school.invalid": "无效的流派技能",
   "commands.zhushenspace.school.eight_powers_prereq": "八劲合一需要先习得全部太极八劲",
-
   "screen.zhushenspace.shop.ep_prereq": "需习得太极八劲",
   "screen.zhushenspace.shop.tag_active": "主动",
   "screen.zhushenspace.shop.tag_passive": "被动",
-
   "screen.zhushenspace.shop.claim": "领取饰品",
   "screen.zhushenspace.shop.detail": "点击查看技能 ›",
   "screen.zhushenspace.shop.back": "返回",
@@ -305,17 +265,17 @@
   "screen.zhushenspace.shop.skills_hint": "技能列表 — 悬停查看描述与价格",
   "screen.zhushenspace.shop.move_cost_short": "%1$s支线×%2$s + %3$s点",
   "screen.zhushenspace.shop.skill_owned": "已购",
-
   "screen.zhushenspace.preset.page": "%s 页",
   "screen.zhushenspace.preset.folder_closed": "▶ %s（已购 %s/%s）",
   "screen.zhushenspace.preset.folder_open": "▼ %s（已购 %s/%s）",
   "screen.zhushenspace.preset.locked": "未购买：请在商城详情页购买后再装备",
   "screen.zhushenspace.preset.unequipped": "需装备太极拳饰品（获得内力池）后才可使用",
-
   "subtitles.zhushenspace.tai_chi_move": "太极拳劲爆发",
   "subtitles.zhushenspace.tai_chi_tingjin": "听劲·以柔化刚",
   "subtitles.zhushenspace.tai_chi_wall": "钝击震墙",
   "subtitles.zhushenspace.neili_chime": "内力流转",
   "subtitles.zhushenspace.neili_meditate_start": "气沉丹田",
-  "subtitles.zhushenspace.neili_meditate_done": "内力尽复"
+  "subtitles.zhushenspace.neili_meditate_done": "内力尽复",
+  "screen.zhushenspace.apply": "确认",
+  "screen.zhushenspace.reset": "重置"
 }

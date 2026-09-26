@@ -106,7 +106,7 @@ public class MeaningOfLifeScreen extends Screen {
     private void transitionToAllocation() {
         if (FMLEnvironment.dist == Dist.CLIENT) {
             Minecraft mc = Minecraft.getInstance();
-            mc.setScreen(new AttributeAllocationScreen());
+            mc.setScreen(new GodPanelScreen());
         }
     }
 

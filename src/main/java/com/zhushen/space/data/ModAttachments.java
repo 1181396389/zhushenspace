@@ -34,4 +34,9 @@ public class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerHealthData>> PLAYER_HEALTH =
             ATTACHMENTS.register("player_health",
                     () -> AttachmentType.serializable(PlayerHealthData::new).build());
+
+    /** 大厅返回点：持久化，服务器重启后仍能返回进入大厅前的位置 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<HallReturnData>> HALL_RETURN =
+            ATTACHMENTS.register("hall_return",
+                    () -> AttachmentType.serializable(HallReturnData::new).copyOnDeath().build());
 }

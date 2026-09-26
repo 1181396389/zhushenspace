@@ -23,13 +23,13 @@ public class CurrencyScreen extends Screen {
     private static final int PANEL_W = 250;
     private static final int PANEL_H = 116;
 
-    private static final int BORDER = 0xFF5B9BD5;
-    private static final int ACCENT = 0xFF3BA9E0;
-    private static final int GOLD = 0xFFE0B84D;
+    private static final int BORDER = ZsTheme.PANEL_BORDER;
+    private static final int ACCENT = ZsTheme.ACCENT;
+    private static final int GOLD = ZsTheme.CURRENCY;
     private static final int SLOT_BG = 0xFF1E2E40;
     private static final int SLOT_BG_HOVER = 0xFF2E4A66;
     private static final int SLOT_BG_HELD = 0xFF3A5A7A;
-    private static final int TEXT_SUB = 0xFF9FC3E0;
+    private static final int TEXT_SUB = ZsTheme.TEXT_SUB;
 
     private int panelX, panelY;
     private int slotY;
@@ -64,8 +64,7 @@ public class CurrencyScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
 
-        g.fill(panelX - 1, panelY - 1, panelX + PANEL_W + 1, panelY + PANEL_H + 1, 0x333BA9E0);
-        g.fill(panelX, panelY, panelX + PANEL_W, panelY + PANEL_H, 0xF0101822);
+        ZsTheme.panel(g, panelX, panelY, PANEL_W, PANEL_H);
         g.renderOutline(panelX, panelY, PANEL_W, PANEL_H, BORDER);
 
         g.drawCenteredString(font, title, panelX + PANEL_W / 2, panelY + 7, ACCENT);

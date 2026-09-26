@@ -367,33 +367,6 @@ public class SkillManager {
                 System.currentTimeMillis() + cooldownTicks * 50L;
     }
 
-    /**
-     * 内力技能统一入口（K/H 快捷键使用，与战斗预设栏 1~9 共用同一套冷却状态）。
-     */
-    public static void useNeiliAbility(ServerPlayer player, SkillAbility ability) {
-        if (!ability.isNeiliAbility()) return;
-        if (player.getData(ModAttachments.PLAYER_ENERGY)
-                .getPool(EnergyManager.POOL_NEILI) == null) return;
-        State st = state(player);
-        long now = System.currentTimeMillis();
-        if (now < st.cooldownEndMs[ability.ordinal()]) {
-            long secs = (st.cooldownEndMs[ability.ordinal()] - now + 999) / 1000;
-            player.displayClientMessage(
-                    Component.translatable("msg.zhushenspace.meditate.cd", secs), true);
-            return;
-        }
-        boolean ok = switch (ability) {
-            case NEILI_BREATH -> EnergyManager.toggleBreath(player);
-            case NEILI_MEDITATE -> EnergyManager.tryMeditate(player);
-            default -> false;
-        };
-        if (!ok) return;
-        st.cooldownEndMs[ability.ordinal()] = now + ability.cooldownTicks() * 50L;
-        player.level().playSound(null, player.blockPosition(),
-                SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.7f, 1.4f);
-        SkillServer.sync(player);
-    }
-
     // ===== 事件处理 =====
 
     /** 被动：肉搏徒手伤害 / 白刃冷兵器伤害；主动：摔绊 / 冲锋攻击命中结算 */

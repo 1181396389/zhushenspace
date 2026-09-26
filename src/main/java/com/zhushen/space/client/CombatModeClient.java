@@ -2,7 +2,6 @@ package com.zhushen.space.client;
 
 import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.data.SkillAbility;
-import com.zhushen.space.network.UseEnergyAbilityPayload;
 import com.zhushen.space.network.UseSkillPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -82,23 +81,6 @@ public class CombatModeClient {
                 PacketDistributor.sendToServer(new UseSkillPayload(bar, slot));
             }
             return;
-        }
-
-        // K：内力吐息（自动档）开关——仅拥有内力池时可用
-        if (event.getAction() == GLFW.GLFW_PRESS
-                && event.getKey() == ClientSetup.TOGGLE_BREATH.getKey().getValue()) {
-            if (ClientEnergyData.hasPool(ClientEnergyData.NEILI_ID)) {
-                PacketDistributor.sendToServer(new UseEnergyAbilityPayload(UseEnergyAbilityPayload.ABILITY_BREATH));
-            }
-            return;
-        }
-
-        // H：打坐（禁步一段时间后回满内力）——仅拥有内力池时可用
-        if (event.getAction() == GLFW.GLFW_PRESS
-                && event.getKey() == ClientSetup.MEDITATE.getKey().getValue()) {
-            if (ClientEnergyData.hasPool(ClientEnergyData.NEILI_ID)) {
-                PacketDistributor.sendToServer(new UseEnergyAbilityPayload(UseEnergyAbilityPayload.ABILITY_MEDITATE));
-            }
         }
     }
 

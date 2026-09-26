@@ -10,13 +10,10 @@
   "screen.zhushenspace.meaning_of_life.title": "The Meaning of Life",
   "screen.zhushenspace.yes": "Yes",
   "screen.zhushenspace.no": "No",
-  "screen.zhushenspace.allocation.title": "Attribute Allocation",
-  "screen.zhushenspace.allocation.hint": "Max 5 per attribute · 5th point costs 2",
   "screen.zhushenspace.confirm": "Confirm",
   "screen.zhushenspace.free_points": "Free Points: %s",
   "screen.zhushenspace.legendary_points": "★ Legendary Points: %s",
   "screen.zhushenspace.used_points": "Spent Points: %s / %s",
-  "screen.zhushenspace.go_allocate": "Allocate",
   "screen.zhushenspace.godpanel.tab": "God's Panel",
   "screen.zhushenspace.godpanel.enter_hall": "Hall",
   "screen.zhushenspace.godpanel.leave_hall": "Back",
@@ -27,54 +24,35 @@
   "msg.zhushenspace.hall.missing": "Hall dimension not loaded — please re-enter the world.",
   "screen.zhushenspace.godpanel.title": "God's Panel · Attributes",
   "screen.zhushenspace.godpanel.hint": "Hover for details",
-
   "attribute.zhushenspace.strength": "Strength",
   "attribute.zhushenspace.strength.desc": "Increases attack damage, attack speed, movement speed and knockback resistance.",
   "attribute.zhushenspace.strength.legend": "★ Legendary (requires Strength at 5): +3 Attack Damage per legendary point",
-
   "attribute.zhushenspace.agility": "Agility",
   "attribute.zhushenspace.agility.desc": "Increases armor, jump height, safe fall distance; +5% speed in slowed blocks (cobwebs, soul sand) and +10% in liquids per point.",
   "attribute.zhushenspace.agility.legend": "★ Legendary (requires Agility at 5): +1 Armor and +3 Armor Toughness per legendary point",
-
   "attribute.zhushenspace.endurance": "Endurance",
   "attribute.zhushenspace.endurance.desc": "Increases max health and regeneration, extends underwater breathing; negative effect durations reduced by 15% per 5 points.",
   "attribute.zhushenspace.endurance.legend": "★ Legendary (requires Endurance at 5): +1 Max Health per legendary point, food exhaustion progressively reduced (1 pt = 1/1.5, 2 pts = 1/2, and so on)",
-
   "attribute.zhushenspace.intelligence": "Intelligence",
   "attribute.zhushenspace.intelligence.desc": "Unlocks item usage requirements (feature coming soon).",
   "attribute.zhushenspace.intelligence.legend": "★ Legendary (requires Intelligence at 5): +4 Experience Dividend per legendary point (coming soon)",
-
   "attribute.zhushenspace.perception": "Perception",
   "attribute.zhushenspace.perception.desc": "Reveals enemy weak points: attacks may manifest a yellow weak-point marker on the target (+5% chance per Perception point); only hitting the marker deals 1.5x damage, with a crisp sound and particle feedback; perceives what others cannot (partial features coming soon).",
   "attribute.zhushenspace.perception.legend": "★ Legendary (requires Perception at 5): +1 Armor Toughness and +20m perception range per legendary point (range coming soon)",
-
   "attribute.zhushenspace.resolve": "Resolve",
   "attribute.zhushenspace.resolve.desc": "Affects SAN value and skill acquisition of various systems (feature coming soon).",
   "attribute.zhushenspace.resolve.legend": "★ Legendary (requires Resolve at 5): +3 Main Energy Pool capacity per legendary point; hitting enemies restores 25% of damage dealt",
-
   "attribute.zhushenspace.charm": "Charisma",
   "attribute.zhushenspace.charm.desc": "Affects skill acquisition (feature coming soon).",
   "attribute.zhushenspace.charm.legend": "★ Legendary (requires Charisma at 5): +1 Gene Lock unlock chance per legendary point (coming soon)",
-
   "attribute.zhushenspace.operation": "Operation",
   "attribute.zhushenspace.operation.desc": "Affects skill acquisition, summoning and commanding (feature coming soon).",
   "attribute.zhushenspace.operation.legend": "★ Legendary (requires Operation at 5): +1% Crit Chance per legendary point, crit deals 1.5x damage",
-
   "attribute.zhushenspace.composure": "Composure",
   "attribute.zhushenspace.composure.desc": "Affects skill acquisition (feature coming soon).",
   "attribute.zhushenspace.composure.legend": "★ Legendary (requires Composure at 5): +3 Main Energy Pool capacity per legendary point (stacks with Resolve) and +20% movement speed; standing still or sneaking restores 1 point per second",
-
-  "screen.zhushenspace.to_skills": "Skills →",
-  "screen.zhushenspace.to_attributes": "← Attributes",
-  "screen.zhushenspace.skill.allocation.title": "Skill Allocation",
-  "screen.zhushenspace.skill.hint": "Max 5 per skill · 3→4 and 4→5 cost 2 each",
-  "screen.zhushenspace.skill.confirm": "Confirm",
   "screen.zhushenspace.skill.free_points": "Free Skill Points: %s",
-  "screen.zhushenspace.skill.unlock_list": "Unlocked abilities: %s",
   "screen.zhushenspace.skill.unlock_line": "Lv.%s %s: %s",
-  "screen.zhushenspace.skill.level_suffix": ". ",
-  "screen.zhushenspace.skill.list_separator": " · ",
-  "screen.zhushenspace.go_skill_allocate": "Go to Skills",
   "screen.zhushenspace.godpanel.tab.attributes": "Attributes",
   "screen.zhushenspace.godpanel.tab.skills": "Skills",
   "screen.zhushenspace.godpanel.tab.preset": "Combat Preset",
@@ -82,7 +60,6 @@
   "key.categories.zhushenspace": "Gods' Space",
   "key.zhushenspace.toggle_combat": "Toggle Combat Mode",
   "key.zhushenspace.switch_bar": "Switch Combat Preset Bar (A/B)",
-
   "screen.zhushenspace.energy_config.entry": "Gods' Space UI Settings...",
   "screen.zhushenspace.energy_config.title": "Gods' Space · UI Settings",
   "screen.zhushenspace.energy_config.hint": "Hold and drag the energy pools to move · scroll or +/- to scale",
@@ -90,12 +67,10 @@
   "screen.zhushenspace.energy_config.scale_down": "Smaller -",
   "screen.zhushenspace.energy_config.scale_value": "Scale: %s%%",
   "screen.zhushenspace.energy_config.reset": "Reset Position & Scale",
-
   "commands.zhushenspace.energy.give": "Granted energy pool [%s] with max %s to %s",
   "commands.zhushenspace.energy.remove": "Removed energy pool [%s] from %s",
   "commands.zhushenspace.energy.set": "Set energy pool [%s] of %s to %s",
   "commands.zhushenspace.energy.clear": "Cleared all energy pools of %s",
-
   "skill.zhushenspace.athletics": "Athletics",
   "skill.zhushenspace.athletics.desc": "Overall physical conditioning, no passive bonus; unlocks abilities at 3/4/5 points: Self-Protection, Leap, Climb.",
   "skill.zhushenspace.brawl": "Brawl",
@@ -112,7 +87,6 @@
   "skill.zhushenspace.animal_communication.desc": "Communicating with animals (no bonus yet).",
   "skill.zhushenspace.expression": "Expression",
   "skill.zhushenspace.expression.desc": "Expressing and moving others (no bonus yet).",
-
   "ability.zhushenspace.self_protection": "Self-Protection",
   "ability.zhushenspace.self_protection.short": "GRD",
   "ability.zhushenspace.self_protection.desc": "Briefly gain armor equal to (Agility + Athletics) points, 5 seconds, 30s cooldown.",
@@ -134,7 +108,6 @@
   "ability.zhushenspace.blade_block": "Blade Block",
   "ability.zhushenspace.blade_block.short": "BLD",
   "ability.zhushenspace.blade_block.desc": "Briefly gain armor equal to Blade points, 5 seconds, 20s cooldown.",
-
   "curios.identifier.bloodline": "Bloodline",
   "curios.identifier.modification": "Modification",
   "curios.identifier.eyes": "Eye Technique",
@@ -143,9 +116,6 @@
   "curios.identifier.other": "Other",
   "curios.identifier.title": "Title",
   "curios.identifier.school": "School",
-
-  "key.zhushenspace.toggle_breath": "Toggle Neili Breath (melee buff)",
-  "key.zhushenspace.meditate": "Meditate (restore Neili)",
   "msg.zhushenspace.neili.none": "You have no Neili",
   "msg.zhushenspace.neili.full": "Neili already full",
   "msg.zhushenspace.neili.sleep": "Neili fully restored after sleep",
@@ -154,14 +124,12 @@
   "msg.zhushenspace.meditate.start": "Meditating...",
   "msg.zhushenspace.meditate.done": "Meditation complete, Neili fully restored",
   "msg.zhushenspace.meditate.cd": "Meditation cooldown: %ss remaining",
-
   "ability.zhushenspace.neili_breath": "Neili Breath",
   "ability.zhushenspace.neili_breath.short": "Breath",
   "ability.zhushenspace.neili_breath.desc": "Auto-toggle: melee attacks (incl. basic) consume 1 Neili for +6 damage. Use again to disable.",
   "ability.zhushenspace.neili_meditate": "Meditation",
   "ability.zhushenspace.neili_meditate.short": "Medit",
   "ability.zhushenspace.neili_meditate.desc": "Stand still for 5s to fully restore Neili (Endurance+Perception), 5min cooldown.",
-
   "school.zhushenspace.tai_chi": "Tai Chi",
   "ability.zhushenspace.tc_ward_off": "Ward Off",
   "ability.zhushenspace.tc_ward_off.short": "Ward",
@@ -211,7 +179,6 @@
   "ability.zhushenspace.tc_dissolve": "Tai Chi Dissolve",
   "ability.zhushenspace.tc_dissolve.short": "Dissolve",
   "ability.zhushenspace.tc_dissolve.desc": "Ready stance for 5s: on a melee attack received from a target using an energy pool, counter with a brawl attack, then chain one of Grasp-Bird-Tail/Cloud-Hands/Sea-Needle (if learned). If the counter deals damage or the chain succeeds, seal their energy pool for 1 min (no consume/breath); resolution costs 5 Neili, 20s cooldown.",
-
   "msg.zhushenspace.neili.lack": "Not enough Neili",
   "msg.zhushenspace.taiji.no_target": "No target in sight",
   "msg.zhushenspace.taiji.locked": "Tai Chi not unlocked",
@@ -235,14 +202,12 @@
   "msg.zhushenspace.taiji.dissolve_chain_grapple": "Dissolve chain - Cloud Hands: grappled %s",
   "msg.zhushenspace.neili.sealed": "Energy pool sealed, cannot use",
   "msg.zhushenspace.taiji.eight_powers_jin": "Jin: %s",
-
   "msg.zhushenspace.health.converted_bl": "Wounds worsen: %s impact converted to severe",
   "msg.zhushenspace.health.converted_la": "Wounds worsen: %s severe converted to aggravated",
   "msg.zhushenspace.health.unconscious": "Wounds at capacity — you fell unconscious...",
   "msg.zhushenspace.health.unconscious_hint": "Unconscious... heal all Severe wounds (L) to wake up",
   "msg.zhushenspace.health.wake": "Severe wounds healed — you struggle back to consciousness...",
   "screen.zhushenspace.health.intact": "Intact %s",
-
   "screen.zhushenspace.currency": "Branch S%s A%s B%s C%s D%s · Score %s",
   "screen.zhushenspace.currency.title": "Gods' Space Currency",
   "screen.zhushenspace.currency.hint1": "Drag a branch to an adjacent tier: 3 lower combine into 1 higher",
@@ -263,7 +228,6 @@
   "commands.zhushenspace.school.lack_skill": "Prerequisite unmet: Brawl skill level 2+ required",
   "commands.zhushenspace.school.lack_currency": "Not enough currency: costs B branch x1 + 4000 score",
   "msg.zhushenspace.school.purchased": "School '%s' purchased - received the school emblem; equip it in the School slot to activate",
-
   "screen.zhushenspace.godpanel.tab.shop": "Shop",
   "screen.zhushenspace.shop.hint": "Exchange branches and score for schools",
   "screen.zhushenspace.shop.owned": "Owned",
@@ -273,16 +237,14 @@
   "screen.zhushenspace.shop.req_unmet": "Prerequisite unmet",
   "school.zhushenspace.tai_chi.desc": "Eastern martial art of yielding. Purchase grants the school emblem 'Tai Chi Emblem'; equipping it in the School curio slot grants a Neili pool and activates the passive. The 8 moves are bought separately in the shop; Tingjin comes free with the school.",
   "school.zhushenspace.tai_chi.passive": "Tai Chi passive: while unarmed (both hands empty), natural weapon attacks gain +6 damage and +6 armor; +8 extra block armor during Brawl Block.",
-  "screen.zhushenspace.skill.acquired_neili": "Acquired with Neili pool: Neili Breath · Meditation (K toggle breath / H meditate)",
+  "screen.zhushenspace.skill.acquired_neili": "Acquired with Neili pool: Neili Breath · Meditation (drag into a combat preset to use)",
   "screen.zhushenspace.skill.acquired_school": "Acquired with Tai Chi: Tingjin (8 moves must be bought in the shop)",
   "screen.zhushenspace.skill.school_owned": "School owned: Tai Chi (activates when the emblem is equipped in the School slot)",
-
   "item.zhushenspace.tai_chi_emblem": "Tai Chi Emblem",
   "item.zhushenspace.tai_chi_emblem.tooltip.intro": "Tai Chi school emblem - activates when equipped in the School curio slot",
   "item.zhushenspace.tai_chi_emblem.tooltip.passive": "Tai Chi passive: while unarmed, natural weapon attacks +6 damage, +6 armor",
   "item.zhushenspace.tai_chi_emblem.tooltip.pool": "Grants a Neili pool (Endurance+Perception) with Breath and Meditation while equipped",
   "item.zhushenspace.tai_chi_emblem.tooltip.skills": "Purchased Tai Chi moves (shop) can be dragged into combat presets while equipped",
-
   "msg.zhushenspace.taiji.equipped_on": "Tai Chi active: Neili pool granted, passive enabled",
   "msg.zhushenspace.taiji.equipped_off": "Tai Chi inactive: Neili pool removed, passive and moves disabled",
   "msg.zhushenspace.school.skill_purchased": "Move '%s' purchased",
@@ -291,11 +253,9 @@
   "commands.zhushenspace.school.not_owned": "School not owned",
   "commands.zhushenspace.school.invalid": "Invalid school ability",
   "commands.zhushenspace.school.eight_powers_prereq": "Eight Powers United requires all eight Tai Chi jin learned",
-
   "screen.zhushenspace.shop.ep_prereq": "Learn all 8 jin first",
   "screen.zhushenspace.shop.tag_active": "Active",
   "screen.zhushenspace.shop.tag_passive": "Passive",
-
   "screen.zhushenspace.shop.claim": "Claim Emblem",
   "screen.zhushenspace.shop.detail": "Click to view moves >",
   "screen.zhushenspace.shop.back": "Back",
@@ -305,17 +265,17 @@
   "screen.zhushenspace.shop.skills_hint": "Skills - hover for details and price",
   "screen.zhushenspace.shop.move_cost_short": "%1$s branch x%2$s + %3$s",
   "screen.zhushenspace.shop.skill_owned": "Owned",
-
   "screen.zhushenspace.preset.page": "Page %s",
   "screen.zhushenspace.preset.folder_closed": "> %s (owned %s/%s)",
   "screen.zhushenspace.preset.folder_open": "v %s (owned %s/%s)",
   "screen.zhushenspace.preset.locked": "Not purchased: buy it in the shop detail page first",
   "screen.zhushenspace.preset.unequipped": "Requires the Tai Chi emblem equipped (grants the Neili pool)",
-
   "subtitles.zhushenspace.tai_chi_move": "Tai Chi strike",
   "subtitles.zhushenspace.tai_chi_tingjin": "Tingjin: yielding aura",
   "subtitles.zhushenspace.tai_chi_wall": "Wall impact",
   "subtitles.zhushenspace.neili_chime": "Neili flows",
   "subtitles.zhushenspace.neili_meditate_start": "Meditation begins",
-  "subtitles.zhushenspace.neili_meditate_done": "Neili restored"
+  "subtitles.zhushenspace.neili_meditate_done": "Neili restored",
+  "screen.zhushenspace.apply": "Apply",
+  "screen.zhushenspace.reset": "Reset"
 }

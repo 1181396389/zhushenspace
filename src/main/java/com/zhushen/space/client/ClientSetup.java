@@ -30,23 +30,9 @@ public class ClientSetup {
             GLFW.GLFW_KEY_V,
             "key.categories.zhushenspace");
 
-    /** 内力吐息开关（默认 K） */
-    public static final KeyMapping TOGGLE_BREATH = new KeyMapping(
-            "key.zhushenspace.toggle_breath",
-            GLFW.GLFW_KEY_K,
-            "key.categories.zhushenspace");
-
-    /** 打坐（默认 H） */
-    public static final KeyMapping MEDITATE = new KeyMapping(
-            "key.zhushenspace.meditate",
-            GLFW.GLFW_KEY_H,
-            "key.categories.zhushenspace");
-
     @SubscribeEvent
     public static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_COMBAT);
         event.register(SWITCH_SKILL_BAR);
-        event.register(TOGGLE_BREATH);
-        event.register(MEDITATE);
     }
 }

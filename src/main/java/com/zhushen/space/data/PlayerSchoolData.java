@@ -19,6 +19,13 @@ public class PlayerSchoolData implements INBTSerializable<CompoundTag> {
     /** 每个流派已购买技能位掩码（bit = SkillAbility.ordinal()） */
     private final int[] skillBits = new int[SchoolType.COUNT];
 
+    static {
+        // 位掩码为 int：技能数超过 31 会静默溢出，届时需改为 long / BitSet
+        if (SkillAbility.COUNT > 31) {
+            throw new IllegalStateException("SkillAbility 数量超过 31，PlayerSchoolData.skillBits 需要扩容");
+        }
+    }
+
     public boolean isUnlocked(SchoolType school) {
         return unlocked[school.ordinal()];
     }
@@ -55,7 +62,17 @@ public class PlayerSchoolData implements INBTSerializable<CompoundTag> {
         byte[] arr = new byte[SchoolType.COUNT];
         for (int i = 0; i < SchoolType.COUNT; i++) arr[i] = (byte) (unlocked[i] ? 1 : 0);
         tag.put("Unlocked", new ByteArrayTag(arr));
-        tag.put("SkillBits", new IntArrayTag(skillBits));
+        tag.put("SkillBits", new IntArrayTag(skillBits)); // 旧格式，保留以便降级
+        // 新格式：按技能 key 存已购技能，SkillAbility 调整顺序也不会错位
+        for (int i = 0; i < SchoolType.COUNT; i++) {
+            net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+            for (SkillAbility a : SkillAbility.values()) {
+                if ((skillBits[i] & (1 << a.ordinal())) != 0) {
+                    list.add(net.minecraft.nbt.StringTag.valueOf(a.key()));
+                }
+            }
+            tag.put("SkillKeys" + i, list);
+        }
         return tag;
     }
 
@@ -67,7 +84,18 @@ public class PlayerSchoolData implements INBTSerializable<CompoundTag> {
         }
         int[] bits = tag.getIntArray("SkillBits");
         for (int i = 0; i < SchoolType.COUNT; i++) {
-            skillBits[i] = i < bits.length ? bits[i] : 0;
+            if (tag.contains("SkillKeys" + i)) {
+                skillBits[i] = 0;
+                net.minecraft.nbt.ListTag list = tag.getList("SkillKeys" + i, net.minecraft.nbt.Tag.TAG_STRING);
+                for (int j = 0; j < list.size(); j++) {
+                    String key = list.getString(j);
+                    for (SkillAbility a : SkillAbility.values()) {
+                        if (a.key().equals(key)) skillBits[i] |= (1 << a.ordinal());
+                    }
+                }
+            } else {
+                skillBits[i] = i < bits.length ? bits[i] : 0;
+            }
         }
     }
 }

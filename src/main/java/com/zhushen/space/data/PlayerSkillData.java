@@ -126,8 +126,15 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
         tag.putIntArray("Points", points);
         tag.putInt("TotalPoints", totalSkillPoints);
         tag.putBoolean("EnvelopeUsed", envelopeUsed);
-        tag.putIntArray("Bar0", bars[0]);
-        tag.putIntArray("Bar1", bars[1]);
+        // 按技能 key 存档（而非枚举序号），以后在 SkillAbility 中增删/调整顺序不会让老存档错位
+        for (int b = 0; b < BAR_COUNT; b++) {
+            net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+            for (int s : bars[b]) {
+                list.add(net.minecraft.nbt.StringTag.valueOf(
+                        s >= 0 && s < SkillAbility.COUNT ? SkillAbility.values()[s].key() : ""));
+            }
+            tag.put("BarKeys" + b, list);
+        }
         return tag;
     }
 
@@ -151,11 +158,28 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
             Arrays.fill(bar, -1);
         }
         for (int b = 0; b < BAR_COUNT; b++) {
+            if (tag.contains("BarKeys" + b)) {
+                // 新格式：技能 key
+                net.minecraft.nbt.ListTag list = tag.getList("BarKeys" + b, net.minecraft.nbt.Tag.TAG_STRING);
+                for (int i = 0; i < Math.min(list.size(), BAR_SLOTS); i++) {
+                    bars[b][i] = abilityIdByKey(list.getString(i));
+                }
+                continue;
+            }
+            // 旧格式：枚举序号（仅用于迁移老存档）
             int[] src = loaded[b];
             for (int i = 0; i < Math.min(src.length, BAR_SLOTS); i++) {
                 bars[b][i] = src[i];
             }
         }
         pruneSlots();
+    }
+
+    private static int abilityIdByKey(String key) {
+        if (key == null || key.isEmpty()) return -1;
+        for (SkillAbility a : SkillAbility.values()) {
+            if (a.key().equals(key)) return a.ordinal();
+        }
+        return -1;
     }
 }

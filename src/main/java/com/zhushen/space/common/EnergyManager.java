@@ -6,7 +6,6 @@ import com.zhushen.space.data.PlayerAttributeData;
 import com.zhushen.space.data.PlayerEnergyData;
 import com.zhushen.space.data.SkillAbility;
 import com.zhushen.space.network.SyncEnergyPayload;
-import com.zhushen.space.network.UseEnergyAbilityPayload;
 import com.zhushen.space.sound.ModSounds;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -135,16 +134,6 @@ public class EnergyManager {
     }
 
     /** ===== 内力：自动获得的技能 ===== */
-
-    /** 能量池附带技能入口（K/H 快捷键触发，与战斗预设栏共用冷却状态） */
-    public static void useEnergyAbility(ServerPlayer player, int ability) {
-        switch (ability) {
-            case UseEnergyAbilityPayload.ABILITY_BREATH ->
-                    SkillManager.useNeiliAbility(player, SkillAbility.NEILI_BREATH);
-            case UseEnergyAbilityPayload.ABILITY_MEDITATE ->
-                    SkillManager.useNeiliAbility(player, SkillAbility.NEILI_MEDITATE);
-        }
-    }
 
     /** 内力吐息：自动档开关（仅拥有内力池时可用，状态持久化）。返回是否切换成功 */
     public static boolean toggleBreath(ServerPlayer player) {

@@ -4,6 +4,7 @@ import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.entity.HallBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
+import com.zhushen.space.data.ModAttachments;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -20,9 +21,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * 主神空间大厅（zhushenspace:hallspace）——白色虚空平面安全区。
@@ -44,8 +42,6 @@ public class HallManager {
     /** 大厅入口点 */
     public static final BlockPos HALL_SPAWN = new BlockPos(1, 1, 7);
 
-    /** 玩家进入大厅前的返回点 */
-    private static final Map<UUID, GlobalPos> RETURN_POS = new HashMap<>();
 
     /** 主神面板按钮：进入大厅 / 返回主世界 */
     public static void enter(ServerPlayer player) {
@@ -54,7 +50,7 @@ public class HallManager {
         float yaw, pitch;
         if (player.level().dimension() == HALL_DIMENSION) {
             // 已在大厅 → 返回主世界
-            GlobalPos ret = RETURN_POS.remove(player.getUUID());
+            GlobalPos ret = player.getData(ModAttachments.HALL_RETURN).take();
             if (ret == null) {
                 ServerLevel overworld = player.server.overworld();
                 BlockPos sp = overworld.getSharedSpawnPos();
@@ -75,7 +71,7 @@ public class HallManager {
                 player.displayClientMessage(Component.translatable("msg.zhushenspace.hall.missing"), true);
                 return;
             }
-            RETURN_POS.put(player.getUUID(),
+            player.getData(ModAttachments.HALL_RETURN).set(
                     GlobalPos.of(player.level().dimension(), player.blockPosition()));
             HallBuilder.ensureBuilt(target);
             pos = findSafeY(target, HALL_SPAWN);
