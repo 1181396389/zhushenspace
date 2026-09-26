@@ -64,15 +64,13 @@ public class MeaningOfLifeScreen extends Screen {
         int yesX = dialogX + dialogWidth / 2 - buttonWidth - 10;
         int noX = dialogX + dialogWidth / 2 + 10;
 
-        yesButton = Button.builder(
+        yesButton = new ZsButton(yesX, buttonY, buttonWidth, buttonHeight,
                 Component.translatable("screen.zhushenspace.yes"),
-                this::onYesClick
-        ).bounds(yesX, buttonY, buttonWidth, buttonHeight).build();
+                this::onYesClick);
 
-        noButton = Button.builder(
+        noButton = new ZsButton(noX, buttonY, buttonWidth, buttonHeight,
                 Component.translatable("screen.zhushenspace.no"),
-                this::onNoClick
-        ).bounds(noX, buttonY, buttonWidth, buttonHeight).build();
+                this::onNoClick);
 
         this.addRenderableWidget(yesButton);
         this.addRenderableWidget(noButton);
@@ -201,10 +199,14 @@ public class MeaningOfLifeScreen extends Screen {
 
     private void renderDialogBox(GuiGraphics graphics, int x, int y, int width, int height) {
         int alpha = (int) (fadeInAlpha * 255);
-        int bgColor = (alpha << 24) | (BOX_BG_COLOR & 0x00FFFFFF);
         int borderColor = (alpha << 24) | (BOX_BORDER_COLOR & 0x00FFFFFF);
 
-        graphics.fill(x, y, x + width, y + height, bgColor);
+        // 星云动态底纹 + 半透明蒙层 + 中央缓慢旋转的法阵（随淡入出现）
+        int tint = (alpha << 24) | 0xFFFFFF;
+        ZsAnim.NEBULA.draw(graphics, x, y, width, height, tint);
+        graphics.fill(x, y, x + width, y + height, ((int) (alpha * 0.8f) << 24) | (BOX_BG_COLOR & 0x00FFFFFF));
+        int sz = height - 20;
+        ZsAnim.SIGIL.draw(graphics, x + (width - sz) / 2, y + 10, sz, sz, ((int) (alpha * 0.18f) << 24) | 0xFFFFFF);
 
         graphics.fill(x, y, x + width, y + 4, borderColor);
         graphics.fill(x, y + height - 4, x + width, y + height, borderColor);

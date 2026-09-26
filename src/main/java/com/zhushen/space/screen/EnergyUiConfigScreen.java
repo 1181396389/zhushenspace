@@ -32,19 +32,17 @@ public class EnergyUiConfigScreen extends Screen {
     @Override
     protected void init() {
         int cx = this.width / 2;
-        addRenderableWidget(Button.builder(
-                        Component.translatable("screen.zhushenspace.energy_config.scale_down"),
-                        b -> adjustScale(-0.05f))
-                .bounds(cx - 130, this.height - 52, 40, 20).build());
-        scaleLabel = addRenderableWidget(Button.builder(scaleText(), b -> { })
-                .bounds(cx - 86, this.height - 52, 92, 20).build());
+        addRenderableWidget(new ZsButton(cx - 130, this.height - 52, 40, 20,
+                Component.translatable("screen.zhushenspace.energy_config.scale_down"),
+                        b -> adjustScale(-0.05f)));
+        scaleLabel = addRenderableWidget(new ZsButton(cx - 86, this.height - 52, 92, 20,
+                scaleText(), b -> { }));
         scaleLabel.active = false;
-        addRenderableWidget(Button.builder(
-                        Component.translatable("screen.zhushenspace.energy_config.scale_up"),
-                        b -> adjustScale(0.05f))
-                .bounds(cx + 10, this.height - 52, 40, 20).build());
-        addRenderableWidget(Button.builder(
-                        Component.translatable("screen.zhushenspace.energy_config.reset"),
+        addRenderableWidget(new ZsButton(cx + 10, this.height - 52, 40, 20,
+                Component.translatable("screen.zhushenspace.energy_config.scale_up"),
+                        b -> adjustScale(0.05f)));
+        addRenderableWidget(new ZsButton(cx - 130, this.height - 28, 130, 20,
+                Component.translatable("screen.zhushenspace.energy_config.reset"),
                         b -> {
                             ClientUiConfig.Data cfg = ClientUiConfig.get();
                             cfg.energyX = -1;
@@ -52,10 +50,9 @@ public class EnergyUiConfigScreen extends Screen {
                             cfg.energyScale = 1.0f;
                             ClientUiConfig.save();
                             scaleLabel.setMessage(scaleText());
-                        })
-                .bounds(cx - 130, this.height - 28, 130, 20).build());
-        addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, b -> onClose())
-                .bounds(cx + 10, this.height - 28, 130, 20).build());
+                        }));
+        addRenderableWidget(new ZsButton(cx + 10, this.height - 28, 130, 20,
+                CommonComponents.GUI_DONE, b -> onClose()));
     }
 
     private Component scaleText() {

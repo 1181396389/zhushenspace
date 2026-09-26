@@ -1,6 +1,8 @@
 package com.zhushen.space.client;
 
 import com.zhushen.space.screen.GodPanelScreen;
+import com.zhushen.space.screen.ZsAnim;
+import com.zhushen.space.screen.ZsTheme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -31,21 +33,26 @@ public class GodPanelTabButton extends AbstractButton {
     @Override
     protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         boolean hovered = isHoveredOrFocused();
-        // 选项卡主体（顶部不描边，模拟贴合背包面板上沿的选项卡）
-        g.fill(getX(), getY(), getX() + width, getY() + height, hovered ? BG_HOVER : BG);
+        float t = ZsAnim.tween(ZsAnim.key(9, getX(), getY()), hovered ? 1 : 0, 16);
+        // 选项卡主体（顶部不描边，模拟贴合背包面板上沿的选项卡），悬停平滑渐变 + 扫光
+        g.fill(getX(), getY(), getX() + width, getY() + height, ZsAnim.lerpColor(BG, BG_HOVER, t));
+        if (hovered) ZsTheme.shimmer(g, getX(), getY(), width, height, 1);
         // 左右下三边描边
         g.fill(getX(), getY(), getX() + 1, getY() + height, BORDER);
         g.fill(getX() + width - 1, getY(), getX() + width, getY() + height, BORDER);
         g.fill(getX(), getY() + height - 1, getX() + width, getY() + height, BORDER);
         // 悬停顶部高亮
-        if (hovered) {
-            g.fill(getX(), getY(), getX() + width, getY() + 1, BORDER_HOVER);
+        if (t > 0.01f) {
+            g.fill(getX(), getY(), getX() + width, getY() + 1, ZsAnim.withAlpha(BORDER_HOVER, t));
         }
 
+        // 旋转太极徽记 + 文字
         Font font = Minecraft.getInstance().font;
         Component msg = getMessage();
-        g.drawString(font, msg, getX() + (width - font.width(msg)) / 2,
-                getY() + (height - 8) / 2, TEXT_COLOR, true);
+        int total = 11 + font.width(msg);
+        int x0 = getX() + (width - total) / 2;
+        ZsAnim.TAIJI.draw(g, x0, getY() + (height - 9) / 2, 9, 9);
+        g.drawString(font, msg, x0 + 11, getY() + (height - 8) / 2, TEXT_COLOR, true);
     }
 
     @Override

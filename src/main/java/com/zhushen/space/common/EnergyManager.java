@@ -1,5 +1,6 @@
 package com.zhushen.space.common;
 
+import com.zhushen.space.network.MeditatePosePayload;
 import com.zhushen.space.data.AttributeType;
 import com.zhushen.space.data.ModAttachments;
 import com.zhushen.space.data.PlayerAttributeData;
@@ -183,6 +184,7 @@ public class EnergyManager {
         // 禁步：重度缓慢使玩家在打坐期间无法移动（效果时长与打坐时长一致，到期自散）
         player.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,
                 MEDITATION_CHANNEL_TICKS, 9, false, true));
+        sendPose(player, MEDITATION_CHANNEL_TICKS);
         player.displayClientMessage(Component.translatable("msg.zhushenspace.meditate.start"), true);
         // 特效：钟磬共鸣 + 符文环汇聚
         player.level().playSound(null, player.blockPosition(),
@@ -191,8 +193,22 @@ public class EnergyManager {
         return true;
     }
 
+    /** 广播打坐姿态（自身 + 周围可见玩家）：ticks>0 盘坐调息，0 收功起身 */
+    private static void sendPose(ServerPlayer player, int ticks) {
+        PacketDistributor.sendToPlayersTrackingEntityAndSelf(player,
+                new MeditatePosePayload(player.getId(), ticks));
+    }
+
+    /** 中断打坐（死亡 / 登出 / 重生）：移除计时并通知客户端起身 */
+    private static void interruptMeditation(net.minecraft.world.entity.player.Player player) {
+        if (MEDITATION_CHANNEL_END.remove(player.getUUID()) != null && player instanceof ServerPlayer sp) {
+            sendPose(sp, 0);
+        }
+    }
+
     /** 打坐完成：内力回满 */
     private static void finishMeditation(ServerPlayer player) {
+        sendPose(player, 0);
         if (!player.isAlive()) return; // 打坐期间死亡：打坐中断
         PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
         if (data.getPool(POOL_NEILI) == null) return;
@@ -387,15 +403,21 @@ public class EnergyManager {
         }
     }
 
+    /** 打坐期间死亡：立即中断并起身（不等重生） */
+    @SubscribeEvent
+    public static void onPlayerDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer player) interruptMeditation(player);
+    }
+
     /** 登出 / 死亡重生时中断打坐（否则打坐计时仍会在重生后或重新登录后回满内力） */
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        MEDITATION_CHANNEL_END.remove(event.getEntity().getUUID());
+        interruptMeditation(event.getEntity());
     }
 
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        MEDITATION_CHANNEL_END.remove(event.getEntity().getUUID());
+        interruptMeditation(event.getEntity());
         if (event.getEntity() instanceof ServerPlayer player) {
             syncLegendaryPools(player);
         }

@@ -2,6 +2,8 @@ package com.zhushen.space.client;
 
 import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.data.SkillAbility;
+import com.zhushen.space.screen.ZsAnim;
+import com.zhushen.space.screen.ZsTheme;
 import com.zhushen.space.network.UseSkillPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -36,7 +38,6 @@ public class CombatModeClient {
     private static final int SLOT_BORDER = 0x883BA9E0;
     private static final int SLOT_EMPTY_BG = 0x660D1B2A;
     private static final int TEXT_MAIN = 0xFFD9EEFF;
-    private static final int COOLDOWN_OVERLAY = 0x96000000;
     private static final int COOLDOWN_TEXT = 0xFFFFD966;
 
     private static boolean combatMode = false;
@@ -56,6 +57,7 @@ public class CombatModeClient {
         if (event.getKey() == ClientSetup.TOGGLE_COMBAT.getKey().getValue()
                 && event.getAction() == GLFW.GLFW_PRESS) {
             combatMode = !combatMode;
+            if (combatMode) combatSince = ZsAnim.nowMs();
             mc.getSoundManager().play(SimpleSoundInstance.forUI(
                     SoundEvents.UI_BUTTON_CLICK.value(), combatMode ? 1.2f : 0.8f));
             return;
@@ -86,6 +88,12 @@ public class CombatModeClient {
 
     // ===== HUD 渲染 =====
 
+    /** 进入战斗模式时刻（技能栏滑入动画） */
+    private static long combatSince;
+    /** 每个技能本轮冷却的总时长（取观测到的最大剩余值）与冷却完成时刻（完成闪光；-1=冷却中，0=无） */
+    private static final long[] cdTotal = new long[SkillAbility.COUNT];
+    private static final long[] cdReadyAt = new long[SkillAbility.COUNT];
+
     /** 战斗模式下隐藏原版物品栏 */
     @SubscribeEvent
     public static void onHotbarLayer(RenderGuiLayerEvent.Pre event) {
@@ -108,9 +116,15 @@ public class CombatModeClient {
         int barY = g.guiHeight() - 22;
         int activeBar = ClientUiConfig.get().activeBar;
 
-        // 面板背景与边框（左侧扩展 14px 放置栏位指示）
+        // 面板背景与边框（左侧扩展 14px 放置栏位指示），进入战斗模式时自下而上滑入
+        float in = ZsAnim.easeOutCubic((ZsAnim.nowMs() - combatSince) / 250f);
+        g.pose().pushPose();
+        g.pose().translate(0, (1 - in) * 26, 0);
+        float glow = ZsAnim.pulse(3000);
+        g.fill(barX - 16, barY - 2, barX + 184, barY + 24, ZsAnim.withAlpha(0xFF3BA9E0, 0.10f + 0.12f * glow));
         g.fill(barX - 15, barY - 1, barX + 183, barY + 23, BAR_BORDER);
         g.fill(barX - 14, barY, barX + 182, barY + 22, BAR_BG);
+        ZsAnim.NEBULA.draw(g, barX - 14, barY, 196, 22, 0x55FFFFFF);
 
         // 栏位指示（A/B）
         g.fill(barX - 13, barY + 1, barX - 1, barY + 21, SLOT_BG);
@@ -138,11 +152,25 @@ public class CombatModeClient {
             // 冷却遮罩与剩余秒数
             long remainMs = ClientSkillData.cooldownRemainingMs(abilityId);
             if (remainMs > 0) {
-                g.fill(sx, sy, sx + 20, sy + 20, COOLDOWN_OVERLAY);
+                if (remainMs > cdTotal[abilityId]) cdTotal[abilityId] = remainMs;
+                ZsTheme.cooldown(g, sx, sy, 20, remainMs / (float) Math.max(1, cdTotal[abilityId]));
+                cdReadyAt[abilityId] = -1;
                 int seconds = (int) Math.ceil(remainMs / 1000.0);
                 g.drawCenteredString(font, String.valueOf(seconds), sx + 10, sy + 6, COOLDOWN_TEXT);
+            } else {
+                // 冷却结束：金色闪光 0.5 秒
+                if (cdReadyAt[abilityId] == -1) cdReadyAt[abilityId] = ZsAnim.nowMs();
+                cdTotal[abilityId] = 0;
+                float f = cdReadyAt[abilityId] > 0
+                        ? 1 - ZsAnim.clamp01((ZsAnim.nowMs() - cdReadyAt[abilityId]) / 500f) : 0;
+                if (f > 0) {
+                    g.fill(sx, sy, sx + 20, sy + 20, ZsAnim.withAlpha(0xFFFFD966, 0.45f * f));
+                    g.renderOutline(sx - 1, sy - 1, 22, 22, ZsAnim.withAlpha(0xFFFFD966, f));
+                }
             }
         }
+
+        g.pose().popPose();
 
         // 原版物品栏（战斗模式下缩小为右侧无边框竖排）
         renderSideHotbar(g, mc, font);

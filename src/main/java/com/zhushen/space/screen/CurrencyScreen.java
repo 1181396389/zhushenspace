@@ -23,12 +23,9 @@ public class CurrencyScreen extends Screen {
     private static final int PANEL_W = 250;
     private static final int PANEL_H = 116;
 
-    private static final int BORDER = ZsTheme.PANEL_BORDER;
     private static final int ACCENT = ZsTheme.ACCENT;
     private static final int GOLD = ZsTheme.CURRENCY;
-    private static final int SLOT_BG = 0xFF1E2E40;
-    private static final int SLOT_BG_HOVER = 0xFF2E4A66;
-    private static final int SLOT_BG_HELD = 0xFF3A5A7A;
+    private static final int SLOT_BG_HELD = 0x663A5A7A;
     private static final int TEXT_SUB = ZsTheme.TEXT_SUB;
 
     private int panelX, panelY;
@@ -37,12 +34,15 @@ public class CurrencyScreen extends Screen {
     private int pickTier = -1;
     private int dragX, dragY;
 
+    private long openedAt = -1;
+
     public CurrencyScreen() {
         super(Component.translatable("screen.zhushenspace.currency.title"));
     }
 
     @Override
     protected void init() {
+        if (openedAt < 0) openedAt = ZsAnim.nowMs();
         panelX = (this.width - PANEL_W) / 2;
         panelY = (this.height - PANEL_H) / 2;
         slotY = panelY + 44;
@@ -64,8 +64,8 @@ public class CurrencyScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         super.render(g, mouseX, mouseY, partialTick);
 
+        ZsTheme.beginOpen(g, openedAt, panelX + PANEL_W / 2, panelY + PANEL_H / 2);
         ZsTheme.panel(g, panelX, panelY, PANEL_W, PANEL_H);
-        g.renderOutline(panelX, panelY, PANEL_W, PANEL_H, BORDER);
 
         g.drawCenteredString(font, title, panelX + PANEL_W / 2, panelY + 7, ACCENT);
 
@@ -78,10 +78,8 @@ public class CurrencyScreen extends Screen {
         // 支线槽位
         for (int t = 0; t < PlayerCurrencyData.TIER_COUNT; t++) {
             int x = slotX(t);
-            boolean hover = mouseX >= x && mouseX < x + SLOT && mouseY >= slotY && mouseY < slotY + SLOT;
-            int bg = pickTier == t ? SLOT_BG_HELD : (hover ? SLOT_BG_HOVER : SLOT_BG);
-            g.fill(x, slotY, x + SLOT, slotY + SLOT, bg);
-            g.renderOutline(x, slotY, SLOT, SLOT, pickTier == t ? 0xFF7FC4F0 : BORDER);
+            ZsTheme.slot(g, mouseX, mouseY, x, slotY, SLOT, ClientProgressData.branch(t) > 0);
+            if (pickTier == t) g.fill(x + 1, slotY + 1, x + SLOT - 1, slotY + SLOT - 1, SLOT_BG_HELD);
             g.drawCenteredString(font, PlayerCurrencyData.tierLetter(t),
                     x + SLOT / 2, slotY + 4, GOLD);
             int count = ClientProgressData.branch(t);
@@ -104,6 +102,7 @@ public class CurrencyScreen extends Screen {
         g.drawString(font, Component.translatable("screen.zhushenspace.currency.back"),
                 panelX + PANEL_W - font.width(Component.translatable("screen.zhushenspace.currency.back")) - 8,
                 panelY + PANEL_H - 12, TEXT_SUB, true);
+        ZsTheme.endOpen(g);
     }
 
     private String xpText() {

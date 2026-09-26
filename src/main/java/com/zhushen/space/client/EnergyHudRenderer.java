@@ -10,6 +10,8 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import org.joml.Quaternionf;
+import com.zhushen.space.screen.ZsAnim;
+import com.zhushen.space.screen.ZsTheme;
 
 import java.util.List;
 
@@ -60,15 +62,36 @@ public class EnergyHudRenderer {
         }
     }
 
+    /** 每个池上次数值与变化时刻（驱动增减闪光） */
+    private static final java.util.Map<String, double[]> LAST = new java.util.HashMap<>();
+
     private static void drawBar(GuiGraphics g, Font font, int x, int y, int w, int h, PoolView pool, float scale) {
         g.fill(x, y, x + w, y + h, BG);
         double frac = pool.max() > 0 ? pool.current() / pool.max() : 0;
-        int fillH = (int) Math.round((h - 2) * Math.min(1.0, Math.max(0.0, frac)));
-        if (fillH > 0) {
-            int fill = 0xDD000000 | (pool.color() & 0x00FFFFFF);
-            g.fill(x + 1, y + h - 1 - fillH, x + w - 1, y + h - 1, fill);
+        // 动态填充：数值平滑滚动 + 流光帧动画 + 前沿亮线
+        ZsTheme.flowBar(g, pool.id().hashCode(), x + 1, y + 1, w - 2, h - 2, (float) frac, pool.color(), true);
+
+        // 数值变化闪光：增加→白光，减少→红光，0.4 秒淡出
+        double[] last = LAST.computeIfAbsent(pool.id(), k -> new double[]{pool.current(), 0, 0});
+        long now = ZsAnim.nowMs();
+        if (Math.abs(pool.current() - last[0]) >= 1) {
+            last[2] = pool.current() > last[0] ? 1 : -1;
+            last[0] = pool.current();
+            last[1] = now;
         }
-        g.renderOutline(x, y, w, h, barBorder(pool));
+        float flash = 1 - ZsAnim.clamp01((now - (long) last[1]) / 400f);
+        if (flash > 0) {
+            int c = last[2] > 0 ? 0xFFFFFFFF : 0xFFFF5050;
+            g.fill(x, y, x + w, y + h, ZsAnim.withAlpha(c, 0.35f * flash));
+        }
+
+        int border = barBorder(pool);
+        if (border != BORDER) {
+            // 内力吐息：鎏金描边呼吸外光
+            float p = ZsAnim.pulse(1800);
+            g.renderOutline(x - 1, y - 1, w + 2, h + 2, ZsAnim.withAlpha(border, 0.25f + 0.5f * p));
+        }
+        g.renderOutline(x, y, w, h, border);
 
         // 具体数字：竖排（自下而上）内嵌在条中，不增加条的长度
         String text = pool.currentInt() + "/" + pool.maxInt();

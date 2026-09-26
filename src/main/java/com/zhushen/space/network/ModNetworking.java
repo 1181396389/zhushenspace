@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2"); // 协议版本：移除 UseEnergyAbilityPayload 后升级
+        PayloadRegistrar registrar = event.registrar("3"); // 协议版本：新增 MeditatePosePayload（打坐姿态同步）
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -77,6 +77,10 @@ public class ModNetworking {
         registrar.playToClient(HitFeedbackPayload.TYPE, HitFeedbackPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientCameraShake.trigger(payload.power(), payload.ticks())));
+
+        registrar.playToClient(MeditatePosePayload.TYPE, MeditatePosePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientMeditation.handle(payload.entityId(), payload.ticks())));
 
         // ===== 主神空间进度（货币 / 流派） =====
         registrar.playToClient(SyncProgressPayload.TYPE, SyncProgressPayload.STREAM_CODEC,

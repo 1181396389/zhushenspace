@@ -86,6 +86,8 @@ public class GodPanelScreen extends Screen {
     private int detailScroll = 0;
 
     private Tab tab = Tab.ATTRIBUTES;
+    /** 打开 / 切换选项卡时刻（驱动弹出与内容滑入动画） */
+    private long openedAt = -1, tabChangedAt;
 
     private int panelX, panelY, panelW, panelH;
     private int listTop, listBottom;
@@ -183,6 +185,7 @@ public class GodPanelScreen extends Screen {
 
     @Override
     protected void init() {
+        if (openedAt < 0) openedAt = tabChangedAt = ZsAnim.nowMs();
         panelW = Math.min(270, this.width - 40);
         panelH = Math.min(this.height - 20, HEADER_HEIGHT + AttributeType.COUNT * ROW_HEIGHT + 32);
         panelX = (this.width - panelW) / 2;
@@ -240,19 +243,29 @@ public class GodPanelScreen extends Screen {
         attrList.refresh(ClientAttributeData.points(), ClientAttributeData.totalPoints());
         skillList.refresh(ClientSkillData.points(), ClientSkillData.totalSkillPoints());
         clampScroll();
+        ZsTheme.beginOpen(g, openedAt, panelX + panelW / 2, panelY + panelH / 2);
         renderPanel(g);
         renderHeader(g, mouseX, mouseY);
 
+        // 切换选项卡：内容自右侧 10px 滑入
+        float slide = 1 - ZsAnim.easeOutCubic((ZsAnim.nowMs() - tabChangedAt) / 220f);
+        g.pose().pushPose();
+        g.pose().translate(10 * slide, 0, 0);
         switch (tab) {
             case ATTRIBUTES -> renderPointTab(g, mouseX, mouseY, attrList);
             case SKILLS -> renderPointTab(g, mouseX, mouseY, skillList);
             case PRESET -> renderPresetTab(g, mouseX, mouseY);
             case SHOP -> renderShopTab(g, mouseX, mouseY);
         }
+        g.pose().popPose();
+        ZsTheme.endOpen(g);
     }
 
     private void renderPanel(GuiGraphics g) {
         ZsTheme.panel(g, panelX, panelY, panelW, panelH);
+        // 面板中央缓慢旋转的法阵水印
+        int sz = Math.min(panelW, panelH) - 40;
+        ZsAnim.SIGIL.draw(g, panelX + (panelW - sz) / 2, panelY + (panelH - sz) / 2 + 10, sz, sz, 0x22FFFFFF);
     }
 
     private void renderHeader(GuiGraphics g, int mouseX, int mouseY) {
@@ -263,15 +276,13 @@ public class GodPanelScreen extends Screen {
                 Component.translatable("screen.zhushenspace.godpanel.tab.preset").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.shop").getString()
         };
+        Component[] tabLabels = new Component[4];
         for (int i = 0; i < 4; i++) {
-            Component label = Component.literal(labels[i]);
             // 有未确认改动的加点页在标签上打 * 提醒
-            if ((i == 0 && attrList.dirty()) || (i == 1 && skillList.dirty())) {
-                label = Component.literal(labels[i] + "*");
-            }
-            ZsTheme.button(g, font, mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H,
-                    label, true, tab.ordinal() == i);
+            boolean dirty = (i == 0 && attrList.dirty()) || (i == 1 && skillList.dirty());
+            tabLabels[i] = Component.literal(dirty ? labels[i] + "*" : labels[i]);
         }
+        ZsTheme.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal(), 1);
 
         // 主神空间大厅（标签行，齿轮左侧）：进入大厅 / 返回主世界
         boolean inHall = minecraft != null && minecraft.player != null
@@ -294,8 +305,7 @@ public class GodPanelScreen extends Screen {
         }
 
         // 分隔线
-        g.fill(panelX + 4, panelY + HEADER_HEIGHT - 3, panelX + panelW - 4,
-                panelY + HEADER_HEIGHT - 2, HEADER_LINE);
+        ZsTheme.separator(g, panelX + 4, panelX + panelW - 4, panelY + HEADER_HEIGHT - 3);
 
         // 第二行统计（按选项卡）
         switch (tab) {
@@ -353,6 +363,12 @@ public class GodPanelScreen extends Screen {
         g.drawString(font, currency, panelX + 8, panelY + panelH - 12, CURRENCY, true);
     }
 
+    /** 可购买按钮外圈呼吸金光，吸引注意 */
+    private static void buyGlow(GuiGraphics g, int x, int y, int w, int h) {
+        float p = ZsAnim.pulse(1400);
+        g.fill(x - 2, y - 2, x + w + 2, y + h + 2, ZsAnim.withAlpha(GOLD, 0.10f + 0.25f * p));
+    }
+
     private void renderSmallButton(GuiGraphics g, int mouseX, int mouseY,
                                    int x, int y, int w, int h, Component label) {
         ZsTheme.button(g, font, mouseX, mouseY, x, y, w, h, label);
@@ -408,9 +424,7 @@ public class GodPanelScreen extends Screen {
     private void renderPointRow(GuiGraphics g, int mouseX, int mouseY, PointList list,
                                 int index, int ry, boolean attr) {
         boolean hover = index == list.hovered;
-        int bg = hover ? ROW_HOVER : (index % 2 == 0 ? ROW_BG : ROW_BG_ALT);
-        g.fill(panelX + 5, ry, panelX + panelW - 5, ry + ROW_HEIGHT - 1, bg);
-        if (hover) g.fill(panelX + 5, ry, panelX + 7, ry + ROW_HEIGHT - 1, ACCENT);
+        ZsTheme.row(g, panelX + 5, ry, panelW - 10, ROW_HEIGHT - 1, hover, index % 2 != 0);
 
         Component name = Component.translatable(attr
                 ? AttributeType.values()[index].nameKey()
@@ -533,9 +547,7 @@ public class GodPanelScreen extends Screen {
             g.drawCenteredString(font, bar == 0 ? "A" : "B", slotX(0) - 12, labelY, GOLD);
             for (int slot = 0; slot < 9; slot++) {
                 int sx = slotX(slot);
-                g.fill(sx, sy, sx + SLOT_SIZE, sy + SLOT_SIZE, SLOT_BG);
-                g.renderOutline(sx, sy, SLOT_SIZE, SLOT_SIZE,
-                        over(mouseX, mouseY, sx, sy, SLOT_SIZE, SLOT_SIZE) ? SLOT_HOVER_BORDER : SLOT_BORDER);
+                ZsTheme.slot(g, mouseX, mouseY, sx, sy, SLOT_SIZE, slots[bar][slot] >= 0);
                 g.drawString(font, String.valueOf(slot + 1), sx + 2, sy + 1, TEXT_SUB, false);
 
                 int abilityId = slots[bar][slot];
@@ -680,8 +692,8 @@ public class GodPanelScreen extends Screen {
                         ? "screen.zhushenspace.preset.folder_open" : "screen.zhushenspace.preset.folder_closed",
                 Component.translatable("school.zhushenspace.tai_chi"), count, total).getString();
         boolean hover = over(mouseX, mouseY, cx, cy, w, CHIP_H);
-        g.fill(cx, cy, cx + w, cy + CHIP_H, hover ? CHIP_HOVER : 0x992A5570);
-        g.renderOutline(cx, cy, w, CHIP_H, hover ? 0xFF7FC4F0 : ACCENT);
+        ZsTheme.card(g, cx, cy, w, CHIP_H, hover);
+        ZsAnim.TAIJI.draw(g, cx + 3, cy + 2, 12, 12);
         g.drawCenteredString(font, label, cx + w / 2, cy + (CHIP_H - 8) / 2, TEXT_MAIN);
     }
 
@@ -690,10 +702,12 @@ public class GodPanelScreen extends Screen {
                                                    ChipItem item, int cx, int cy, int chipW) {
         SkillAbility ability = item.ability();
         boolean hover = over(mouseX, mouseY, cx, cy, chipW, CHIP_H);
-        int bg = item.locked() ? ROW_BG_ALT : (hover ? CHIP_HOVER : CHIP_BG);
-        int border = hover && !item.locked() ? 0xFF7FC4F0 : (item.locked() ? SLOT_BORDER : BTN_BORDER);
-        g.fill(cx, cy, cx + chipW, cy + CHIP_H, bg);
-        g.renderOutline(cx, cy, chipW, CHIP_H, border);
+        if (item.locked()) {
+            g.fill(cx, cy, cx + chipW, cy + CHIP_H, ROW_BG_ALT);
+            g.renderOutline(cx, cy, chipW, CHIP_H, SLOT_BORDER);
+        } else {
+            ZsTheme.card(g, cx, cy, chipW, CHIP_H, hover);
+        }
         // 图标（12×12）+ 名称
         g.blit(ability.iconTexture(), cx + 4, cy + 2, 12, 12, 0f, 0f, 32, 32, 32, 32);
         if (item.locked()) {
@@ -786,11 +800,11 @@ public class GodPanelScreen extends Screen {
 
             // 卡片背景（已拥有可点击进入详情）
             boolean hover = over(mouseX, mouseY, cx, cy, cw, 52);
-            g.fill(cx, cy, cx + cw, cy + 52, hover ? ROW_HOVER : ROW_BG);
-            g.renderOutline(cx, cy, cw, 52, SLOT_BORDER);
+            ZsTheme.card(g, cx, cy, cw, 52, hover);
 
-            // 名称 + 状态/购买按钮
-            g.drawString(font, Component.translatable(school.nameKey()), cx + 8, cy + 5, TEXT_MAIN, true);
+            // 流派徽记（已拥有：旋转太极；未拥有：暗淡）+ 名称 + 状态/购买按钮
+            ZsAnim.TAIJI.draw(g, cx + 5, cy + 3, 12, 12, owned ? 0xFFFFFFFF : 0x66FFFFFF);
+            g.drawString(font, Component.translatable(school.nameKey()), cx + 21, cy + 5, TEXT_MAIN, true);
             if (owned) {
                 String ownedText = Component.translatable("screen.zhushenspace.shop.owned").getString();
                 g.drawString(font, ownedText, cx + cw - font.width(ownedText) - 8, cy + 6, GOLD, true);
@@ -799,6 +813,7 @@ public class GodPanelScreen extends Screen {
                         Component.translatable(school.reqSkill().nameKey()), school.reqLevel()).getString();
                 g.drawString(font, reqText, cx + cw - font.width(reqText) - 8, cy + 6, 0xFFFF8A80, true);
             } else {
+                buyGlow(g, cx + cw - 48, cy + 3, 42, 14);
                 renderSmallButton(g, mouseX, mouseY, cx + cw - 48, cy + 3, 42, 14,
                         Component.translatable("screen.zhushenspace.shop.buy"));
             }
@@ -895,10 +910,7 @@ public class GodPanelScreen extends Screen {
         // 滚动条指示（内容溢出时）
         if (maxScroll > 0 && viewH > 0) {
             int trackX = panelX + panelW - 5;
-            g.fill(trackX, y, trackX + 2, listBottom, 0x3080A0B0);
-            int thumbH = Math.max(12, viewH * viewH / contentH);
-            int thumbY = y + (int) ((long) detailScroll * (viewH - thumbH) / maxScroll);
-            g.fill(trackX, thumbY, trackX + 2, thumbY + thumbH, ACCENT);
+            ZsTheme.scrollbar(g, trackX, y, listBottom, contentH, detailScroll, maxScroll);
         }
 
         // 悬停提示（在剪裁区外绘制，避免被裁切）
@@ -916,7 +928,7 @@ public class GodPanelScreen extends Screen {
         int cx = panelX + 5;
         int cw = panelW - 10;
         boolean hover = over(mouseX, mouseY, cx, ry, cw, SHOP_ROW_H - 1);
-        g.fill(cx, ry, cx + cw, ry + SHOP_ROW_H - 1, hover ? ROW_HOVER : ROW_BG_ALT);
+        ZsTheme.row(g, cx, ry, cw, SHOP_ROW_H - 1, hover, true);
 
         // 图标（16×16）+ 名称 + 类型标签
         Component name = Component.translatable(ability.nameKey());
@@ -951,6 +963,7 @@ public class GodPanelScreen extends Screen {
                     branchCost, scoreCost).getString();
             g.drawString(font, cost, cx + cw - 48 - font.width(cost) - 4, ry + 8,
                     affordable ? TEXT_SUB : 0xFFFF8A80, true);
+            if (affordable) buyGlow(g, cx + cw - 44, ry + 6, 40, 12);
             renderSmallButton(g, mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12,
                     Component.translatable("screen.zhushenspace.shop.buy"));
             overBuy = over(mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12);
@@ -1080,6 +1093,7 @@ public class GodPanelScreen extends Screen {
             // 选项卡切换
             for (int i = 0; i < 4; i++) {
                 if (over(mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H)) {
+                    if (tab != Tab.values()[i]) tabChangedAt = ZsAnim.nowMs();
                     tab = Tab.values()[i];
                     dragging = -1;
                     dragFromSlot = -1;

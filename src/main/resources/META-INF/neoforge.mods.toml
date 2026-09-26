@@ -96,3 +96,11 @@ description='''
     versionRange="[9,)"
     ordering="AFTER"
     side="BOTH"
+
+# Player Animation Library - 可选联动：打坐时播放「盘坐调息」动作（未安装不影响运行）
+[[dependencies.${mod_id}]]
+    modId="player_animation_library"
+    type="optional"
+    versionRange="[1.1.6,)"
+    ordering="NONE"
+    side="CLIENT"

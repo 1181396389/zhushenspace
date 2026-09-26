@@ -3,7 +3,7 @@ package com.zhushen.space.client;
 import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.screen.EnergyUiConfigScreen;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.Button;
+import com.zhushen.space.screen.ZsButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.network.chat.Component;
@@ -24,11 +24,9 @@ public class ClientScreenEvents {
         // 原版"设置"页右上角添加"主神空间界面设置"入口（能量池 HUD 拖拽/缩放配置）。
         // 不做宽度门槛：1920×1080 默认 GUI 缩放 4 时设置页宽度仅 480，旧门槛 >=520 导致按钮永不出现
         if (screen instanceof OptionsScreen options && options.width >= 360) {
-            event.addListener(Button.builder(
-                            Component.translatable("screen.zhushenspace.energy_config.entry"),
-                            b -> Minecraft.getInstance().setScreen(new EnergyUiConfigScreen(options)))
-                    .bounds(options.width - 155, 8, 150, 20)
-                    .build());
+            event.addListener(new ZsButton(options.width - 155, 8, 150, 20,
+                Component.translatable("screen.zhushenspace.energy_config.entry"),
+                            b -> Minecraft.getInstance().setScreen(new EnergyUiConfigScreen(options))));
         }
     }
 }

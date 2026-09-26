@@ -33,6 +33,11 @@ repositories {
         name = "Illusive Soulworks maven"
         url = "https://maven.theillusivec4.top/"
     }
+    // Player Animation Library（可选联动：打坐盘坐动作）
+    maven {
+        name = "Redlance"
+        url = "https://repo.redlance.org/public"
+    }
 }
 
 base {
@@ -114,6 +119,9 @@ dependencies {
     // load the full mod jar in development runs only
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     localRuntime "top.theillusivec4.curios:curios-neoforge:${curios_version}"
+    // 可选依赖：未安装时打坐仅有 HUD 与粒子，无盘坐动作
+    compileOnly "com.zigythebird.playeranim:PlayerAnimationLibNeo:1.1.6+mc.1.21.1"
+    localRuntime "com.zigythebird.playeranim:PlayerAnimationLibNeo:1.1.6+mc.1.21.1"
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime

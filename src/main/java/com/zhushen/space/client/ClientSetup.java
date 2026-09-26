@@ -31,6 +31,11 @@ public class ClientSetup {
             "key.categories.zhushenspace");
 
     @SubscribeEvent
+    public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
+        ClientMeditation.init(event);
+    }
+
+    @SubscribeEvent
     public static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_COMBAT);
         event.register(SWITCH_SKILL_BAR);
