@@ -2,7 +2,7 @@
 战斗技能栏的两柄剑（Fate）：A 栏 = 誓约胜利之剑（Excalibur），B 栏 = 乖离剑（Ea）。按参考图高精度重绘。
 逻辑尺寸 240x30，贴图 4 倍 960x120（先以 8 倍绘制再缩小抗锯齿）。两柄剑共用槽位布局（与 BladeBar.java 常量一致）：
   技能槽 20x20：x = 36 + i*21, y = 5；剑柄与护手在 x < 35。
-  护手字母（栏位 A/B）位置：Excalibur (29,15) 蓝色饰板中央；Ea (22,9) 护手蓝圆。
+  护手字母（栏位 A/B）位置：Excalibur (27,15) 蓝色饰板中央；Ea (22,9) 护手蓝圆。
 输出：excalibur_bar.png / excalibur_glow.png（20 帧）/ ea_bar.png / ea_glow.png（20 帧）+ tools/preview/holy_swords.gif
 用法: python3 tools/gen_holy_swords.py
 """
@@ -19,7 +19,7 @@ D = 8          # 绘制倍数
 SLOT0, PITCH, SLOT, SLOTY = 36, 21, 20, 5
 N = 20
 TAU = math.tau
-EX_GEM, EA_GEM = (29, 15), (22, 9)
+EX_GEM, EA_GEM = (27, 15), (22, 9)
 
 GOLD = (222, 176, 70)
 GOLD_HI = (255, 232, 150)
@@ -184,14 +184,11 @@ def excalibur():
          BLUE[2] + 60 * np.exp(-((ys / D - 10) / 3) ** 2)], 1))
     d = ImageDraw.Draw(img)
     d.line([(L(x), L(y)) for x, y in plate + [plate[0]]], fill=GOLD_HI, width=D // 2)
-    # 鸢尾纹（朝剑尖）：中茎 + 两侧卷叶 + 横箍
+    # 鸢尾纹（朝剑尖）：只保留饰板尖端的小百合尖，中央留给栏位字母 A（字母画在 (27,15)）
     fl = GOLD_HI
-    d.line([(L(26), L(15)), (L(32.6), L(15))], fill=fl, width=D // 2 + 1)
-    d.polygon([(L(32.6), L(15)), (L(30.8), L(14)), (L(30.8), L(16))], fill=fl)
-    for s in (-1, 1):
-        d.arc([L(26.5), L(15 - 0.2 * s - 3.4) if s < 0 else L(15.2), L(31.5), L(14.8) if s < 0 else L(15 + 3.4 + 0.2)],
-              180 if s < 0 else 90, 270 if s < 0 else 180, fill=fl, width=D // 2)
-    d.line([(L(27.6), L(12.8)), (L(27.6), L(17.2))], fill=fl, width=D // 2)
+    d.polygon([(L(33.4), L(15)), (L(31.2), L(13.6)), (L(31.8), L(15)), (L(31.2), L(16.4))], fill=fl)
+    d.arc([L(29.6), L(12.2), L(32.4), L(15)], 180, 330, fill=fl, width=D // 3)
+    d.arc([L(29.6), L(15), L(32.4), L(17.8)], 30, 180, fill=fl, width=D // 3)
 
     # ---- 护手：金色人字形十字格（剑身侧平直，柄侧中凹，两端斜切）----
     guard = [(24, 0.6), (24, 29.4), (21.6, 29.4), (18, 27.6), (19.6, 22), (20.4, 15), (19.6, 8), (18, 2.4), (21.6, 0.6)]

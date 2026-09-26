@@ -285,5 +285,12 @@
   "screen.zhushenspace.sg.meter_alpha": "Reading drifted to %s%% (Alpha world line). Apply to converge the world line.",
   "screen.zhushenspace.preset.names_on": "Names: On",
   "screen.zhushenspace.preset.names_off": "Names: Off",
-  "screen.zhushenspace.preset.names_tip": "Show the Noble Phantasm name (Excalibur / Ea) when drawing the blade"
+  "screen.zhushenspace.preset.names_tip": "Show the Noble Phantasm name (Excalibur / Ea) when drawing the blade",
+  "screen.zhushenspace.herta.poke": "...Going to poke me?",
+  "screen.zhushenspace.herta.quote.0": "Call me \"Madam\". There, much better.",
+  "screen.zhushenspace.herta.quote.1": "Stop poking. You'll break the puppet.",
+  "screen.zhushenspace.herta.quote.2": "Making the bars that big? Afraid you can't see them?",
+  "screen.zhushenspace.herta.quote.3": "I redesigned this screen, so naturally it's perfect.",
+  "screen.zhushenspace.herta.quote.4": "I'm researching... why you still haven't pressed \"Done\".",
+  "screen.zhushenspace.herta.quote.5": "Boring. Go run the Simulated Universe and come back."
 }

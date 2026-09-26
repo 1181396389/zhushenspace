@@ -285,5 +285,12 @@
   "screen.zhushenspace.sg.meter_alpha": "读数漂移至 %s%%（α 世界线）。确认加点后，世界线将收束。",
   "screen.zhushenspace.preset.names_on": "剑名：开",
   "screen.zhushenspace.preset.names_off": "剑名：关",
-  "screen.zhushenspace.preset.names_tip": "切换战斗模式 / 换栏时是否浮现宝具名（誓约胜利之剑 / 乖离剑）"
+  "screen.zhushenspace.preset.names_tip": "切换战斗模式 / 换栏时是否浮现宝具名（誓约胜利之剑 / 乖离剑）",
+  "screen.zhushenspace.herta.poke": "……要戳一下吗？",
+  "screen.zhushenspace.herta.quote.0": "叫我「女士」。嗯，这才对。",
+  "screen.zhushenspace.herta.quote.1": "别戳了，人偶会被你戳坏的。",
+  "screen.zhushenspace.herta.quote.2": "能量条放那么大，是怕自己看不见吗？",
+  "screen.zhushenspace.herta.quote.3": "这个界面我改过了，所以它很完美。",
+  "screen.zhushenspace.herta.quote.4": "我在研究……研究你为什么还没点「完成」。",
+  "screen.zhushenspace.herta.quote.5": "无聊。去模拟宇宙转一圈再回来找我。"
 }

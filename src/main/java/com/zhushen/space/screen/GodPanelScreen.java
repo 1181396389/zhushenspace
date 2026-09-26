@@ -284,9 +284,9 @@ public class GodPanelScreen extends Screen {
             return;
         }
         ZsTheme.panel(g, panelX, panelY, panelW, panelH);
-        // 面板中央缓慢旋转的法阵水印
+        // 面板中央缓慢旋转的蓝紫魔法阵水印（大黑塔裙摆徽记）
         int sz = Math.min(panelW, panelH) - 40;
-        ZsAnim.SIGIL.draw(g, panelX + (panelW - sz) / 2, panelY + (panelH - sz) / 2 + 10, sz, sz, 0x22FFFFFF);
+        ZsTheme.sigil(g, panelX + panelW / 2f, panelY + panelH / 2f + 10, sz, 0x248C9CFF);
     }
 
     private void renderHeader(GuiGraphics g, int mouseX, int mouseY) {

@@ -40,10 +40,10 @@ public class MeaningOfLifeScreen extends Screen {
     private static final float FADE_SPEED = 0.01f;
 
     // 淡蓝色主题颜色
-    private static final int BOX_BG_COLOR = 0xCC0B1B2A;
-    private static final int BOX_BORDER_COLOR = 0xFF5B9BD5;
-    private static final int TEXT_COLOR = 0xFFA8D8F0;
-    private static final int ACCENT_COLOR = 0xFF3BA9E0;
+    private static final int BOX_BG_COLOR = 0xCC120E1C;
+    private static final int BOX_BORDER_COLOR = 0xFF8C6FE0;
+    private static final int TEXT_COLOR = 0xFFE0D6F6;
+    private static final int ACCENT_COLOR = 0xFFCDBEF5;
 
     public MeaningOfLifeScreen() {
         super(Component.translatable("screen.zhushenspace.meaning_of_life.title"));
@@ -203,10 +203,10 @@ public class MeaningOfLifeScreen extends Screen {
 
         // 星云动态底纹 + 半透明蒙层 + 中央缓慢旋转的法阵（随淡入出现）
         int tint = (alpha << 24) | 0xFFFFFF;
-        ZsAnim.NEBULA.draw(graphics, x, y, width, height, tint);
+        ZsAnim.HERTA_SKY.draw(graphics, x, y, width, height, tint);
         graphics.fill(x, y, x + width, y + height, ((int) (alpha * 0.8f) << 24) | (BOX_BG_COLOR & 0x00FFFFFF));
         int sz = height - 20;
-        ZsAnim.SIGIL.draw(graphics, x + (width - sz) / 2, y + 10, sz, sz, ((int) (alpha * 0.18f) << 24) | 0xFFFFFF);
+        ZsTheme.sigil(graphics, x + width / 2f, y + 10 + sz / 2f, sz, ((int) (alpha * 0.22f) << 24) | 0x8C9CFF);
 
         graphics.fill(x, y, x + width, y + 4, borderColor);
         graphics.fill(x, y + height - 4, x + width, y + height, borderColor);
@@ -260,7 +260,7 @@ public class MeaningOfLifeScreen extends Screen {
 
     private void renderGlitchOverlay(GuiGraphics graphics, int x, int y, int width, int height) {
         if (Math.random() > 0.3) {
-            int glitchColor = 0x663BA9E0 | ((int) (Math.random() * 100) << 24);
+            int glitchColor = 0x669B7BEA | ((int) (Math.random() * 100) << 24);
             int glitchX = x + (int) (Math.random() * width);
             int glitchY = y + (int) (Math.random() * height);
             int glitchW = (int) (Math.random() * 30) + 5;
@@ -272,7 +272,7 @@ public class MeaningOfLifeScreen extends Screen {
         for (int i = 0; i < 3; i++) {
             int lineY = y + (int) (Math.random() * height);
             int lineXOffset = (int) (Math.random() * 20 - 10);
-            graphics.fill(x + lineXOffset, lineY, x + width + lineXOffset, lineY + 1, 0x553BA9E0);
+            graphics.fill(x + lineXOffset, lineY, x + width + lineXOffset, lineY + 1, 0x559B7BEA);
         }
     }
 

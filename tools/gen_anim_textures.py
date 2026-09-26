@@ -36,42 +36,6 @@ def clamp(v, a=0, b=255):
 
 
 # ---------- 1. 星云背景（主神空间面板底纹） ----------
-def nebula():
-    W, H, N = 160, 120, 24
-    rnd = random.Random(7)
-    waves = [(rnd.uniform(0.02, 0.07), rnd.uniform(0.02, 0.07), rnd.uniform(0, TAU), rnd.choice([1, -1]))
-             for _ in range(6)]
-    stars = [(rnd.randrange(W), rnd.randrange(H), rnd.uniform(0, TAU), rnd.random()) for _ in range(70)]
-    frames = []
-    for n in range(N):
-        t = n / N
-        img = Image.new("RGBA", (W, H))
-        px = img.load()
-        for y in range(H):
-            for x in range(W):
-                v = 0.0
-                for fx, fy, ph, d in waves:
-                    v += math.sin(x * fx + y * fy + ph + d * TAU * t)
-                v = (v / len(waves) + 1) / 2  # 0..1
-                v = v ** 2.2
-                # 深空蓝 → 青 → 淡紫
-                r = 6 + 40 * v * (0.5 + 0.5 * math.sin(x * 0.03 + TAU * t))
-                g = 14 + 70 * v
-                b = 28 + 120 * v
-                px[x, y] = (clamp(r), clamp(g), clamp(b), 255)
-        img = img.convert("RGB"); d = ImageDraw.Draw(img, "RGBA")  # 混合绘制：半透明星点叠加而非覆盖
-        for sx, sy, ph, big in stars:
-            a = (math.sin(ph + TAU * t * (2 if big > 0.8 else 1)) + 1) / 2
-            c = (clamp(170 + 85 * a), clamp(200 + 55 * a), 255, clamp(80 + 175 * a))
-            d.point((sx, sy), fill=c)
-            if big > 0.85 and a > 0.6:
-                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                    d.point((sx + dx, sy + dy), fill=(150, 200, 255, clamp(120 * a)))
-        frames.append(img.convert("RGBA"))
-    save("nebula", frames, 90)
-
-
-# ---------- 2. 旋转太极图 ----------
 def taiji():
     S, N, SS = 32, 24, 8  # 超采样抗锯齿
     frames = []
@@ -182,24 +146,6 @@ def energy_flow():
 
 
 # ---------- 5. 边框角饰（四角闪烁的菱形光点） ----------
-def corner():
-    S, N = 9, 16
-    frames = []
-    for n in range(N):
-        a = 0.5 + 0.5 * math.sin(TAU * n / N)
-        img = Image.new("RGBA", (S, S))
-        d = ImageDraw.Draw(img)
-        c = S // 2
-        d.polygon([(c, 0), (S - 1, c), (c, S - 1), (0, c)], fill=(91, 155, 213, 255))
-        d.polygon([(c, 2), (S - 3, c), (c, S - 3), (2, c)], fill=(clamp(150 + 105 * a), clamp(215 + 40 * a), 255, 255))
-        d.point((c, c), fill=(255, 255, 255, 255))
-        frames.append(img)
-    save("corner", frames, 80)
-
-
-
-
-# ---------- 6. 星空宇宙（商店背景：银河带 + 螺旋星系 + 闪烁星辰 + 流星） ----------
 def cosmos():
     W, H, N = 256, 192, 32
     rnd = random.Random(42)
@@ -277,6 +223,6 @@ def cosmos():
 
 if __name__ == "__main__":
     import sys
-    todo = sys.argv[1:] or ["nebula", "taiji", "sigil", "energy_flow", "corner", "cosmos"]
+    todo = sys.argv[1:] or ["taiji", "sigil", "energy_flow", "cosmos"]
     for name in todo:
         globals()[name]()

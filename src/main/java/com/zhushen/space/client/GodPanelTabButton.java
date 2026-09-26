@@ -15,11 +15,11 @@ import net.minecraft.network.chat.Component;
  */
 public class GodPanelTabButton extends AbstractButton {
 
-    private static final int BG = 0xF0133049;
-    private static final int BG_HOVER = 0xF01F4E6E;
-    private static final int BORDER = 0xFF5B9BD5;
-    private static final int BORDER_HOVER = 0xFF7FC4F0;
-    private static final int TEXT_COLOR = 0xFFD9EEFF;
+    private static final int BG = 0xF0201830;
+    private static final int BG_HOVER = 0xF03E2E6E;
+    private static final int BORDER = ZsTheme.PANEL_BORDER;
+    private static final int BORDER_HOVER = ZsTheme.ACCENT_LIGHT;
+    private static final int TEXT_COLOR = ZsTheme.TEXT_MAIN;
 
     public GodPanelTabButton(int x, int y, int width, int height) {
         super(x, y, width, height, Component.translatable("screen.zhushenspace.godpanel.tab"));
@@ -50,6 +50,8 @@ public class GodPanelTabButton extends AbstractButton {
         Component msg = getMessage();
         g.drawString(font, msg, getX() + (width - font.width(msg)) / 2,
                 getY() + (height - 8) / 2, TEXT_COLOR, true);
+        // 右上角小紫花（悬停时旋转绽开）
+        ZsTheme.flower(g, getX() + width - 2, getY() + 2, 7 + 2 * t, t * (ZsAnim.nowMs() / 10f % 360), 0.8f + 0.2f * t);
     }
 
     @Override

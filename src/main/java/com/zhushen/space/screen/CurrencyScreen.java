@@ -25,7 +25,7 @@ public class CurrencyScreen extends Screen {
 
     private static final int ACCENT = ZsTheme.ACCENT;
     private static final int GOLD = ZsTheme.CURRENCY;
-    private static final int SLOT_BG_HELD = 0x663A5A7A;
+    private static final int SLOT_BG_HELD = 0x664A3688;
     private static final int TEXT_SUB = ZsTheme.TEXT_SUB;
 
     private int panelX, panelY;
@@ -68,6 +68,8 @@ public class CurrencyScreen extends Screen {
         ZsTheme.panel(g, panelX, panelY, PANEL_W, PANEL_H);
 
         g.drawCenteredString(font, title, panelX + PANEL_W / 2, panelY + 7, ACCENT);
+        // 大黑塔的小人偶：蹲在标题左侧看你换钱
+        ZsTheme.doll(g, panelX + 6, panelY + 3, 14);
 
         // 操作提示
         g.drawString(font, Component.translatable("screen.zhushenspace.currency.hint1"),
@@ -84,14 +86,14 @@ public class CurrencyScreen extends Screen {
                     x + SLOT / 2, slotY + 4, GOLD);
             int count = ClientProgressData.branch(t);
             g.drawCenteredString(font, String.valueOf(count),
-                    x + SLOT / 2, slotY + SLOT - 12, count > 0 ? 0xFFFFFFFF : 0xFF5A6A78);
+                    x + SLOT / 2, slotY + SLOT - 12, count > 0 ? 0xFFFFFFFF : ZsTheme.TEXT_DISABLED);
         }
 
         // 拖拽中的支线跟随鼠标
         if (pickTier >= 0) {
             int x = dragX - 8, y = dragY - 8;
-            g.fill(x, y, x + 16, y + 16, 0xCC3BA9E0);
-            g.renderOutline(x, y, 16, 16, 0xFF7FC4F0);
+            g.fill(x, y, x + 16, y + 16, 0xCC7A62C4);
+            g.renderOutline(x, y, 16, 16, ZsTheme.ACCENT_LIGHT);
             g.drawCenteredString(font, PlayerCurrencyData.tierLetter(pickTier),
                     x + 8, y + 4, 0xFFFFFFFF);
         }

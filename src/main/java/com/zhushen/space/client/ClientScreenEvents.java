@@ -59,8 +59,9 @@ public class ClientScreenEvents {
             event.setBorderEnd(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF5A2A14, 0xFFA0461C, p));
             return;
         }
-        event.setBackground(0xF2081420);
-        event.setBorderStart(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF5B9BD5, 0xFF9FE0FF, p));
-        event.setBorderEnd(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF8A6A20, 0xFFFFD966, p));
+        // 通用（大黑塔）：夜空墨紫底 + 帽花紫→薰衣草边框，底边带一点帽环金
+        event.setBackground(0xF2120E1C);
+        event.setBorderStart(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF8C6FE0, 0xFFCDBEF5, p));
+        event.setBorderEnd(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF5E4C94, 0xFFE8C77E, p * 0.6f));
     }
 }

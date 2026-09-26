@@ -71,7 +71,14 @@ public class EnergyUiConfigScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        int cx = this.width / 2;
+        // 按钮底板（大黑塔卡片）先画，按钮在其上
+        int cardX = cx - 138, cardY = this.height - 60, cardW = 286, cardH = 56;
+        ZsTheme.card(g, cardX, cardY, cardW, cardH, false);
+        ZsTheme.petals(g, cardX, cardY, cardW, cardH, 4);
+        ZsTheme.flower(g, cardX, cardY, 10, ZsAnim.nowMs() / 60f % 360, 0.9f);
         super.render(g, mouseX, mouseY, partialTick);
+        HertaChibi.render(g, font, cx + 64, cardY, mouseX, mouseY);
         // 能量池实时预览（无池时显示示例）
         if (ClientEnergyData.pools().isEmpty()) {
             EnergyHudRenderer.renderDemo(g, font, this.width, this.height);
@@ -79,20 +86,22 @@ public class EnergyUiConfigScreen extends Screen {
             EnergyHudRenderer.render(g, font, this.width, this.height);
         }
 
-        g.drawCenteredString(font, title, this.width / 2, 14, 0xFF9FD8F8);
+        g.drawCenteredString(font, title, this.width / 2, 14, ZsTheme.TEXT_TITLE);
+        ZsTheme.hat(g, this.width / 2f + font.width(title) / 2f + 2, 3, 16);
         g.drawCenteredString(font,
                 Component.translatable("screen.zhushenspace.energy_config.hint").getString(),
-                this.width / 2, 30, 0xFF8FC6EE);
+                this.width / 2, 30, ZsTheme.TEXT_SUB);
     }
 
     @Override
     public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         // 半透明遮罩，保留世界画面便于观察位置效果
-        g.fillGradient(0, 0, this.width, this.height, 0x66060D16, 0x66060D16);
+        g.fillGradient(0, 0, this.width, this.height, 0x550A0714, 0x881C1232);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && HertaChibi.click(mouseX, mouseY)) return true;
         if (button == 0) {
             float[] pos = EnergyHudRenderer.layout(this.width, this.height,
                     Math.max(1, ClientEnergyData.pools().size()), ClientUiConfig.get().energyScale);

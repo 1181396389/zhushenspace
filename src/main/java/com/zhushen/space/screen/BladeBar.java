@@ -27,7 +27,7 @@ public final class BladeBar {
      */
     public enum Sword {
         // 字母位置：Excalibur = 护手下蓝色饰板中央；Ea = 护手蓝圆（与 tools/gen_holy_swords.py 一致）
-        EXCALIBUR("excalibur", 0xFF1C3E96, 0xFF6FA8FF, 0xFFFFE9A8, 0xFFFFD27A, 28, 15),
+        EXCALIBUR("excalibur", 0xFF1C3E96, 0xFF6FA8FF, 0xFFFFFFFF, 0xFFFFD27A, 27, 15),
         EA("ea", 0xFF6A0A0E, 0xFFFF3A2E, 0xFFFFE0D0, 0xFFFF5A3C, 22, 9);
 
         final ResourceLocation bar;
@@ -109,7 +109,13 @@ public final class BladeBar {
         g.pose().pushPose();
         g.pose().translate(gx, gy, 0);
         g.pose().scale(ls, ls, 1);
-        g.drawString(font, letter, -font.width(letter) / 2, -4, lc, true);
+        // 暗色描边：金 / 蓝底上都清晰可读
+        int lx = -font.width(letter) / 2;
+        int outline = active ? 0xFF0A0E24 : 0xFF000000;
+        for (int[] o : new int[][]{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) {
+            g.drawString(font, letter, lx + o[0], -4 + o[1], outline, false);
+        }
+        g.drawString(font, letter, lx, -4, lc, false);
         g.pose().popPose();
     }
 
