@@ -226,9 +226,10 @@ public class TaiChiManager {
             int[] pts = player.getData(ModAttachments.PLAYER_ATTRIBUTES).points();
             double max = pts[AttributeType.ENDURANCE.ordinal()] + pts[AttributeType.PERCEPTION.ordinal()];
             EnergyManager.grantPool(player, EnergyManager.POOL_NEILI, max);
-            double carry = energy.neiliCarryover();
-            if (carry > 0) {
-                EnergyManager.setAmount(player, EnergyManager.POOL_NEILI, Math.min(carry, max));
+            // 曾经摘下过就恢复当时的余量（包括 0），仅首次装备才是满的。
+            // setAmount 内部按实际上限（含传奇加成）截断
+            if (energy.hasNeiliCarryover()) {
+                EnergyManager.setAmount(player, EnergyManager.POOL_NEILI, energy.neiliCarryover());
             }
             player.displayClientMessage(Component.translatable("msg.zhushenspace.taiji.equipped_on"), true);
         } else if (!equipped && hasPool) {

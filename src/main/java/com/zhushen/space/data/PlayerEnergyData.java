@@ -49,6 +49,8 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
 
     /** 内力余量暂存：摘下饰品移除内力池时保存余量，重新装备时恢复（防止反复摘戴回满） */
     private double neiliCarryover;
+    /** 是否有暂存余量（区分“从未摘下过”与“摘下时余量为 0”，否则 0 内力摘戴会被当成首次装备而回满） */
+    private boolean hasNeiliCarryover;
 
     public Map<String, Pool> pools() {
         return pools;
@@ -73,6 +75,11 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
 
     public void setNeiliCarryover(double value) {
         this.neiliCarryover = Math.max(0, value);
+        this.hasNeiliCarryover = true;
+    }
+
+    public boolean hasNeiliCarryover() {
+        return hasNeiliCarryover;
     }
 
     public Pool getPool(String id) {
@@ -193,6 +200,7 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
         tag.put("Pools", list);
         tag.putBoolean("BreathEnabled", breathEnabled);
         tag.putDouble("NeiliCarryover", neiliCarryover);
+        tag.putBoolean("HasNeiliCarryover", hasNeiliCarryover);
         return tag;
     }
 
@@ -210,5 +218,9 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
         }
         breathEnabled = tag.getBoolean("BreathEnabled");
         neiliCarryover = tag.getDouble("NeiliCarryover");
+        // 旧存档无此字段：只能按余量 > 0 推断
+        hasNeiliCarryover = tag.contains("HasNeiliCarryover")
+                ? tag.getBoolean("HasNeiliCarryover")
+                : neiliCarryover > 0;
     }
 }
