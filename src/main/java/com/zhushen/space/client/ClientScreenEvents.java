@@ -38,6 +38,13 @@ public class ClientScreenEvents {
         Screen screen = Minecraft.getInstance().screen;
         if (screen == null || !screen.getClass().getName().startsWith("com.zhushen.space.")) return;
         float p = com.zhushen.space.screen.ZsAnim.pulse(2400);
+        if (screen instanceof com.zhushen.space.screen.GodPanelScreen gp && gp.forgeStyle()) {
+            // 战斗预设页：锻铁底 + 暗铜→炽焰边框
+            event.setBackground(0xF2140A07);
+            event.setBorderStart(com.zhushen.space.screen.ZsAnim.lerpColor(0xFFFF9A3C, 0xFFFFD27A, p));
+            event.setBorderEnd(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF5A2A14, 0xFFA0461C, p));
+            return;
+        }
         event.setBackground(0xF2081420);
         event.setBorderStart(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF5B9BD5, 0xFF9FE0FF, p));
         event.setBorderEnd(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF8A6A20, 0xFFFFD966, p));

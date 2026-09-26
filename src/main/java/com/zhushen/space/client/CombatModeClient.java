@@ -3,7 +3,7 @@ package com.zhushen.space.client;
 import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.data.SkillAbility;
 import com.zhushen.space.screen.ZsAnim;
-import com.zhushen.space.screen.ZsTheme;
+import com.zhushen.space.screen.BladeBar;
 import com.zhushen.space.network.UseSkillPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -32,13 +32,6 @@ import org.lwjgl.glfw.GLFW;
 public class CombatModeClient {
 
     // ===== 淡蓝色主题 =====
-    private static final int BAR_BG = 0xD80A1622;
-    private static final int BAR_BORDER = 0xFF5B9BD5;
-    private static final int SLOT_BG = 0x99132B42;
-    private static final int SLOT_BORDER = 0x883BA9E0;
-    private static final int SLOT_EMPTY_BG = 0x660D1B2A;
-    private static final int TEXT_MAIN = 0xFFD9EEFF;
-    private static final int COOLDOWN_TEXT = 0xFFFFD966;
 
     private static boolean combatMode = false;
 
@@ -114,6 +107,9 @@ public class CombatModeClient {
     public static void onHotbarLayer(RenderGuiLayerEvent.Pre event) {
         if (combatMode && VanillaGuiLayers.HOTBAR.equals(event.getName())) {
             event.setCanceled(true);
+            // 巨剑栏比原版物品栏高 8px：血量/饥饿等状态条整体上移，避免重叠
+            Minecraft.getInstance().gui.leftHeight += BladeBar.H - 22;
+            Minecraft.getInstance().gui.rightHeight += BladeBar.H - 22;
         }
     }
 
@@ -127,63 +123,46 @@ public class CombatModeClient {
 
         GuiGraphics g = event.getGuiGraphics();
         Font font = mc.font;
-        int barX = g.guiWidth() / 2 - 91;
-        int barY = g.guiHeight() - 22;
+        int barX = g.guiWidth() / 2 - BladeBar.W / 2;
+        int barY = g.guiHeight() - BladeBar.H - 1;
         int activeBar = ClientUiConfig.get().activeBar;
 
-        // 面板背景与边框（左侧扩展 14px 放置栏位指示），进入战斗模式时自下而上滑入
+        // 进入战斗模式：巨剑自下方升起，同时剑身由护手向剑尖「出鞘」展开
         float in = ZsAnim.easeOutCubic((ZsAnim.nowMs() - combatSince) / 250f);
+        float draw = ZsAnim.easeOutCubic((ZsAnim.nowMs() - combatSince - 80) / 380f);
         g.pose().pushPose();
-        g.pose().translate(0, (1 - in) * 26, 0);
-        float glow = ZsAnim.pulse(3000);
-        g.fill(barX - 16, barY - 2, barX + 184, barY + 24, ZsAnim.withAlpha(0xFF3BA9E0, 0.10f + 0.12f * glow));
-        g.fill(barX - 15, barY - 1, barX + 183, barY + 23, BAR_BORDER);
-        g.fill(barX - 14, barY, barX + 182, barY + 22, BAR_BG);
-        ZsAnim.NEBULA.draw(g, barX - 14, barY, 196, 22, 0x55FFFFFF);
-
-        // 栏位指示（A/B）
-        g.fill(barX - 13, barY + 1, barX - 1, barY + 21, SLOT_BG);
-        g.renderOutline(barX - 13, barY + 1, 12, 20, SLOT_BORDER);
-        g.drawCenteredString(font, activeBar == 0 ? "A" : "B", barX - 7, barY + 7, COOLDOWN_TEXT);
+        g.pose().translate(0, (1 - in) * 30, 0);
+        int reveal = barX + 30 + (int) ((BladeBar.W - 30) * draw);
+        g.enableScissor(barX - 4, barY - 8, reveal, barY + BladeBar.H + 34); // 下沿含升起位移
+        BladeBar.draw(g, font, barX, barY, 1f, activeBar == 0 ? "A" : "B", true);
 
         for (int slot = 0; slot < 9; slot++) {
-            int sx = barX + 1 + slot * 20;
-            int sy = barY + 1;
+            int sx = BladeBar.slotX(barX, slot, 1f);
+            int sy = BladeBar.slotY(barY, 1f);
             int abilityId = ClientSkillData.slotAbility(activeBar, slot);
-
-            if (abilityId < 0) {
-                g.fill(sx, sy, sx + 20, sy + 20, SLOT_EMPTY_BG);
-                g.renderOutline(sx, sy, 20, 20, SLOT_BORDER);
-                continue;
-            }
+            if (abilityId < 0) continue; // 空槽：保留剑身凹槽原貌
             SkillAbility ability = SkillAbility.values()[abilityId];
 
-            g.fill(sx, sy, sx + 20, sy + 20, SLOT_BG);
-            g.renderOutline(sx, sy, 20, 20, SLOT_BORDER);
-
-            // 技能图标（16×16 居中）
-            g.blit(ability.iconTexture(), sx + 2, sy + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
-
-            // 冷却遮罩与剩余秒数
             long remainMs = ClientSkillData.cooldownRemainingMs(abilityId);
+            float remain = 0, flash = 0;
             if (remainMs > 0) {
                 if (remainMs > cdTotal[abilityId]) cdTotal[abilityId] = remainMs;
-                ZsTheme.cooldown(g, sx, sy, 20, remainMs / (float) Math.max(1, cdTotal[abilityId]));
+                remain = remainMs / (float) Math.max(1, cdTotal[abilityId]);
                 cdReadyAt[abilityId] = -1;
-                int seconds = (int) Math.ceil(remainMs / 1000.0);
-                g.drawCenteredString(font, String.valueOf(seconds), sx + 10, sy + 6, COOLDOWN_TEXT);
             } else {
-                // 冷却结束：金色闪光 0.5 秒
+                // 冷却结束：火花迸发 0.5 秒
                 if (cdReadyAt[abilityId] == -1) cdReadyAt[abilityId] = ZsAnim.nowMs();
                 cdTotal[abilityId] = 0;
-                float f = cdReadyAt[abilityId] > 0
+                flash = cdReadyAt[abilityId] > 0
                         ? 1 - ZsAnim.clamp01((ZsAnim.nowMs() - cdReadyAt[abilityId]) / 500f) : 0;
-                if (f > 0) {
-                    g.fill(sx, sy, sx + 20, sy + 20, ZsAnim.withAlpha(0xFFFFD966, 0.45f * f));
-                    g.renderOutline(sx - 1, sy - 1, 22, 22, ZsAnim.withAlpha(0xFFFFD966, f));
-                }
+            }
+            BladeBar.socket(g, ability.iconTexture(), sx, sy, BladeBar.SLOT, remain, flash, false);
+            if (remainMs > 0) {
+                int seconds = (int) Math.ceil(remainMs / 1000.0);
+                g.drawCenteredString(font, String.valueOf(seconds), sx + 10, sy + 6, BladeBar.EMBER_HOT);
             }
         }
+        g.disableScissor();
 
         g.pose().popPose();
 

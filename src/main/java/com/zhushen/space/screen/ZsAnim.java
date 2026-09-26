@@ -150,5 +150,6 @@ public final class ZsAnim {
     public static final Sprite SIGIL = Sprite.of("sigil", 64, 64, 32, 60);
     public static final Sprite ENERGY_FLOW = Sprite.of("energy_flow", 16, 32, 16, 60);
     public static final Sprite COSMOS = Sprite.of("cosmos", 256, 192, 32, 100);
+    public static final Sprite UBW = Sprite.of("ubw", 256, 192, 24, 90);
     public static final Sprite CORNER = Sprite.of("corner", 9, 9, 16, 80);
 }

@@ -56,8 +56,10 @@ public class GodPanelScreen extends Screen {
     private static final int HEADER_HEIGHT = 40;
     private static final int TOOLTIP_WIDTH = 175;
     private static final int TAB_H = 14;
-    private static final int SLOT_SIZE = 24;
-    private static final int SLOT_PITCH = 26;
+    /** 战斗预设巨剑栏缩放（240×30 → 264×33），技能槽 22px */
+    private static final float BAR_SCALE = 1.1f;
+    private static final int SLOT_SIZE = BladeBar.slotSize(BAR_SCALE);
+    private static final int BAR_H = Math.round(BladeBar.H * BAR_SCALE);
     private static final int CHIP_H = 20;
 
     // ===== 属性 / 技能页状态（两页共用同一套加点列表逻辑） =====
@@ -527,52 +529,64 @@ public class GodPanelScreen extends Screen {
 
     // ===== 战斗预设页 =====
 
+    /** 巨剑栏左端 x（面板内水平居中） */
+    private int barX() {
+        return panelX + (panelW - Math.round(BladeBar.W * BAR_SCALE)) / 2;
+    }
+
+    /** 第 bar 柄巨剑栏顶端 y */
+    private int barY(int bar) {
+        return listTop + 6 + bar * (BAR_H + 8);
+    }
+
     private int slotX(int slot) {
-        return panelX + 8 + (panelW - 8 - 9 * SLOT_PITCH) / 2 + slot * SLOT_PITCH;
+        return BladeBar.slotX(barX(), slot, BAR_SCALE);
     }
 
     /** 第 bar 套预设栏的 y 坐标（A 在上，B 在下） */
     private int slotsY(int bar) {
-        return listTop + 8 + bar * (SLOT_SIZE + 12);
+        return BladeBar.slotY(barY(bar), BAR_SCALE);
     }
 
-    /** 预设栏底座：玻璃底板 + 左侧菱形 A/B 徽标；当前战斗使用的栏位金色呼吸描边 */
-    private void renderBarFrame(GuiGraphics g, int bar, int sy) {
-        int x1 = slotX(0) - 20, x2 = slotX(8) + SLOT_SIZE + 4;
-        int y1 = sy - 4, y2 = sy + SLOT_SIZE + 4;
-        boolean active = com.zhushen.space.client.ClientUiConfig.get().activeBar == bar;
-        float p = ZsAnim.pulse(2400);
-        if (active) g.fill(x1 - 1, y1 - 1, x2 + 1, y2 + 1, ZsAnim.withAlpha(GOLD, 0.15f + 0.2f * p));
-        g.fillGradient(x1, y1, x2, y2, 0xAA132B42, 0xAA0A1622);
-        g.renderOutline(x1, y1, x2 - x1, y2 - y1, active ? ZsAnim.withAlpha(GOLD, 0.6f + 0.4f * p) : 0x885B9BD5);
-        // 菱形徽标
-        int cx = x1 + 9, cy = (y1 + y2) / 2;
-        for (int i = 0; i <= 7; i++) {
-            int w = 7 - i;
-            g.fill(cx - w, cy - i, cx + w + 1, cy - i + 1, active ? 0xFF6B5418 : 0xFF16455F);
-            g.fill(cx - w, cy + i, cx + w + 1, cy + i + 1, active ? 0xFF6B5418 : 0xFF16455F);
-        }
-        g.drawCenteredString(font, bar == 0 ? "A" : "B", cx + 1, cy - 3, active ? GOLD : TEXT_TITLE);
+    /** 战斗预设背景：无限剑制（燃烧黄昏、空中巨轮、剑冢荒原、升腾火星） */
+    private void renderBattlefield(GuiGraphics g) {
+        int top = panelY + HEADER_HEIGHT - 2;
+        int x = panelX + 1, w = panelW - 2, h = panelY + panelH - 1 - top;
+        int dh = Math.max(h, w * 192 / 256);
+        g.enableScissor(x, top, x + w, top + h);
+        ZsAnim.UBW.draw(g, x, top + h - dh, w, dh);
+        g.disableScissor();
+        // 顶部压暗，使剑栏在明亮天幕上清晰；底部压暗承托芯片区
+        g.fillGradient(x, top, x + w, top + 20, 0xCC120806, 0x00120806);
+        int chipTop = barY(1) + BAR_H + 6;
+        g.fillGradient(x, chipTop, x + w, top + h, 0x55120806, 0xAA120806);
+    }
+
+    /** 当前是否处于战斗预设页（悬停提示框切换为锻铁风格） */
+    public boolean forgeStyle() {
+        return tab == Tab.PRESET;
     }
 
     private void renderPresetTab(GuiGraphics g, int mouseX, int mouseY) {
         // 悬停提示延后到所有格子/芯片绘制完之后统一绘制（优先级最高，避免被边框遮挡）
         List<FormattedCharSequence> hoverTip = null;
+        renderBattlefield(g);
 
         // 两套预设栏（A/B），共享已解锁技能
         for (int bar = 0; bar < slots.length; bar++) {
             int sy = slotsY(bar);
-            // 栏位标签
-            renderBarFrame(g, bar, sy);
+            boolean activeBar = com.zhushen.space.client.ClientUiConfig.get().activeBar == bar;
+            BladeBar.draw(g, font, barX(), barY(bar), BAR_SCALE, bar == 0 ? "A" : "B", activeBar);
             for (int slot = 0; slot < 9; slot++) {
                 int sx = slotX(slot);
-                ZsTheme.slot(g, mouseX, mouseY, sx, sy, SLOT_SIZE, slots[bar][slot] >= 0);
-
                 int abilityId = slots[bar][slot];
-                if (abilityId >= 0 && abilityId < SkillAbility.COUNT) {
+                boolean has = abilityId >= 0 && abilityId < SkillAbility.COUNT;
+                boolean hoverSlot = over(mouseX, mouseY, sx, sy, SLOT_SIZE, SLOT_SIZE);
+                // 拖拽中悬停的目标槽：火光提示可放置
+                BladeBar.socket(g, has ? SkillAbility.values()[abilityId].iconTexture() : null,
+                        sx, sy, SLOT_SIZE, 0, 0, hoverSlot);
+                if (has) {
                     SkillAbility ability = SkillAbility.values()[abilityId];
-                    // 技能图标（16×16 居中），悬停显示名称与描述（延后绘制）
-                    g.blit(ability.iconTexture(), sx + 2, sy + 2, 20, 20, 0f, 0f, 32, 32, 32, 32);
                     if (dragging == -1 && over(mouseX, mouseY, sx, sy, SLOT_SIZE, SLOT_SIZE)) {
                         hoverTip = buildAbilityTooltip(ability);
                     }
@@ -581,16 +595,16 @@ public class GodPanelScreen extends Screen {
                 g.pose().pushPose();
                 g.pose().translate(sx + SLOT_SIZE - 5, sy + SLOT_SIZE - 6, 200);
                 g.pose().scale(0.6f, 0.6f, 1);
-                g.drawString(font, String.valueOf(slot + 1), 0, 0, 0xFFBFE8FF, true);
+                g.drawString(font, String.valueOf(slot + 1), 0, 0, BladeBar.EMBER_HOT, true);
                 g.pose().popPose();
             }
         }
 
         // 已解锁技能芯片区（太极拳收纳在文件夹中，支持翻页）
         int chipW = (panelW - 24) / 2;
-        int chipTop = slotsY(1) + SLOT_SIZE + 10;
+        int chipTop = barY(1) + BAR_H + 10;
         int chipsBottom = listBottom - 14;
-        ZsTheme.separator(g, panelX + 10, panelX + panelW - 10, chipTop - 5);
+        BladeBar.separator(g, panelX + 10, panelX + panelW - 10, chipTop - 5);
         int visibleRows = Math.max(1, (chipsBottom - chipTop) / (CHIP_H + 4));
         int totalRows = chipRowCount();
         chipScroll = Mth.clamp(chipScroll, 0, Math.max(0, totalRows - visibleRows));
@@ -626,8 +640,8 @@ public class GodPanelScreen extends Screen {
             float p = ZsAnim.pulse(800);
             g.pose().pushPose();
             g.pose().translate(0, 0, 300);
-            g.fill(mouseX - 12, mouseY - 12, mouseX + 12, mouseY + 12, ZsAnim.withAlpha(GOLD, 0.25f + 0.25f * p));
-            g.renderOutline(mouseX - 12, mouseY - 12, 24, 24, GOLD);
+            g.fill(mouseX - 12, mouseY - 12, mouseX + 12, mouseY + 12, ZsAnim.withAlpha(BladeBar.EMBER, 0.25f + 0.3f * p));
+            g.renderOutline(mouseX - 12, mouseY - 12, 24, 24, BladeBar.EMBER_HOT);
             g.blit(SkillAbility.values()[dragging].iconTexture(), mouseX - 10, mouseY - 10, 20, 20,
                     0f, 0f, 32, 32, 32, 32);
             g.pose().popPose();
@@ -724,9 +738,9 @@ public class GodPanelScreen extends Screen {
                         ? "screen.zhushenspace.preset.folder_open" : "screen.zhushenspace.preset.folder_closed",
                 Component.translatable("school.zhushenspace.tai_chi"), count, total).getString();
         boolean hover = over(mouseX, mouseY, cx, cy, w, CHIP_H);
-        ZsTheme.card(g, cx, cy, w, CHIP_H, hover);
+        BladeBar.plate(g, cx, cy, w, CHIP_H, hover, false);
         ZsAnim.TAIJI.draw(g, cx + 4, cy + 3, 14, 14);
-        g.drawCenteredString(font, label, cx + w / 2, cy + (CHIP_H - 8) / 2, TEXT_MAIN);
+        g.drawCenteredString(font, label, cx + w / 2, cy + (CHIP_H - 8) / 2, BladeBar.IRON_TEXT);
     }
 
     /** 单个技能芯片（locked = 未购买置灰）。悬停时返回提示行，由调用方最后统一绘制 */
@@ -734,18 +748,13 @@ public class GodPanelScreen extends Screen {
                                                    ChipItem item, int cx, int cy, int chipW) {
         SkillAbility ability = item.ability();
         boolean hover = over(mouseX, mouseY, cx, cy, chipW, CHIP_H);
-        if (item.locked()) {
-            g.fill(cx, cy, cx + chipW, cy + CHIP_H, ROW_BG_ALT);
-            g.renderOutline(cx, cy, chipW, CHIP_H, SLOT_BORDER);
-        } else {
-            ZsTheme.card(g, cx, cy, chipW, CHIP_H, hover);
-        }
+        BladeBar.plate(g, cx, cy, chipW, CHIP_H, hover, item.locked());
         // 图标（12×12）+ 名称
         g.blit(ability.iconTexture(), cx + 3, cy + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
         if (item.locked()) {
             g.fill(cx + 3, cy + 2, cx + 19, cy + 18, 0x8C0E1820); // 置灰遮罩
         }
-        int textColor = item.locked() ? 0xFF5A7A8C : TEXT_MAIN;
+        int textColor = item.locked() ? 0xFF6A5448 : BladeBar.IRON_TEXT;
         String label = Component.translatable(ability.nameKey()).getString();
         if (item.locked()) {
             label += " ✕";
@@ -1185,7 +1194,7 @@ public class GodPanelScreen extends Screen {
             }
         }
         int chipW = (panelW - 24) / 2;
-        int chipTop = slotsY(1) + SLOT_SIZE + 10;
+        int chipTop = barY(1) + BAR_H + 10;
         int chipsBottom = listBottom - 14;
         for (ChipPos pos : layoutChips(chipTop, chipW)) {
             boolean folder = pos.item().ability() == null;
