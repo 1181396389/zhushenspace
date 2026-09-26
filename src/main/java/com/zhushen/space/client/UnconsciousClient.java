@@ -25,7 +25,7 @@ import net.neoforged.neoforge.client.event.InputEvent;
 public class UnconsciousClient {
 
     /** 与服务端 HealthManager 一致的昏迷判定 */
-    private static boolean isUnconscious(LocalPlayer player) {
+    public static boolean isUnconscious(LocalPlayer player) {
         float maxHp = player.getMaxHealth();
         return maxHp - ClientHealthData.total() <= 0.0f && ClientHealthData.l() > 0;
     }
@@ -37,9 +37,7 @@ public class UnconsciousClient {
         if (player == null) return;
         if (!isUnconscious(player)) return;
 
-        // 禁移动与跳跃
-        player.xxa = 0.0F;
-        player.zza = 0.0F;
+        // 兜底：水平动量清零（输入层已在 MovementInputUpdateEvent 中清零）
         player.setJumping(false);
         Vec3 v = player.getDeltaMovement();
         player.setDeltaMovement(0.0, v.y, 0.0);
@@ -49,6 +47,34 @@ public class UnconsciousClient {
             player.displayClientMessage(Component.translatable(
                     "msg.zhushenspace.health.unconscious_hint"), true);
         }
+    }
+
+    /**
+     * 输入层锁定：在移动输入计算完成、被玩家本 tick 使用之前清零（旧实现在 tick 结束后清零，跳跃与移动会漏过）。
+     * 锁定跳跃、潜行以外的全部移动输入。
+     */
+    @SubscribeEvent
+    public static void onMovementInput(net.neoforged.neoforge.client.event.MovementInputUpdateEvent event) {
+        if (!(event.getEntity() instanceof LocalPlayer player) || !isUnconscious(player)) return;
+        var input = event.getInput();
+        input.jumping = false;
+        input.up = input.down = input.left = input.right = false;
+        input.forwardImpulse = 0.0F;
+        input.leftImpulse = 0.0F;
+    }
+
+    /** 每 tick 开始前吞掉左右键与跳跃的点击缓存并松开按键，防止按住状态在苏醒瞬间或本 tick 内生效 */
+    @SubscribeEvent
+    public static void onClientTickPre(ClientTickEvent.Pre event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || !isUnconscious(mc.player)) return;
+        for (var key : new net.minecraft.client.KeyMapping[]{mc.options.keyAttack, mc.options.keyUse,
+                mc.options.keyJump, mc.options.keyPickItem}) {
+            while (key.consumeClick()) { }
+            key.setDown(false);
+        }
+        if (mc.gameMode != null) mc.gameMode.stopDestroyBlock();
+        if (mc.player.isUsingItem()) mc.gameMode.releaseUsingItem(mc.player);
     }
 
     /** 昏迷时禁用左键攻击/挖掘（含按住的持续挖掘）与右键使用 */

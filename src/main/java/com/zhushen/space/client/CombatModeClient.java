@@ -74,15 +74,30 @@ public class CombatModeClient {
             return;
         }
 
-        // 1~9：使用当前技能栏对应槽位技能
+        // 1~9：使用当前技能栏对应槽位技能（昏迷时禁止释放）
         if (combatMode && event.getAction() == GLFW.GLFW_PRESS
                 && event.getKey() >= GLFW.GLFW_KEY_1 && event.getKey() <= GLFW.GLFW_KEY_9) {
+            if (UnconsciousClient.isUnconscious(mc.player)) return;
             int slot = event.getKey() - GLFW.GLFW_KEY_1;
             int bar = ClientUiConfig.get().activeBar;
             if (ClientSkillData.slotAbility(bar, slot) >= 0) {
                 PacketDistributor.sendToServer(new UseSkillPayload(bar, slot));
             }
             return;
+        }
+    }
+
+    /**
+     * 战斗模式锁定物品栏数字键：在原版处理按键（handleKeybinds）之前吞掉 1~9 物品栏键的点击，
+     * 物品栏只能用滚轮切换；数字键仅用于释放技能。
+     */
+    @SubscribeEvent
+    public static void onClientTickPre(net.neoforged.neoforge.client.event.ClientTickEvent.Pre event) {
+        if (!combatMode) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        for (var key : mc.options.keyHotbarSlots) {
+            while (key.consumeClick()) { }
         }
     }
 
