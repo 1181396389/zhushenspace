@@ -197,5 +197,86 @@ def corner():
     save("corner", frames, 80)
 
 
+
+
+# ---------- 6. 星空宇宙（商店背景：银河带 + 螺旋星系 + 闪烁星辰 + 流星） ----------
+def cosmos():
+    W, H, N = 256, 192, 32
+    rnd = random.Random(42)
+    # 静态底图：深空 + 银河星云带（斜向），用多层正弦噪声
+    base = Image.new("RGBA", (W, H))
+    px = base.load()
+    for y in range(H):
+        for x in range(W):
+            # 银河带：到斜线距离
+            d = (y - (H * 0.75 - x * 0.45)) / 38.0
+            band = math.exp(-d * d)
+            n = (math.sin(x * 0.09 + y * 0.05) + math.sin(x * 0.031 - y * 0.087 + 1.3)
+                 + math.sin(x * 0.17 + y * 0.13 + 2.1) * 0.5) / 2.5
+            neb = max(0.0, band * (0.65 + 0.45 * n))
+            r = 4 + 70 * neb * (0.6 + 0.4 * math.sin(x * 0.02))
+            g = 3 + 30 * neb
+            b = 14 + 110 * neb
+            # 边缘暗角
+            vx, vy = (x - W / 2) / (W / 2), (y - H / 2) / (H / 2)
+            vig = 1 - 0.45 * (vx * vx + vy * vy)
+            px[x, y] = (clamp(r * vig), clamp(g * vig), clamp(b * vig), 255)
+    # 银河尘埃：带内密集小星
+    d0 = ImageDraw.Draw(base)
+    for _ in range(900):
+        x = rnd.uniform(0, W)
+        y = H * 0.75 - x * 0.45 + rnd.gauss(0, 20)
+        if 0 <= y < H:
+            a = rnd.randint(40, 140)
+            d0.point((x, y), fill=(200, 190, 255, a))
+    # 螺旋星系（右上）
+    gal = Image.new("RGBA", (W, H))
+    gd = ImageDraw.Draw(gal)
+    gx, gy = W * 0.78, H * 0.22
+    for i in range(1400):
+        arm = i % 2
+        t = rnd.uniform(0, 3.2)
+        ang = t * 2.2 + arm * math.pi + rnd.gauss(0, 0.25)
+        rr = t * 9
+        x = gx + rr * math.cos(ang)
+        y = gy + rr * math.sin(ang) * 0.45
+        a = int(200 * (1 - t / 3.4))
+        gd.point((x, y), fill=(210, 200, 255, max(20, a)))
+    gd.ellipse([gx - 4, gy - 2, gx + 4, gy + 2], fill=(255, 240, 220, 255))
+    gal = Image.alpha_composite(gal.filter(ImageFilter.GaussianBlur(1.2)), gal)
+    base.alpha_composite(gal)
+    base.alpha_composite(base.filter(ImageFilter.GaussianBlur(0.6)).point(lambda v: v // 3))
+
+    stars = [(rnd.randrange(W), rnd.randrange(H), rnd.uniform(0, TAU), rnd.random(),
+              rnd.choice([(255, 255, 255), (180, 210, 255), (255, 230, 190), (220, 190, 255)]))
+             for _ in range(110)]
+    frames = []
+    for n in range(N):
+        t = n / N
+        img = base.copy()
+        d = ImageDraw.Draw(img)
+        for sx, sy, ph, big, col in stars:
+            a = (math.sin(ph + TAU * t * (2 if big > 0.7 else 1)) + 1) / 2
+            d.point((sx, sy), fill=col + (clamp(60 + 195 * a),))
+            if big > 0.9:  # 亮星十字星芒
+                for k in (1, 2):
+                    fa = clamp(170 * a / k)
+                    for dx, dy in ((k, 0), (-k, 0), (0, k), (0, -k)):
+                        d.point((sx + dx, sy + dy), fill=col + (fa,))
+        # 流星：前 40% 帧从左上划向右下
+        if t < 0.4:
+            p = t / 0.4
+            hx, hy = 20 + p * 150, 10 + p * 70
+            for i in range(18):
+                a = clamp(255 * (1 - i / 18) * (1 - p * 0.5))
+                d.point((hx - i * 2, hy - i * 0.93), fill=(230, 240, 255, a))
+                d.point((hx - i * 2 + 1, hy - i * 0.93), fill=(230, 240, 255, a // 2))
+        frames.append(img)
+    save("cosmos", frames, 100)
+
+
 if __name__ == "__main__":
-    nebula(); taiji(); sigil(); energy_flow(); corner()
+    import sys
+    todo = sys.argv[1:] or ["nebula", "taiji", "sigil", "energy_flow", "corner", "cosmos"]
+    for name in todo:
+        globals()[name]()

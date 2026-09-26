@@ -56,8 +56,9 @@ public class GodPanelScreen extends Screen {
     private static final int HEADER_HEIGHT = 40;
     private static final int TOOLTIP_WIDTH = 175;
     private static final int TAB_H = 14;
-    private static final int SLOT_SIZE = 20;
-    private static final int CHIP_H = 16;
+    private static final int SLOT_SIZE = 24;
+    private static final int SLOT_PITCH = 26;
+    private static final int CHIP_H = 20;
 
     // ===== 属性 / 技能页状态（两页共用同一套加点列表逻辑） =====
     private final PointList attrList = new PointList(AttributeType.COUNT, AttributeType.MAX_POINTS,
@@ -527,12 +528,31 @@ public class GodPanelScreen extends Screen {
     // ===== 战斗预设页 =====
 
     private int slotX(int slot) {
-        return panelX + (panelW - 9 * SLOT_SIZE) / 2 + slot * SLOT_SIZE;
+        return panelX + 8 + (panelW - 8 - 9 * SLOT_PITCH) / 2 + slot * SLOT_PITCH;
     }
 
     /** 第 bar 套预设栏的 y 坐标（A 在上，B 在下） */
     private int slotsY(int bar) {
-        return listTop + 6 + bar * (SLOT_SIZE + 4);
+        return listTop + 8 + bar * (SLOT_SIZE + 12);
+    }
+
+    /** 预设栏底座：玻璃底板 + 左侧菱形 A/B 徽标；当前战斗使用的栏位金色呼吸描边 */
+    private void renderBarFrame(GuiGraphics g, int bar, int sy) {
+        int x1 = slotX(0) - 20, x2 = slotX(8) + SLOT_SIZE + 4;
+        int y1 = sy - 4, y2 = sy + SLOT_SIZE + 4;
+        boolean active = com.zhushen.space.client.ClientUiConfig.get().activeBar == bar;
+        float p = ZsAnim.pulse(2400);
+        if (active) g.fill(x1 - 1, y1 - 1, x2 + 1, y2 + 1, ZsAnim.withAlpha(GOLD, 0.15f + 0.2f * p));
+        g.fillGradient(x1, y1, x2, y2, 0xAA132B42, 0xAA0A1622);
+        g.renderOutline(x1, y1, x2 - x1, y2 - y1, active ? ZsAnim.withAlpha(GOLD, 0.6f + 0.4f * p) : 0x885B9BD5);
+        // 菱形徽标
+        int cx = x1 + 9, cy = (y1 + y2) / 2;
+        for (int i = 0; i <= 7; i++) {
+            int w = 7 - i;
+            g.fill(cx - w, cy - i, cx + w + 1, cy - i + 1, active ? 0xFF6B5418 : 0xFF16455F);
+            g.fill(cx - w, cy + i, cx + w + 1, cy + i + 1, active ? 0xFF6B5418 : 0xFF16455F);
+        }
+        g.drawCenteredString(font, bar == 0 ? "A" : "B", cx + 1, cy - 3, active ? GOLD : TEXT_TITLE);
     }
 
     private void renderPresetTab(GuiGraphics g, int mouseX, int mouseY) {
@@ -543,29 +563,34 @@ public class GodPanelScreen extends Screen {
         for (int bar = 0; bar < slots.length; bar++) {
             int sy = slotsY(bar);
             // 栏位标签
-            int labelY = sy + (SLOT_SIZE - 8) / 2;
-            g.drawCenteredString(font, bar == 0 ? "A" : "B", slotX(0) - 12, labelY, GOLD);
+            renderBarFrame(g, bar, sy);
             for (int slot = 0; slot < 9; slot++) {
                 int sx = slotX(slot);
                 ZsTheme.slot(g, mouseX, mouseY, sx, sy, SLOT_SIZE, slots[bar][slot] >= 0);
-                g.drawString(font, String.valueOf(slot + 1), sx + 2, sy + 1, TEXT_SUB, false);
 
                 int abilityId = slots[bar][slot];
                 if (abilityId >= 0 && abilityId < SkillAbility.COUNT) {
                     SkillAbility ability = SkillAbility.values()[abilityId];
                     // 技能图标（16×16 居中），悬停显示名称与描述（延后绘制）
-                    g.blit(ability.iconTexture(), sx + 2, sy + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
+                    g.blit(ability.iconTexture(), sx + 2, sy + 2, 20, 20, 0f, 0f, 32, 32, 32, 32);
                     if (dragging == -1 && over(mouseX, mouseY, sx, sy, SLOT_SIZE, SLOT_SIZE)) {
                         hoverTip = buildAbilityTooltip(ability);
                     }
                 }
+                // 键位角标（缩小，右下角）
+                g.pose().pushPose();
+                g.pose().translate(sx + SLOT_SIZE - 5, sy + SLOT_SIZE - 6, 200);
+                g.pose().scale(0.6f, 0.6f, 1);
+                g.drawString(font, String.valueOf(slot + 1), 0, 0, 0xFFBFE8FF, true);
+                g.pose().popPose();
             }
         }
 
         // 已解锁技能芯片区（太极拳收纳在文件夹中，支持翻页）
         int chipW = (panelW - 24) / 2;
-        int chipTop = slotsY(1) + SLOT_SIZE + 8;
+        int chipTop = slotsY(1) + SLOT_SIZE + 10;
         int chipsBottom = listBottom - 14;
+        ZsTheme.separator(g, panelX + 10, panelX + panelW - 10, chipTop - 5);
         int visibleRows = Math.max(1, (chipsBottom - chipTop) / (CHIP_H + 4));
         int totalRows = chipRowCount();
         chipScroll = Mth.clamp(chipScroll, 0, Math.max(0, totalRows - visibleRows));
@@ -597,8 +622,15 @@ public class GodPanelScreen extends Screen {
 
         // 拖拽中的技能跟随鼠标
         if (dragging >= 0) {
-            g.drawString(font, Component.translatable(SkillAbility.values()[dragging].shortKey()).getString(),
-                    (int) mouseX + 6, (int) mouseY - 6, GOLD, true);
+            // 拖拽：图标跟随鼠标，外圈金色呼吸光
+            float p = ZsAnim.pulse(800);
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 300);
+            g.fill(mouseX - 12, mouseY - 12, mouseX + 12, mouseY + 12, ZsAnim.withAlpha(GOLD, 0.25f + 0.25f * p));
+            g.renderOutline(mouseX - 12, mouseY - 12, 24, 24, GOLD);
+            g.blit(SkillAbility.values()[dragging].iconTexture(), mouseX - 10, mouseY - 10, 20, 20,
+                    0f, 0f, 32, 32, 32, 32);
+            g.pose().popPose();
         }
 
         // 悬停提示最后绘制：位于所有格子、芯片背景与边框之上，且不受芯片区剪裁影响
@@ -693,7 +725,7 @@ public class GodPanelScreen extends Screen {
                 Component.translatable("school.zhushenspace.tai_chi"), count, total).getString();
         boolean hover = over(mouseX, mouseY, cx, cy, w, CHIP_H);
         ZsTheme.card(g, cx, cy, w, CHIP_H, hover);
-        ZsAnim.TAIJI.draw(g, cx + 3, cy + 2, 12, 12);
+        ZsAnim.TAIJI.draw(g, cx + 4, cy + 3, 14, 14);
         g.drawCenteredString(font, label, cx + w / 2, cy + (CHIP_H - 8) / 2, TEXT_MAIN);
     }
 
@@ -709,9 +741,9 @@ public class GodPanelScreen extends Screen {
             ZsTheme.card(g, cx, cy, chipW, CHIP_H, hover);
         }
         // 图标（12×12）+ 名称
-        g.blit(ability.iconTexture(), cx + 4, cy + 2, 12, 12, 0f, 0f, 32, 32, 32, 32);
+        g.blit(ability.iconTexture(), cx + 3, cy + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
         if (item.locked()) {
-            g.fill(cx + 4, cy + 2, cx + 16, cy + 14, 0x8C0E1820); // 置灰遮罩
+            g.fill(cx + 3, cy + 2, cx + 19, cy + 18, 0x8C0E1820); // 置灰遮罩
         }
         int textColor = item.locked() ? 0xFF5A7A8C : TEXT_MAIN;
         String label = Component.translatable(ability.nameKey()).getString();
@@ -720,7 +752,7 @@ public class GodPanelScreen extends Screen {
         } else if (!item.enabled()) {
             textColor = 0xFFC9A85C;
         }
-        g.drawString(font, label, cx + 20, cy + (CHIP_H - 8) / 2, textColor, true);
+        g.drawString(font, label, cx + 23, cy + (CHIP_H - 8) / 2, textColor, true);
 
         if (hover && dragging == -1) {
             List<FormattedCharSequence> lines = new ArrayList<>(buildAbilityTooltip(ability));
@@ -786,7 +818,20 @@ public class GodPanelScreen extends Screen {
                 .findFirstCurio(mc.player, ZhuShenSpace.TAI_CHI_EMBLEM.get()).isPresent();
     }
 
+    /** 商店背景：星空宇宙帧动画（银河、螺旋星系、闪烁星辰、流星），覆盖面板内容区 */
+    private void renderCosmos(GuiGraphics g) {
+        int top = panelY + HEADER_HEIGHT - 2;
+        int x = panelX + 1, w = panelW - 2, h = panelY + panelH - 1 - top;
+        // 按宽度等比铺满，纵向居中裁切
+        int dh = w * 192 / 256;
+        g.enableScissor(x, top, x + w, top + h);
+        ZsAnim.COSMOS.draw(g, x, top + (h - dh) / 2, w, Math.max(dh, h));
+        g.disableScissor();
+        g.fillGradient(x, top, x + w, top + 12, 0xCC0A1622, 0x000A1622);
+    }
+
     private void renderShopTab(GuiGraphics g, int mouseX, int mouseY) {
+        renderCosmos(g);
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             renderSchoolDetail(g, mouseX, mouseY);
             return;
@@ -1140,7 +1185,7 @@ public class GodPanelScreen extends Screen {
             }
         }
         int chipW = (panelW - 24) / 2;
-        int chipTop = slotsY(1) + SLOT_SIZE + 8;
+        int chipTop = slotsY(1) + SLOT_SIZE + 10;
         int chipsBottom = listBottom - 14;
         for (ChipPos pos : layoutChips(chipTop, chipW)) {
             boolean folder = pos.item().ability() == null;

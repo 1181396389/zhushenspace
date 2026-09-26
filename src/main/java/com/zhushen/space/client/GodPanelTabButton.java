@@ -46,13 +46,10 @@ public class GodPanelTabButton extends AbstractButton {
             g.fill(getX(), getY(), getX() + width, getY() + 1, ZsAnim.withAlpha(BORDER_HOVER, t));
         }
 
-        // 旋转太极徽记 + 文字
         Font font = Minecraft.getInstance().font;
         Component msg = getMessage();
-        int total = 11 + font.width(msg);
-        int x0 = getX() + (width - total) / 2;
-        ZsAnim.TAIJI.draw(g, x0, getY() + (height - 9) / 2, 9, 9);
-        g.drawString(font, msg, x0 + 11, getY() + (height - 8) / 2, TEXT_COLOR, true);
+        g.drawString(font, msg, getX() + (width - font.width(msg)) / 2,
+                getY() + (height - 8) / 2, TEXT_COLOR, true);
     }
 
     @Override

@@ -29,4 +29,17 @@ public class ClientScreenEvents {
                             b -> Minecraft.getInstance().setScreen(new EnergyUiConfigScreen(options))));
         }
     }
+
+    /**
+     * 主神空间界面内的悬停提示框：替换原版紫色边框为深空蓝玻璃底 + 青蓝→鎏金渐变边框（边框亮度随时间呼吸）。
+     */
+    @SubscribeEvent
+    public static void onTooltipColor(net.neoforged.neoforge.client.event.RenderTooltipEvent.Color event) {
+        Screen screen = Minecraft.getInstance().screen;
+        if (screen == null || !screen.getClass().getName().startsWith("com.zhushen.space.")) return;
+        float p = com.zhushen.space.screen.ZsAnim.pulse(2400);
+        event.setBackground(0xF2081420);
+        event.setBorderStart(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF5B9BD5, 0xFF9FE0FF, p));
+        event.setBorderEnd(com.zhushen.space.screen.ZsAnim.lerpColor(0xFF8A6A20, 0xFFFFD966, p));
+    }
 }
