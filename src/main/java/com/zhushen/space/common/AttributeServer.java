@@ -19,6 +19,11 @@ public class AttributeServer {
         if (!AttributeType.isValid(target)) return;
         PlayerAttributeData data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         if (AttributeType.totalCost(target) > data.totalPoints()) return;
+        // 已确认的加点不可退回：任一属性低于已保存值则拒绝（防止客户端篡改洗点）
+        int[] saved = data.points();
+        for (int i = 0; i < AttributeType.COUNT; i++) {
+            if (target[i] < saved[i]) return;
+        }
 
         data.setPoints(target);
         AttributeApplier.apply(player);

@@ -18,6 +18,11 @@ public class SkillServer {
         if (!SkillType.isValid(target)) return;
         PlayerSkillData data = player.getData(ModAttachments.PLAYER_SKILLS);
         if (SkillType.totalCost(target) > data.totalSkillPoints()) return;
+        // 已确认的加点不可退回
+        int[] saved = data.points();
+        for (int i = 0; i < SkillType.COUNT; i++) {
+            if (target[i] < saved[i]) return;
+        }
 
         data.setPoints(target);
         data.pruneSlots(); // 技能点下降时移除不再解锁的预设

@@ -169,8 +169,9 @@ public class GodPanelScreen extends Screen {
             return st > 0 && free() >= st;
         }
 
+        /** 只能撤回本次未确认的点，已确认（saved）的点不可退回 */
         boolean canDown(int i) {
-            return cur[i] > 0;
+            return cur[i] > saved[i];
         }
 
         void reset() {
@@ -481,7 +482,7 @@ public class GodPanelScreen extends Screen {
             }
             if (over(mouseX, mouseY, minusX(), by, PM_BTN, PM_BTN)) {
                 if (list.canDown(i)) {
-                    if (Screen.hasShiftDown()) list.cur[i] = 0;
+                    if (Screen.hasShiftDown()) list.cur[i] = list.saved[i];
                     else list.cur[i]--;
                     ZsTheme.click(0.8f);
                 }
