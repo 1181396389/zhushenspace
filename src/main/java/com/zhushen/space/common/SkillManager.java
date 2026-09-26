@@ -521,7 +521,19 @@ public class SkillManager {
 
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        STATES.remove(event.getEntity().getUUID());
+        // 仅清理进行中的技能效果；保留冷却，防止退出重进刷新冷却（如打坐 5 分钟冷却）
+        State old = STATES.remove(event.getEntity().getUUID());
+        if (old == null) return;
+        long now = System.currentTimeMillis();
+        boolean cooling = false;
+        for (long end : old.cooldownEndMs) {
+            if (end > now) { cooling = true; break; }
+        }
+        if (cooling) {
+            State fresh = new State();
+            System.arraycopy(old.cooldownEndMs, 0, fresh.cooldownEndMs, 0, fresh.cooldownEndMs.length);
+            STATES.put(event.getEntity().getUUID(), fresh);
+        }
     }
 
     @SubscribeEvent

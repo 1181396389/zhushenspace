@@ -204,6 +204,7 @@ public class EnergyManager {
 
     /** 打坐完成：内力回满 */
     private static void finishMeditation(ServerPlayer player) {
+        if (!player.isAlive()) return; // 打坐期间死亡：打坐中断
         PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
         if (data.getPool(POOL_NEILI) == null) return;
         if (data.restore(POOL_NEILI, Double.MAX_VALUE) > 0) {
@@ -397,8 +398,15 @@ public class EnergyManager {
         }
     }
 
+    /** 登出 / 死亡重生时中断打坐（否则打坐计时仍会在重生后或重新登录后回满内力） */
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        MEDITATION_CHANNEL_END.remove(event.getEntity().getUUID());
+    }
+
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        MEDITATION_CHANNEL_END.remove(event.getEntity().getUUID());
         if (event.getEntity() instanceof ServerPlayer player) {
             syncLegendaryPools(player);
         }

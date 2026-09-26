@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -68,14 +69,14 @@ public class HallManager {
             pitch = player.getXRot();
             player.displayClientMessage(Component.translatable("msg.zhushenspace.hall.returned"), true);
         } else {
-            // 主世界 → 进入大厅
-            RETURN_POS.put(player.getUUID(),
-                    GlobalPos.of(player.level().dimension(), player.blockPosition()));
+            // 主世界 → 进入大厅（维度存在时才记录返回点）
             target = player.server.getLevel(HALL_DIMENSION);
             if (target == null) {
                 player.displayClientMessage(Component.translatable("msg.zhushenspace.hall.missing"), true);
                 return;
             }
+            RETURN_POS.put(player.getUUID(),
+                    GlobalPos.of(player.level().dimension(), player.blockPosition()));
             HallBuilder.ensureBuilt(target);
             pos = findSafeY(target, HALL_SPAWN);
             yaw = 180.0F; // 面朝北
@@ -107,7 +108,9 @@ public class HallManager {
         LivingEntity target = event.getEntity();
         if (target.level() instanceof ServerLevel level
                 && level.dimension() == HALL_DIMENSION
-                && src.getEntity() != target) {
+                && src.getEntity() != target
+                // 虚空与 /kill 伤害不拦截：否则掉出大厅的玩家会无限下坠、/kill 也失效
+                && !src.is(DamageTypeTags.BYPASSES_INVULNERABILITY)) {
             event.setNewDamage(0.0F);
         }
     }
