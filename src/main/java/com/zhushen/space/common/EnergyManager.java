@@ -33,9 +33,9 @@ import java.util.UUID;
  *
  * 主能量池：玩家基础容量最大的能量池（通常是内力池），不生成任何额外的池。
  * 决心与沉着的传奇加成直接扩充主能量池容量：
- * - 决心满 5 点：主能量池上限固定 +3（例如 5 → 8）
- * - 沉着满 5 点：主能量池上限固定 +3（与决心叠加）
- * 上限每次由属性重新推导，不会重复累加；玩家没有任何能量池时加成不生效、也不会凭空生成池。
+ * - 决心满 5 点：每点传奇点数 +3 上限（1 点传奇即 5 → 8）
+ * - 沉着满 5 点：每点传奇点数 +3 上限（与决心叠加）
+ * 上限每次由属性重新推导（基础容量 + 加成），不会重复累加；玩家没有任何能量池时加成不生效、也不会凭空生成池。
  *
  * 内力（neili）：东方通用能量池，容量 = 耐力 + 感知。获得时自动附带两个技能：
  * - 内力吐息（自动档）：开启后近战攻击（含普攻）消耗 1 点内力，+6 伤害
@@ -51,10 +51,8 @@ public class EnergyManager {
     public static final String POOL_MAIN = "main";
     /** 内力池 id：东方通用能量池（耐力+感知） */
     public static final String POOL_NEILI = "neili";
-    /** 决心传奇加成：主能量池上限固定 +3（不随传奇点数叠加，每次重算推导，不会重复累加） */
-    public static final double RESOLVE_LEGEND_CAPACITY = 3.0;
-    /** 沉着传奇加成：主能量池上限固定 +3（与决心叠加） */
-    public static final double COMPOSURE_LEGEND_CAPACITY = 3.0;
+    /** 传奇加成：每点传奇点数为主能量池提供的上限（决心 / 沉着满级时各自生效，可叠加；每次重算推导，不会重复累加） */
+    public static final double CAPACITY_PER_LEGENDARY = 3.0;
     /** 内力吐息：每次近战攻击的伤害加成 */
     private static final double BREATH_BONUS_DAMAGE = 6.0;
     /** 打坐禁步时长（tick）：5 秒 */
@@ -75,7 +73,7 @@ public class EnergyManager {
 
     /**
      * 按当前属性重算能量池容量（属性提交与登录/重生/换维度时调用）：
-     * - 传奇加成（决心 / 沉着满 5 点时各固定 +3，二者可叠加）直接扩充玩家主能量池上限
+     * - 传奇加成（决心 / 沉着满 5 点时，每点传奇点数各 +3，二者可叠加）直接扩充玩家主能量池上限
      *   ——主能量池即基础容量最大的池（通常是内力池），不生成任何额外的池。
      * - 上限 = 基础容量 + 加成，每次都从属性重新推导而非累加，因此反复提交属性 / 重登 /
      *   摘戴饰品都不会重复获得 +3；玩家没有任何能量池时加成不生效、也不会凭空出现一个池。
@@ -85,13 +83,16 @@ public class EnergyManager {
     public static void syncLegendaryPools(ServerPlayer player) {
         PlayerAttributeData attrs = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         int[] p = attrs.points();
+        int leg = AttributeType.legendaryCount(p);
 
         double bonus = 0;
-        if (p[AttributeType.RESOLVE.ordinal()] >= AttributeType.MAX_POINTS) {
-            bonus += RESOLVE_LEGEND_CAPACITY;
-        }
-        if (p[AttributeType.COMPOSURE.ordinal()] >= AttributeType.MAX_POINTS) {
-            bonus += COMPOSURE_LEGEND_CAPACITY;
+        if (leg > 0) {
+            if (p[AttributeType.RESOLVE.ordinal()] >= AttributeType.MAX_POINTS) {
+                bonus += leg * CAPACITY_PER_LEGENDARY;
+            }
+            if (p[AttributeType.COMPOSURE.ordinal()] >= AttributeType.MAX_POINTS) {
+                bonus += leg * CAPACITY_PER_LEGENDARY;
+            }
         }
 
         PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);

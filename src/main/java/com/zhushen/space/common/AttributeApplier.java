@@ -25,7 +25,7 @@ import net.minecraft.world.entity.player.Player;
  * - 耐力：最大生命 +1/点
  * - 感知：护甲韧性 +1/点（弱点勘破为概率事件，见 AttributeEvents；感知范围 +20m 属于后续功能）
  * - 操作：暴击率 +1%/点（暴击伤害 1.5 倍，见 AttributeEvents）
- * - 沉着：移速 +20%/点
+ * - 沉着（满级后）：移速 +5%/传奇点，封顶 +25%（原 +20%/点无上限，9 点传奇可达 +180%，过快）
  */
 public class AttributeApplier {
 
@@ -74,10 +74,17 @@ public class AttributeApplier {
         set(player, Attributes.ARMOR_TOUGHNESS, "perception_armor_toughness",
                 legBonus(p[AttributeType.PERCEPTION.ordinal()], leg, 1.0), AttributeModifier.Operation.ADD_VALUE);
 
-        // ===== 沉着（传奇移速）=====
+        // ===== 沉着（传奇移速：每点传奇 +5%，封顶 +25%）=====
         set(player, Attributes.MOVEMENT_SPEED, "composure_speed",
-                legBonus(p[AttributeType.COMPOSURE.ordinal()], leg, 0.2), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+                Math.min(COMPOSURE_SPEED_CAP,
+                        legBonus(p[AttributeType.COMPOSURE.ordinal()], leg, COMPOSURE_SPEED_PER_LEGENDARY)),
+                AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
     }
+
+    /** 沉着传奇：每点传奇点数的移动速度加成（乘算） */
+    public static final double COMPOSURE_SPEED_PER_LEGENDARY = 0.05;
+    /** 沉着传奇：移动速度加成上限 */
+    public static final double COMPOSURE_SPEED_CAP = 0.25;
 
     /** 传奇加成：仅当该属性自身满 5 点时激活，按玩家拥有的传奇点数叠加 */
     private static double legBonus(int ownPoints, int legendary, double perPoint) {
