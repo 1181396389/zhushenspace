@@ -17,6 +17,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -97,8 +98,11 @@ public class HallManager {
         return pos.above(2);
     }
 
-    /** 安全区：大厅维度内伤害归零（Pre 不可取消，直接把伤害设为 0） */
-    @SubscribeEvent
+    /**
+     * 安全区：大厅维度内伤害归零（Pre 不可取消，直接把伤害设为 0）。
+     * 最低优先级：必须在太极徒手加成/八劲/内力吐息等增伤监听之后执行，否则归零后又被加回伤害。
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDamage(LivingDamageEvent.Pre event) {
         DamageSource src = event.getSource();
         LivingEntity target = event.getEntity();

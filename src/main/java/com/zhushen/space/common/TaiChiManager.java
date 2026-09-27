@@ -80,6 +80,12 @@ public class TaiChiManager {
 
     private static final Map<UUID, WallCheck> WALL_CHECKS = new HashMap<>();
 
+    /** 待结算的生命上限削减（八劲·采在 LivingDamageEvent.Pre 中触发，须等本次受击结算完毕再削减上限） */
+    private record PendingCap(LivingEntity target, double hpLoss) {
+    }
+
+    private static final java.util.List<PendingCap> PENDING_SEVERE_CAP = new java.util.ArrayList<>();
+
     /** 引手减值层：带层实体 UUID → {层数, 到期时间}（每层：攻击 -3 / 防御 -1，持续 1 分钟，叠层刷新） */
     private record YinStack(int layers, long expireMs) {
     }
@@ -150,6 +156,16 @@ public class TaiChiManager {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        // 八劲·采：延迟到本刻末（受击流程已完整结束、生命值已扣除）再削减生命上限
+        if (!PENDING_SEVERE_CAP.isEmpty()) {
+            for (PendingCap pending : PENDING_SEVERE_CAP) {
+                if (pending.target().isAlive()) {
+                    reduceMaxHealth(pending.target(), pending.hpLoss());
+                }
+            }
+            PENDING_SEVERE_CAP.clear();
+        }
+
         // 靠·撞墙判定推进（horizontalCollision 是逐刻标志，必须在窗口内每刻检查，
         // 否则到 400ms 到期时标志早已复位，撞墙后续效果永远不会触发）
         if (!WALL_CHECKS.isEmpty()) {
@@ -328,7 +344,17 @@ public class TaiChiManager {
             case WARD_OFF, ROLL_BACK -> amount += 6; // 掤 / 捋：劲力直透
             case PRESS -> amount += Math.min(6f, target.getAbsorptionAmount()); // 挤：破魔
             case PUSH -> amount += 3; // 按：下按
-            case PULL -> severeDamage(target, 1); // 采：削减生机
+            case PULL -> { // 采：削减生机
+                // 严重伤害的即时部分并入本次攻击（嵌套 hurt 会被受击无敌帧吞掉），
+                // 生命上限削减延迟到受击结算之后
+                if (target instanceof ServerPlayer victim) {
+                    HealthManager.addWound(victim, PlayerHealthData.Severity.L, 1);
+                } else {
+                    double hpLoss = severeHpLoss(1);
+                    amount += (float) hpLoss;
+                    PENDING_SEVERE_CAP.add(new PendingCap(target, hpLoss));
+                }
+            }
             case SPLIT -> { // 挒：压制
                 target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0));
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 0));
@@ -857,6 +883,10 @@ public class TaiChiManager {
                 }
             }
             case ELBOW -> damage += 6f * target.getArmorValue() / 20f; // 破甲 6
+            // 采：3 点严重伤害的即时部分并入本次攻击（命中后再单独 hurt 会被受击无敌帧吞掉）
+            case PULL -> {
+                if (!(target instanceof ServerPlayer)) damage += (float) severeHpLoss(3);
+            }
             default -> {
             }
         }
@@ -888,11 +918,17 @@ public class TaiChiManager {
         switch (ability) {
             case ROLL_BACK -> {
                 MOVE_ATTACK_FLAG.add(player.getUUID());
+                // 追加伤害是独立一击：清除受击无敌帧，否则只会结算 (21 - 本次攻击伤害) 的差值
+                target.invulnerableTime = 0;
                 target.hurt(player.damageSources().playerAttack(player), 21f);
                 MOVE_ATTACK_FLAG.remove(player.getUUID());
             }
             case PULL -> { // 采：黑烟缠绕（削减生机）
-                severeDamage(target, 3);
+                if (target instanceof ServerPlayer victim) {
+                    HealthManager.addWound(victim, PlayerHealthData.Severity.L, 3);
+                } else if (target.isAlive()) {
+                    reduceMaxHealth(target, severeHpLoss(3)); // 即时伤害已并入主攻击
+                }
                 if (player.level() instanceof ServerLevel level) {
                     level.sendParticles(ParticleTypes.SMOKE,
                             target.getX(), target.getY() + target.getBbHeight() * 0.8, target.getZ(),
@@ -1000,32 +1036,63 @@ public class TaiChiManager {
         return best;
     }
 
+    /** 严重伤害的即时/上限部分：每 3 点严重伤害 = 1 点生命 */
+    private static double severeHpLoss(int severe) {
+        return severe / 3.0;
+    }
+
     /**
-     * 严重伤害：
-     * - 玩家目标：直接计入 B/L/A 系统的严重（L）伤势池（不再削减上限）；
-     * - 其余生物：削减最大生命值（severe 点严重伤害 = -severe/3 上限）并造成等量即时伤害，
-     *   上限削减为瞬态修饰器（死亡/重登后消退），不会低于 1。
+     * 严重伤害（独立一击，如靠·撞墙）：
+     * - 玩家目标：直接计入 B/L/A 系统的严重（L）伤势池；
+     * - 其余生物：先造成 severe/3 点即时伤害（清除受击无敌帧，保证能结算，且不致死），
+     *   再削减等量最大生命值（见 {@link #reduceMaxHealth}）。
+     * 招式/八劲内的严重伤害不走这里：即时部分直接并入主攻击伤害。
      */
     private static void severeDamage(LivingEntity target, int severe) {
+        if (severe <= 0 || !target.isAlive()) return;
         if (target instanceof ServerPlayer player) {
             HealthManager.addWound(player, PlayerHealthData.Severity.L, severe);
             return;
         }
-        var attr = target.getAttribute(Attributes.MAX_HEALTH);
-        if (attr != null) {
-            double hpLoss = severe / 3.0;
-            double base = attr.getBaseValue();
-            double prev = attr.hasModifier(SEVERE_ID) ? attr.getModifier(SEVERE_ID).amount() : 0;
-            double total = Math.max(prev - hpLoss, -(base - 1));
+        double hpLoss = severeHpLoss(severe);
+        float instant = (float) Math.min(hpLoss, target.getHealth() - 1.0e-4);
+        if (instant > 0) {
+            target.invulnerableTime = 0;
+            target.hurt(target.damageSources().generic(), instant);
+        }
+        if (target.isAlive()) {
+            reduceMaxHealth(target, hpLoss);
+        }
+    }
+
+    /**
+     * 削减生物最大生命值（瞬态修饰器，死亡/重登后消退；上限不低于 1）。
+     * <p>
+     * 上限绝不压到当前生命值以下：否则原版会在下一刻以 setHealth(上限) 静默钳制生命值，
+     * 这次扣血绕过受伤流程，会让依赖生命追踪的实体错乱——例如 MmmMmmMmmMmm 训练假人
+     * （无限血模式下生命值恒满）会把这段差值当作「真实伤害」每刻反复显示 0.3 伤害 / +0.3 治疗。
+     * 因此即时伤害未能扣到（无敌、免疫、假人无限血等）时，上限也相应不削减。
+     */
+    private static void reduceMaxHealth(LivingEntity target, double hpLoss) {
+        if (hpLoss <= 0 || target instanceof ServerPlayer) return;
+        AttributeInstance attr = target.getAttribute(Attributes.MAX_HEALTH);
+        if (attr == null) return;
+        AttributeModifier old = attr.getModifier(SEVERE_ID);
+        double prev = old != null ? old.amount() : 0;
+        double base = attr.getBaseValue();
+        double maxWithout = target.getMaxHealth() - prev;       // 不含本修饰器的上限
+        double floorByHealth = target.getHealth() - maxWithout; // 上限 ≥ 当前生命值
+        double total = Math.max(prev - hpLoss, Math.max(-(base - 1), floorByHealth));
+        total = Math.min(total, 0);
+        if (total >= prev - 1.0e-6) return; // 无可削减
+
+        attr.removeModifier(SEVERE_ID);
+        attr.addTransientModifier(new AttributeModifier(SEVERE_ID, total,
+                AttributeModifier.Operation.ADD_VALUE));
+        // 兜底：存在乘算修饰器时换算可能有偏差，若上限仍低于生命值则回滚
+        if (target.getMaxHealth() < target.getHealth() - 1.0e-4) {
             attr.removeModifier(SEVERE_ID);
-            if (total < 0) {
-                attr.addTransientModifier(new AttributeModifier(SEVERE_ID, total,
-                        AttributeModifier.Operation.ADD_VALUE));
-            }
-            if (hpLoss > 0) {
-                target.hurt(target.damageSources().generic(),
-                        (float) Math.min(hpLoss, target.getHealth() - 1.0e-4));
-            }
+            if (old != null) attr.addTransientModifier(old);
         }
     }
 }
