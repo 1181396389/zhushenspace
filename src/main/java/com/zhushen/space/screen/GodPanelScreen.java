@@ -193,7 +193,9 @@ public class GodPanelScreen extends Screen {
             SgStyle.rollIn();
         }
         panelW = Math.min(270, this.width - 40);
-        panelH = Math.min(this.height - 20, HEADER_HEIGHT + AttributeType.COUNT * ROW_HEIGHT + 32);
+        // 列表区高度：容纳属性列表，或技能列表 + 底部获得/流派提示（取较大者；屏幕不够时滚动）
+        int listH = Math.max(AttributeType.COUNT * ROW_HEIGHT + 4, SkillType.COUNT * ROW_HEIGHT + 22);
+        panelH = Math.min(this.height - 20, HEADER_HEIGHT + listH + 28);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         listTop = panelY + HEADER_HEIGHT;

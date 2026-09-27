@@ -377,12 +377,13 @@ public class SkillManager {
         State st = STATES.get(player.getUUID());
         PlayerSkillData skills = player.getData(ModAttachments.PLAYER_SKILLS);
 
-        // 被动加成
+        // 被动加成（仅近战直击：投掷物/弹射物/枪弹等由玩家发出但非亲手命中的伤害不计入）
         ItemStack mainhand = player.getMainHandItem();
-        if (mainhand.isEmpty()) {
+        boolean melee = event.getSource().getDirectEntity() == player;
+        if (melee && mainhand.isEmpty()) {
             int brawl = skills.get(SkillType.BRAWL.ordinal());
             if (brawl > 0) event.setAmount(event.getAmount() + brawl);
-        } else if (isColdWeapon(mainhand)) {
+        } else if (melee && isColdWeapon(mainhand)) {
             int blade = skills.get(SkillType.BLADE.ordinal());
             if (blade > 0) event.setAmount(event.getAmount() + blade);
         }

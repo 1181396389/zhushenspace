@@ -104,3 +104,11 @@ description='''
     versionRange="[1.1.6,)"
     ordering="NONE"
     side="CLIENT"
+
+# TACZ（Timeless & Classics Guns: Zero）- 可选联动：「枪械」技能每点提升 TACZ 枪械伤害（未安装不影响运行）
+[[dependencies.${mod_id}]]
+    modId="tacz"
+    type="optional"
+    versionRange="[1.1.0,)"
+    ordering="NONE"
+    side="BOTH"

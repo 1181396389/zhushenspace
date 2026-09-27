@@ -33,6 +33,18 @@ repositories {
         name = "Illusive Soulworks maven"
         url = "https://maven.theillusivec4.top/"
     }
+    // TACZ 枪械（可选联动：「枪械」技能加成）——Modrinth Maven
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
     // Player Animation Library（可选联动：打坐盘坐动作）
     maven {
         name = "Redlance"
@@ -122,6 +134,8 @@ dependencies {
     // 可选依赖：未安装时打坐仅有 HUD 与粒子，无盘坐动作
     compileOnly "com.zigythebird.playeranim:PlayerAnimationLibNeo:1.1.6+mc.1.21.1"
     localRuntime "com.zigythebird.playeranim:PlayerAnimationLibNeo:1.1.6+mc.1.21.1"
+    // TACZ 1.21.1 NeoForge 移植版（MUKSC/TACZ-1.21.1）：仅编译期依赖，运行时为可选联动
+    compileOnly "maven.modrinth:tacz-1.21.1:${tacz_version}"
 
     // Example optional mod dependency with JEI
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime

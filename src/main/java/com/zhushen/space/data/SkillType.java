@@ -1,7 +1,7 @@
 package com.zhushen.space.data;
 
 /**
- * 诸神空间 8 大技能定义与加点规则（技能加点页）。
+ * 诸神空间 9 大技能定义与加点规则（技能加点页）。
  *
  * 规则：
  * - 技能点默认 0（每封主神邀请函额外 +15）
@@ -17,6 +17,9 @@ package com.zhushen.space.data;
  * - 科学：每点 +1 智力
  * - 动物沟通：无被动
  * - 表达：无被动
+ * - 枪械：每点 +1 TACZ 枪械子弹伤害（需安装 TACZ，见 compat.TaczCompat）
+ *
+ * 注意：技能点按枚举序号存档，新技能只能追加在末尾，不能插入中间。
  */
 public enum SkillType {
     ATHLETICS("athletics"),
@@ -26,7 +29,8 @@ public enum SkillType {
     OCCULTISM("occultism"),
     SCIENCE("science"),
     ANIMAL_COMMUNICATION("animal_communication"),
-    EXPRESSION("expression");
+    EXPRESSION("expression"),
+    FIREARMS("firearms");
 
     public static final int COUNT = values().length;
     public static final int MAX_POINTS = 5;
