@@ -29,6 +29,8 @@ public class AttributeServer {
         AttributeApplier.apply(player);
         // 决心/沉着达到 5 点时立即重算主能量池上限（否则需重登录才生效）
         EnergyManager.syncLegendaryPools(player);
+        // 耐力改变最大生命值：同步伤势 HUD 使用的生命上限
+        HealthManager.sync(player);
         sync(player);
     }
 

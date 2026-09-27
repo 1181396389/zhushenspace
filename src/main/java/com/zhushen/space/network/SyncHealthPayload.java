@@ -7,9 +7,9 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * 服务端 → 客户端：同步玩家 B/L/A 伤势池（HUD / 面板显示用）。
+ * 服务端 → 客户端：同步玩家 B/L/A 伤势池与服务端认定的生命上限（HUD / 面板显示用）。
  */
-public record SyncHealthPayload(int b, int l, int a) implements CustomPacketPayload {
+public record SyncHealthPayload(int b, int l, int a, int maxHp) implements CustomPacketPayload {
 
     public static final Type<SyncHealthPayload> TYPE =
             new Type<>(ResourceLocation.fromNamespaceAndPath(ZhuShenSpace.MODID, "sync_health"));
@@ -21,10 +21,11 @@ public record SyncHealthPayload(int b, int l, int a) implements CustomPacketPayl
         buf.writeVarInt(payload.b);
         buf.writeVarInt(payload.l);
         buf.writeVarInt(payload.a);
+        buf.writeVarInt(payload.maxHp);
     }
 
     private static SyncHealthPayload read(FriendlyByteBuf buf) {
-        return new SyncHealthPayload(buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
+        return new SyncHealthPayload(buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
     }
 
     @Override

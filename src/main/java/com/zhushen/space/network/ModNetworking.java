@@ -66,7 +66,7 @@ public class ModNetworking {
         // ===== B/L/A 伤势池 =====
         registrar.playToClient(SyncHealthPayload.TYPE, SyncHealthPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
-                        ClientHealthData.update(payload.b(), payload.l(), payload.a())));
+                        ClientHealthData.update(payload.b(), payload.l(), payload.a(), payload.maxHp())));
 
         // ===== 能量池 =====
         registrar.playToClient(SyncEnergyPayload.TYPE, SyncEnergyPayload.STREAM_CODEC,

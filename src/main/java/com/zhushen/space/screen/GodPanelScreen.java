@@ -1452,8 +1452,11 @@ public class GodPanelScreen extends Screen {
         lines.addAll(font.split(Component.translatable(type.descKey()), TOOLTIP_WIDTH));
         Component legend = Component.translatable(type.legendKey());
         String legendText = legend.getString();
+        // 决心 / 沉着的传奇加成作用于能量池：玩家没有任何能量池时不显示
+        boolean poolBound = type == AttributeType.RESOLVE || type == AttributeType.COMPOSURE;
+        boolean hidden = poolBound && ClientEnergyData.pools().isEmpty();
         // 未提供传奇描述（空文本或缺失键）的属性不显示传奇行
-        if (!legendText.isBlank() && !legendText.equals(type.legendKey())) {
+        if (!hidden && !legendText.isBlank() && !legendText.equals(type.legendKey())) {
             lines.addAll(font.split(legend.copy().withStyle(GOLD_STYLE), TOOLTIP_WIDTH));
         }
         return lines;

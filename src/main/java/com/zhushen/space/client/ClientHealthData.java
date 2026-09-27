@@ -5,12 +5,22 @@ package com.zhushen.space.client;
  */
 public class ClientHealthData {
 
-    private static volatile int b, l, a;
+    private static volatile int b, l, a, maxHp;
 
-    public static void update(int newB, int newL, int newA) {
+    public static void update(int newB, int newL, int newA, int newMaxHp) {
         b = newB;
         l = newL;
         a = newA;
+        maxHp = newMaxHp;
+    }
+
+    /**
+     * 伤势系统使用的生命上限：优先取服务端同步值（与 HealthManager 结算口径一致），
+     * 若本地属性上限更高（例如属性刚提交、伤势包尚未到达）则取较高者，确保随最大生命值上升。
+     */
+    public static int maxHp(float localMaxHealth) {
+        int local = Math.round(localMaxHealth);
+        return Math.max(maxHp, local);
     }
 
     public static int b() {

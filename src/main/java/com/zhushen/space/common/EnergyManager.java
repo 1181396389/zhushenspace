@@ -23,10 +23,8 @@ import net.neoforged.neoforge.event.level.SleepFinishedTimeEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,9 +33,9 @@ import java.util.UUID;
  *
  * 主能量池：玩家基础容量最大的能量池（通常是内力池），不生成任何额外的池。
  * 决心与沉着的传奇加成直接扩充主能量池容量：
- * - 决心满 5 点：每点传奇点数 +3 上限（容量加成）
- * - 沉着满 5 点：每点传奇点数 +3 上限（与决心叠加），并解锁"原地静立或潜行时每秒 +1"
- * 仅当玩家没有任何真实池时，才以 main 池作为传奇加成的载体。
+ * - 决心满 5 点：主能量池上限固定 +3（例如 5 → 8）
+ * - 沉着满 5 点：主能量池上限固定 +3（与决心叠加）
+ * 上限每次由属性重新推导，不会重复累加；玩家没有任何能量池时加成不生效、也不会凭空生成池。
  *
  * 内力（neili）：东方通用能量池，容量 = 耐力 + 感知。获得时自动附带两个技能：
  * - 内力吐息（自动档）：开启后近战攻击（含普攻）消耗 1 点内力，+6 伤害
@@ -49,16 +47,14 @@ import java.util.UUID;
 @EventBusSubscriber(modid = com.zhushen.space.ZhuShenSpace.MODID)
 public class EnergyManager {
 
-    /** 主能量池 id：决心/沉着传奇加成的唯一载体 */
+    /** 旧版本的独立主池 id（现已不再生成，重算时清除） */
     public static final String POOL_MAIN = "main";
     /** 内力池 id：东方通用能量池（耐力+感知） */
     public static final String POOL_NEILI = "neili";
-    /** 传奇加成：每点传奇点数提供的主能量池上限 */
-    public static final double CAPACITY_PER_LEGENDARY = 3.0;
-    /** 沉着加成：静立/潜行时的恢复间隔（tick） */
-    private static final int COMPOSURE_INTERVAL_TICKS = 20;
-    /** 沉着加成：判定"原地静立"的水平速度平方阈值 */
-    private static final double CALM_SPEED_SQR = 1.0E-4;
+    /** 决心传奇加成：主能量池上限固定 +3（不随传奇点数叠加，每次重算推导，不会重复累加） */
+    public static final double RESOLVE_LEGEND_CAPACITY = 3.0;
+    /** 沉着传奇加成：主能量池上限固定 +3（与决心叠加） */
+    public static final double COMPOSURE_LEGEND_CAPACITY = 3.0;
     /** 内力吐息：每次近战攻击的伤害加成 */
     private static final double BREATH_BONUS_DAMAGE = 6.0;
     /** 打坐禁步时长（tick）：5 秒 */
@@ -79,30 +75,30 @@ public class EnergyManager {
 
     /**
      * 按当前属性重算能量池容量（属性提交与登录/重生/换维度时调用）：
-     * - 传奇加成（决心/沉着满 5 点时，每点传奇点数各 +3，可叠加）直接扩充玩家主能量池
+     * - 传奇加成（决心 / 沉着满 5 点时各固定 +3，二者可叠加）直接扩充玩家主能量池上限
      *   ——主能量池即基础容量最大的池（通常是内力池），不生成任何额外的池。
-     * - 仅当玩家没有任何真实池时，才以 main 池作为传奇加成的载体（基础容量 0）。
+     * - 上限 = 基础容量 + 加成，每次都从属性重新推导而非累加，因此反复提交属性 / 重登 /
+     *   摘戴饰品都不会重复获得 +3；玩家没有任何能量池时加成不生效、也不会凭空出现一个池。
      * - 内力池基础容量 = 耐力 + 感知（已获得时）。
      * 同时清除旧版本的独立池数据。
      */
     public static void syncLegendaryPools(ServerPlayer player) {
         PlayerAttributeData attrs = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         int[] p = attrs.points();
-        int leg = AttributeType.legendaryCount(p);
 
         double bonus = 0;
-        if (leg > 0) {
-            if (p[AttributeType.RESOLVE.ordinal()] >= AttributeType.MAX_POINTS) {
-                bonus += leg * CAPACITY_PER_LEGENDARY;
-            }
-            if (p[AttributeType.COMPOSURE.ordinal()] >= AttributeType.MAX_POINTS) {
-                bonus += leg * CAPACITY_PER_LEGENDARY;
-            }
+        if (p[AttributeType.RESOLVE.ordinal()] >= AttributeType.MAX_POINTS) {
+            bonus += RESOLVE_LEGEND_CAPACITY;
+        }
+        if (p[AttributeType.COMPOSURE.ordinal()] >= AttributeType.MAX_POINTS) {
+            bonus += COMPOSURE_LEGEND_CAPACITY;
         }
 
         PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
         data.removePool(LEGACY_RESOLVE);
         data.removePool(LEGACY_COMPOSURE);
+        // 旧版本曾以 main 池作为无真实池时的加成载体：现在没有能量池就不显示、不加成，一律清除
+        data.removePool(POOL_MAIN);
 
         // 内力池：基础容量随耐力+感知重算（未获得内力池则无影响）
         if (data.getPool(POOL_NEILI) != null) {
@@ -110,28 +106,9 @@ public class EnergyManager {
                     p[AttributeType.ENDURANCE.ordinal()] + p[AttributeType.PERCEPTION.ordinal()]);
         }
 
-        boolean hasRealPool = data.pools().keySet().stream().anyMatch(id -> !POOL_MAIN.equals(id));
-        if (hasRealPool) {
-            // 有真实池（如内力池）：传奇加成并入最大的池，独立 main 池不再存在
-            data.removePool(POOL_MAIN);
-        } else if (bonus > 0) {
-            // 无任何真实池：main 作为传奇加成的唯一载体（新建即满，基础容量 0）
-            data.grantPool(POOL_MAIN, bonus);
-            data.setBaseCapacity(POOL_MAIN, 0);
-        } else {
-            data.removePool(POOL_MAIN);
-        }
-
-        // 主能量池 = 基础容量最大的池：传奇加成直接扩充其上限
+        // 主能量池 = 基础容量最大的池：传奇加成直接扩充其上限（无池时 applyMainPoolBonus 无事可做）
         data.applyMainPoolBonus(bonus);
         sync(player);
-    }
-
-    /** 沉着加成是否生效（沉着满 5 点且有传奇点数） */
-    private static boolean composureActive(ServerPlayer player) {
-        PlayerAttributeData attrs = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
-        return attrs.get(AttributeType.COMPOSURE.ordinal()) >= AttributeType.MAX_POINTS
-                && attrs.legendaryPoints() > 0;
     }
 
     /** ===== 内力：自动获得的技能 ===== */
@@ -254,31 +231,10 @@ public class EnergyManager {
         }
     }
 
-    /** 沉着加成恢复方式：原地静立或潜行，每秒 +1 恢复主能量池；同时推进打坐完成判定 */
+    /** 打坐计时推进（沉着传奇的静立恢复已移除） */
     @SubscribeEvent
     public static void onServerTickPost(ServerTickEvent.Post event) {
         long tick = event.getServer().getTickCount();
-        boolean calmPhase = tick % COMPOSURE_INTERVAL_TICKS == 0;
-        List<ServerPlayer> changed = null;
-        for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
-            PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
-            if (data.isEmpty()) continue;
-            boolean didSync = false;
-            if (calmPhase && player.isAlive()
-                    && composureActive(player) && isCalm(player)) {
-                var main = data.mainPool();
-                didSync = main != null && data.restore(main.getKey(), 1.0) > 0;
-            }
-            if (didSync) {
-                if (changed == null) changed = new ArrayList<>();
-                changed.add(player);
-            }
-        }
-        if (changed != null) {
-            for (ServerPlayer player : changed) {
-                sync(player);
-            }
-        }
 
         // 打坐计时：期间每 0.5 秒符文环绕体，结束时回满内力
         if (!MEDITATION_CHANNEL_END.isEmpty()) {
@@ -319,13 +275,6 @@ public class EnergyManager {
         }
     }
 
-    /** 是否处于"静立"状态：潜行，或站在地面且几乎无水平移动 */
-    private static boolean isCalm(ServerPlayer player) {
-        if (player.isShiftKeyDown()) return true;
-        return player.onGround()
-                && player.getDeltaMovement().horizontalDistanceSqr() < CALM_SPEED_SQR;
-    }
-
     /** ===== 数据维护接口（指令 / 未来技能消耗接入） ===== */
 
     /** 从能量池消耗能量，成功后同步客户端（被封印时不可消耗） */
@@ -353,7 +302,7 @@ public class EnergyManager {
         data.removePool(id);
         if (POOL_NEILI.equals(id)) {
             data.setBreathEnabled(false);
-            // 内力池移除后按属性重算：决心/沉着满级的玩家恢复独立主池
+            // 内力池移除后按属性重算（清理传奇加成等派生数据）
             syncLegendaryPools(player);
         } else {
             sync(player);

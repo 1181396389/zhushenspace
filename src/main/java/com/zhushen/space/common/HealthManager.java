@@ -80,7 +80,7 @@ public class HealthManager {
     public static void sync(ServerPlayer player) {
         PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
         PacketDistributor.sendToPlayer(player,
-                new SyncHealthPayload(data.b(), data.l(), data.a()));
+                new SyncHealthPayload(data.b(), data.l(), data.a(), Math.round(player.getMaxHealth())));
     }
 
     // ===== 事件 =====

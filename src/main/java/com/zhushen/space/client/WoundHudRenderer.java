@@ -68,7 +68,7 @@ public class WoundHudRenderer {
         if (mc.player == null || mc.options.hideGui) return;
         if (!CombatModeClient.combatMode()) return;
         GuiGraphics g = event.getGuiGraphics();
-        int maxHp = Math.round(mc.player.getMaxHealth());
+        int maxHp = ClientHealthData.maxHp(mc.player.getMaxHealth());
         float open = ZsAnim.easeOutCubic((ZsAnim.nowMs() - CombatModeClient.combatSince()) / 320f);
         render(g, mc.font, g.guiWidth(), g.guiHeight(), maxHp,
                 ClientHealthData.b(), ClientHealthData.l(), ClientHealthData.a(), open);
@@ -77,7 +77,7 @@ public class WoundHudRenderer {
     /** 界面设置预览：使用真实数据（无伤势时给一组示例值） */
     public static void renderPreview(GuiGraphics g, Font font, int screenW, int screenH) {
         Minecraft mc = Minecraft.getInstance();
-        int maxHp = mc.player != null ? Math.round(mc.player.getMaxHealth()) : 20;
+        int maxHp = ClientHealthData.maxHp(mc.player != null ? mc.player.getMaxHealth() : 20f);
         if (ClientHealthData.hasWounds()) {
             render(g, font, screenW, screenH, maxHp,
                     ClientHealthData.b(), ClientHealthData.l(), ClientHealthData.a(), 1f);
