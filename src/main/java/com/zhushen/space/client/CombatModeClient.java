@@ -39,6 +39,11 @@ public class CombatModeClient {
         return combatMode;
     }
 
+    /** 本次进入战斗模式的时刻（毫秒），供伤势 HUD 等做展开动画 */
+    public static long combatSince() {
+        return combatSince;
+    }
+
     // ===== 按键处理 =====
 
     @SubscribeEvent

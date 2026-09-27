@@ -10,6 +10,7 @@ import java.nio.file.Path;
 /**
  * 客户端 UI 偏好（JSON 持久化到 config/zhushenspace_client.json）：
  * - 能量池 HUD 位置与缩放（多个能量池整组移动/缩放）
+ * - 战斗模式伤势 HUD 位置与缩放
  * - 战斗模式当前生效的预设栏（A/B）
  */
 public class ClientUiConfig {
@@ -26,6 +27,11 @@ public class ClientUiConfig {
         public float energyY = -1;
         /** 能量池整体缩放（0.5 ~ 2.0） */
         public float energyScale = 1.0f;
+        /** 战斗模式伤势 HUD 左上角（-1 表示默认位置：屏幕右上角） */
+        public float woundX = -1;
+        public float woundY = -1;
+        /** 伤势 HUD 缩放（0.5 ~ 2.0） */
+        public float woundScale = 1.0f;
         /** 战斗模式当前生效的预设栏（0=A，1=B） */
         public int activeBar = 0;
         /** 拔剑演出时是否浮现宝具名（誓约胜利之剑 / 乖离剑） */
@@ -47,6 +53,7 @@ public class ClientUiConfig {
         if (data == null) data = new Data();
         // 越界防御
         if (data.energyScale < 0.5f || data.energyScale > 2.0f) data.energyScale = 1.0f;
+        if (data.woundScale < 0.5f || data.woundScale > 2.0f) data.woundScale = 1.0f;
         if (data.activeBar < 0 || data.activeBar > 1) data.activeBar = 0;
     }
 

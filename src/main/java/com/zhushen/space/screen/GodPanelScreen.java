@@ -2,7 +2,6 @@ package com.zhushen.space.screen;
 
 import com.zhushen.space.client.ClientAttributeData;
 import com.zhushen.space.client.ClientEnergyData;
-import com.zhushen.space.client.ClientHealthData;
 import com.zhushen.space.client.ClientProgressData;
 import com.zhushen.space.client.ClientSkillData;
 import com.zhushen.space.common.HallManager;
@@ -364,20 +363,7 @@ public class GodPanelScreen extends Screen {
                     panelX + 8, panelY + 26, TEXT_SUB, true);
         }
 
-        // 底部生命状态行（始终显示；有伤势时附 B/L/A 分段）
-        if (minecraft != null && minecraft.player != null) {
-            int hy = panelY + panelH - 24;
-            int maxHp = Math.round(minecraft.player.getMaxHealth());
-            String intact = Component.translatable("screen.zhushenspace.health.intact",
-                    Math.max(0, maxHp - ClientHealthData.total())).getString();
-            int intactColor = tab == Tab.SKILLS ? XytStyle.CHROME_TEXT : tab == Tab.PRESET ? BladeBar.IRON_SUB
-                    : tab == Tab.ATTRIBUTES ? SgStyle.TEXT_SUB : ACCENT;
-            g.drawString(font, intact, panelX + 8, hy, intactColor, tab != Tab.SKILLS);
-            int hx = panelX + 8 + font.width(intact) + 6;
-            hx = drawWoundSegment(g, "B", ClientHealthData.b(), 0xFFF5D76E, hx, hy);
-            hx = drawWoundSegment(g, "L", ClientHealthData.l(), 0xFFE8873A, hx, hy);
-            drawWoundSegment(g, "A", ClientHealthData.a(), 0xFFE05C6E, hx, hy);
-        }
+        // 生命 / 伤势显示已移至战斗模式 HUD（WoundHudRenderer）
 
         // 底部货币栏（主神空间资产：支线 + 奖励点数）
         String currency = Component.translatable("screen.zhushenspace.currency",
@@ -401,13 +387,6 @@ public class GodPanelScreen extends Screen {
     }
 
     /** 绘制一段伤势数值（如 “B3”），返回下一段起始 x（无伤势则原样返回） */
-    private int drawWoundSegment(GuiGraphics g, String label, int value, int color, int x, int y) {
-        if (value <= 0) return x;
-        String text = label + value;
-        g.drawString(font, text, x, y, color, true);
-        return x + font.width(text) + 5;
-    }
-
     // ===== 属性 / 技能页（共用） =====
 
     // ===== 技能页：新月同行风格（纪念） =====
@@ -1471,7 +1450,12 @@ public class GodPanelScreen extends Screen {
         List<FormattedCharSequence> lines = new ArrayList<>();
         lines.add(Component.translatable(type.nameKey()).getVisualOrderText());
         lines.addAll(font.split(Component.translatable(type.descKey()), TOOLTIP_WIDTH));
-        lines.addAll(font.split(Component.translatable(type.legendKey()).withStyle(GOLD_STYLE), TOOLTIP_WIDTH));
+        Component legend = Component.translatable(type.legendKey());
+        String legendText = legend.getString();
+        // 未提供传奇描述（空文本或缺失键）的属性不显示传奇行
+        if (!legendText.isBlank() && !legendText.equals(type.legendKey())) {
+            lines.addAll(font.split(legend.copy().withStyle(GOLD_STYLE), TOOLTIP_WIDTH));
+        }
         return lines;
     }
 
