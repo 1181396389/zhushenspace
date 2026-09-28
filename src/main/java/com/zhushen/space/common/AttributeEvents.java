@@ -75,8 +75,9 @@ public class AttributeEvents {
         }
     }
 
-    /** 操作属性传奇暴击 + 感知属性弱点勘破（玩家造成伤害时判定） */
-    @SubscribeEvent
+    /** 操作属性传奇暴击 + 感知属性弱点勘破（玩家造成伤害时判定）
+     *  （LOW：在伤害浮动 {@link DamageVariance} 之后结算，暴击 / 弱点作用于浮动后的伤害） */
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOW)
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         DamageSource source = event.getSource();
         if (!(source.getEntity() instanceof ServerPlayer player)) return;

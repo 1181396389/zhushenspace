@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("4"); // 协议版本：新增「枪械」技能（技能点数组长度变化）
+        PayloadRegistrar registrar = event.registrar("5"); // 协议版本：新增伤害面板同步（伤害浮动区间 HUD）
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -62,6 +62,11 @@ public class ModNetworking {
                         SkillManager.useSkill(serverPlayer, payload.bar(), payload.slot());
                     }
                 }));
+
+        // ===== 伤害浮动区间（战斗模式 HUD） =====
+        registrar.playToClient(DamagePanelPayload.TYPE, DamagePanelPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientDamagePanel.update(payload.kind(), payload.panel(), payload.pellets())));
 
         // ===== B/L/A 伤势池 =====
         registrar.playToClient(SyncHealthPayload.TYPE, SyncHealthPayload.STREAM_CODEC,

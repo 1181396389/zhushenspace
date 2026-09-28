@@ -24,6 +24,15 @@ public final class TaczCompat {
         }
     }
 
+    /**
+     * 伤害面板：手持 TACZ 枪械时返回 {每次射击面板伤害, 弹丸数}，否则（或未安装 TACZ）返回 null。
+     * TACZ 类只在已安装时才会被加载。
+     */
+    public static float[] panelDamage(net.minecraft.server.level.ServerPlayer player,
+                                      net.minecraft.world.item.ItemStack stack) {
+        return loaded ? TaczGunEvents.panelDamage(player, stack) : null;
+    }
+
     /** TACZ 是否已安装 */
     public static boolean isLoaded() {
         return loaded;

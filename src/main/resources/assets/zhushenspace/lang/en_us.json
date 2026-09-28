@@ -62,7 +62,7 @@
   "key.zhushenspace.switch_bar": "Switch Combat Preset Bar (A/B)",
   "screen.zhushenspace.energy_config.entry": "Gods' Space UI Settings...",
   "screen.zhushenspace.energy_config.title": "Gods' Space · UI Settings",
-  "screen.zhushenspace.energy_config.hint": "Hold and drag the energy pools / vitals panel to move · scroll or +/- to scale (affects the hovered or last-clicked element)",
+  "screen.zhushenspace.energy_config.hint": "Hold and drag the energy pools / vitals panel / damage range to move · scroll or +/- to scale (affects the hovered or last-clicked element)",
   "screen.zhushenspace.energy_config.scale_up": "Larger +",
   "screen.zhushenspace.energy_config.scale_down": "Smaller -",
   "screen.zhushenspace.energy_config.scale_value": "Scale: %s%%",
@@ -303,5 +303,9 @@
   "screen.zhushenspace.herta.quote.5": "Boring. Go run the Simulated Universe and come back.",
   "entity.zhushenspace.severed_limb": "Severed Limb",
   "gamerule.zsDismemberment": "T-Virus Zombie dismemberment (experimental)",
-  "gamerule.zsDismemberment.description": "When enabled, T-Virus Zombies have separate hitboxes and health for head, torso and limbs; a limb is severed when its health runs out"
+  "gamerule.zsDismemberment.description": "When enabled, T-Virus Zombies have separate hitboxes and health for head, torso and limbs; a limb is severed when its health runs out",
+  "hud.zhushenspace.damage.melee": "Melee DMG",
+  "hud.zhushenspace.damage.gun": "Gun DMG",
+  "hud.zhushenspace.damage.pellets": "%s pellets",
+  "screen.zhushenspace.energy_config.scale_value_damage": "Damage Range Scale: %s%%"
 }

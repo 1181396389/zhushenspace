@@ -369,8 +369,29 @@ public class SkillManager {
 
     // ===== 事件处理 =====
 
-    /** 被动：肉搏徒手伤害 / 白刃冷兵器伤害；主动：摔绊 / 冲锋攻击命中结算 */
-    @SubscribeEvent
+    /**
+     * 伤害面板用：当前手持物下本模组给近战追加的固定伤害（肉搏 / 白刃被动 + 冲锋中按已冲锋距离的加成），
+     * 与 {@link #onIncomingDamage} 的结算口径一致。
+     */
+    public static float meleePanelBonus(ServerPlayer player) {
+        PlayerSkillData skills = player.getData(ModAttachments.PLAYER_SKILLS);
+        ItemStack mainhand = player.getMainHandItem();
+        float bonus = 0f;
+        if (mainhand.isEmpty()) {
+            bonus += Math.max(0, skills.get(SkillType.BRAWL.ordinal()));
+        } else if (isColdWeapon(mainhand)) {
+            bonus += Math.max(0, skills.get(SkillType.BLADE.ordinal()));
+        }
+        State st = STATES.get(player.getUUID());
+        if (st != null && st.chargeActive) {
+            bonus += Math.min((int) st.chargeDistance, SkillAbility.CHARGE_DAMAGE_CAP);
+        }
+        return bonus;
+    }
+
+    /** 被动：肉搏徒手伤害 / 白刃冷兵器伤害；主动：摔绊 / 冲锋攻击命中结算
+     *  （HIGH：先于伤害浮动与暴击 / 弱点结算，固定加成计入浮动前的面板伤害） */
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.HIGH)
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         if (player.level().isClientSide()) return;

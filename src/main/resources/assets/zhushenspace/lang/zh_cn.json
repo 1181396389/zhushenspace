@@ -62,7 +62,7 @@
   "key.zhushenspace.switch_bar": "切换战斗预设栏（A/B）",
   "screen.zhushenspace.energy_config.entry": "主神空间界面设置…",
   "screen.zhushenspace.energy_config.title": "主神空间 · 界面设置",
-  "screen.zhushenspace.energy_config.hint": "按住能量池 / 伤势面板拖动调整位置 · 滚轮或 +/- 调整缩放（作用于悬停或最近点击的元素）",
+  "screen.zhushenspace.energy_config.hint": "按住能量池 / 伤势面板 / 伤害区间拖动调整位置 · 滚轮或 +/- 调整缩放（作用于悬停或最近点击的元素）",
   "screen.zhushenspace.energy_config.scale_up": "放大 +",
   "screen.zhushenspace.energy_config.scale_down": "缩小 -",
   "screen.zhushenspace.energy_config.scale_value": "缩放：%s%%",
@@ -303,5 +303,9 @@
   "screen.zhushenspace.herta.quote.5": "无聊。去模拟宇宙转一圈再回来找我。",
   "entity.zhushenspace.severed_limb": "断肢",
   "gamerule.zsDismemberment": "T病毒丧尸部位肢解（测试）",
-  "gamerule.zsDismemberment.description": "开启后，T病毒丧尸的头部、躯干与四肢拥有独立的碰撞箱与部位血量，部位血量耗尽时肢体断落"
+  "gamerule.zsDismemberment.description": "开启后，T病毒丧尸的头部、躯干与四肢拥有独立的碰撞箱与部位血量，部位血量耗尽时肢体断落",
+  "hud.zhushenspace.damage.melee": "近战伤害",
+  "hud.zhushenspace.damage.gun": "枪械伤害",
+  "hud.zhushenspace.damage.pellets": "%s 弹丸",
+  "screen.zhushenspace.energy_config.scale_value_damage": "伤害区间缩放：%s%%"
 }

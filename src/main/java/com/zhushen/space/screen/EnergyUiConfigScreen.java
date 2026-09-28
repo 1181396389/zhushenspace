@@ -2,6 +2,7 @@ package com.zhushen.space.screen;
 
 import com.zhushen.space.client.ClientEnergyData;
 import com.zhushen.space.client.ClientUiConfig;
+import com.zhushen.space.client.DamageRangeHud;
 import com.zhushen.space.client.EnergyHudRenderer;
 import com.zhushen.space.client.WoundHudRenderer;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,7 +13,7 @@ import net.minecraft.network.chat.Component;
 
 /**
  * 主神空间界面设置：
- * - 按住鼠标拖动能量池 HUD / 战斗模式伤势 HUD 调整位置
+ * - 按住鼠标拖动能量池 HUD / 战斗模式伤势 HUD / 战斗模式伤害区间 HUD 调整位置
  * - 滚轮（悬停在哪个元素上就调整哪个）/ +/- 按钮（调整最近点击过的元素）调整缩放（0.5x ~ 2.0x）
  * - 位置与缩放持久化到客户端配置
  *
@@ -21,7 +22,7 @@ import net.minecraft.network.chat.Component;
 public class EnergyUiConfigScreen extends Screen {
 
     /** 可调整的 HUD 元素 */
-    private enum Target { ENERGY, WOUND }
+    private enum Target { ENERGY, WOUND, DAMAGE }
 
     private final Screen parent;
     /** 正在拖拽的元素（null = 未拖拽） */
@@ -58,6 +59,9 @@ public class EnergyUiConfigScreen extends Screen {
                             cfg.woundX = -1;
                             cfg.woundY = -1;
                             cfg.woundScale = 1.0f;
+                            cfg.damageX = -1;
+                            cfg.damageY = -1;
+                            cfg.damageScale = 1.0f;
                             ClientUiConfig.save();
                             scaleLabel.setMessage(scaleText());
                         }));
@@ -67,10 +71,16 @@ public class EnergyUiConfigScreen extends Screen {
 
     private Component scaleText() {
         ClientUiConfig.Data cfg = ClientUiConfig.get();
-        float scale = selected == Target.WOUND ? cfg.woundScale : cfg.energyScale;
-        String key = selected == Target.WOUND
-                ? "screen.zhushenspace.energy_config.scale_value_wound"
-                : "screen.zhushenspace.energy_config.scale_value";
+        float scale = switch (selected) {
+            case WOUND -> cfg.woundScale;
+            case DAMAGE -> cfg.damageScale;
+            default -> cfg.energyScale;
+        };
+        String key = switch (selected) {
+            case WOUND -> "screen.zhushenspace.energy_config.scale_value_wound";
+            case DAMAGE -> "screen.zhushenspace.energy_config.scale_value_damage";
+            default -> "screen.zhushenspace.energy_config.scale_value";
+        };
         return Component.translatable(key, Math.round(scale * 100));
     }
 
@@ -85,6 +95,10 @@ public class EnergyUiConfigScreen extends Screen {
             float next = cfg.woundScale + delta;
             next = Math.max(WoundHudRenderer.MIN_SCALE, Math.min(WoundHudRenderer.MAX_SCALE, next));
             cfg.woundScale = Math.round(next * 100f) / 100f;
+        } else if (target == Target.DAMAGE) {
+            float next = cfg.damageScale + delta;
+            next = Math.max(DamageRangeHud.MIN_SCALE, Math.min(DamageRangeHud.MAX_SCALE, next));
+            cfg.damageScale = Math.round(next * 100f) / 100f;
         } else {
             float next = cfg.energyScale + delta;
             next = Math.max(EnergyHudRenderer.MIN_SCALE, Math.min(EnergyHudRenderer.MAX_SCALE, next));
@@ -103,6 +117,18 @@ public class EnergyUiConfigScreen extends Screen {
         return WoundHudRenderer.layout(this.width, this.height, ClientUiConfig.get().woundScale);
     }
 
+    private float[] damageLayout() {
+        return DamageRangeHud.layout(font, this.width, this.height, ClientUiConfig.get().damageScale, true);
+    }
+
+    private float[] layoutOf(Target t) {
+        return switch (t) {
+            case WOUND -> woundLayout();
+            case DAMAGE -> damageLayout();
+            default -> energyLayout();
+        };
+    }
+
     private static boolean inside(double mx, double my, float[] pos) {
         return mx >= pos[0] - 4 && mx <= pos[0] + pos[2] + 4
                 && my >= pos[1] - 4 && my <= pos[1] + pos[3] + 4;
@@ -110,6 +136,7 @@ public class EnergyUiConfigScreen extends Screen {
 
     /** 鼠标所在的 HUD 元素（伤势面板优先，因为它默认在角落且较小） */
     private Target hovered(double mx, double my) {
+        if (inside(mx, my, damageLayout())) return Target.DAMAGE;
         if (inside(mx, my, woundLayout())) return Target.WOUND;
         if (inside(mx, my, energyLayout())) return Target.ENERGY;
         return null;
@@ -144,7 +171,9 @@ public class EnergyUiConfigScreen extends Screen {
         }
         // 战斗模式伤势 HUD 预览（无伤势时显示示例数值）
         WoundHudRenderer.renderPreview(g, font, this.width, this.height);
-        selectionFrame(g, selected == Target.WOUND ? woundLayout() : energyLayout());
+        // 战斗模式伤害区间 HUD 预览（无数据时显示示例 4 ~ 20）
+        DamageRangeHud.renderPreview(g, font, this.width, this.height);
+        selectionFrame(g, layoutOf(selected));
 
         g.drawCenteredString(font, title, this.width / 2, 14, ZsTheme.TEXT_TITLE);
         ZsTheme.hat(g, this.width / 2f + font.width(title) / 2f + 2, 3, 16);
@@ -165,7 +194,7 @@ public class EnergyUiConfigScreen extends Screen {
         if (button == 0) {
             Target t = hovered(mouseX, mouseY);
             if (t != null) {
-                float[] pos = t == Target.WOUND ? woundLayout() : energyLayout();
+                float[] pos = layoutOf(t);
                 dragging = t;
                 selected = t;
                 scaleLabel.setMessage(scaleText());
@@ -184,6 +213,9 @@ public class EnergyUiConfigScreen extends Screen {
             if (dragging == Target.WOUND) {
                 cfg.woundX = (float) mouseX - dragOffsetX;
                 cfg.woundY = (float) mouseY - dragOffsetY;
+            } else if (dragging == Target.DAMAGE) {
+                cfg.damageX = (float) mouseX - dragOffsetX;
+                cfg.damageY = (float) mouseY - dragOffsetY;
             } else {
                 cfg.energyX = (float) mouseX - dragOffsetX;
                 cfg.energyY = (float) mouseY - dragOffsetY;

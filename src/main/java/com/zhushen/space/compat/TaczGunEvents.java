@@ -4,7 +4,10 @@ import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.event.common.EntityHurtByGunEvent;
 import com.tacz.guns.resource.index.CommonGunIndex;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
+import com.tacz.guns.api.item.IGun;
+import com.tacz.guns.util.AttachmentDataUtils;
 import com.zhushen.space.common.DamageCap;
+import com.zhushen.space.common.DamageVariance;
 import com.zhushen.space.common.GunDamage;
 import com.zhushen.space.data.ModAttachments;
 import com.zhushen.space.entity.dismember.BodyPart;
@@ -12,6 +15,7 @@ import com.zhushen.space.entity.dismember.TVirusZombiePart;
 import com.zhushen.space.data.SkillType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.fml.LogicalSide;
 import net.neoforged.neoforge.common.NeoForge;
@@ -114,8 +118,34 @@ final class TaczGunEvents {
                 event.setBaseAmount(event.getBaseAmount() * factor);
             }
         }
+        // 伤害浮动：面板伤害的 20%~100% 随机（每发子弹一次，先于爆头倍率与暴击 / 弱点）
+        event.setBaseAmount(event.getBaseAmount() * DamageVariance.roll(player.getRandom()));
         // 开始本发子弹的结算上下文：暴击 / 弱点每发只判定一次，并与技能乘区合并封顶（C）
         GunDamage.beginHit(player, event.getHurtEntity(), factor, cap);
+    }
+
+    /**
+     * 伤害面板用：手持 TACZ 枪械时的每次射击面板伤害（含配件 / 射击模式 / TACZ 基础倍率与枪械技能乘区，
+     * 不含距离衰减、爆头、暴击与弱点）。
+     *
+     * @return {面板伤害, 弹丸数}；未手持枪械时返回 null
+     */
+    public static float[] panelDamage(ServerPlayer player, ItemStack stack) {
+        try {
+            IGun iGun = IGun.getIGunOrNull(stack);
+            if (iGun == null) return null;
+            ResourceLocation gunId = iGun.getGunId(stack);
+            CommonGunIndex index = TimelessAPI.getCommonGunIndex(gunId).orElse(null);
+            if (index == null) return null;
+            GunData data = index.getGunData();
+            float base = (float) AttachmentDataUtils.getDamageWithAttachment(stack, data);
+            int pellets = Math.max(1, data.getBulletData().getBulletAmount());
+            int level = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.FIREARMS.ordinal());
+            float factor = level > 0 ? Math.min(1f + tierOf(gunId).bonus(level), DamageCap.capFor(level)) : 1f;
+            return new float[]{base * factor, pellets};
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /** 根据枪械 id 判定加成档位；未知枪械回退为常规档 */

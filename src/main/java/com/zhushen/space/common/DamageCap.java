@@ -115,6 +115,15 @@ public final class DamageCap {
         return m;
     }
 
+    /**
+     * 伤害浮动（{@link DamageVariance}）掷出后按同一比例缩放本次近战的基础伤害，
+     * 使上限始终是「浮动后基础伤害 × 上限倍率」，浮动不会被上限抵消或放大。
+     */
+    public static void scaleMeleeBase(ServerPlayer player, LivingEntity victim, float factor) {
+        Melee m = current(player, victim);
+        if (m != null) m.base *= factor;
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onIncomingFirst(LivingIncomingDamageEvent event) {
         ServerPlayer player = meleeAttacker(event.getSource(), event.getEntity());
