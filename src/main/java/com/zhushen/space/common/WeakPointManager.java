@@ -50,6 +50,8 @@ public class WeakPointManager {
     private static final Vector3f YELLOW = new Vector3f(1.0f, 0.85f, 0.1f);
 
     private static final Map<UUID, WeakPoint> ACTIVE = new HashMap<>();
+    /** 弱点再生成冷却：目标 UUID → 冷却结束 tick（目前仅枪械命中消耗弱点时写入） */
+    private static final Map<UUID, Integer> COOLDOWN = new HashMap<>();
     private static int serverTick;
 
     /**
@@ -107,6 +109,22 @@ public class WeakPointManager {
                 pos.x, pos.y, pos.z, 8, 0.1, 0.1, 0.1, 0.02);
     }
 
+    /** 目标进入弱点再生成冷却 */
+    public static void startCooldown(LivingEntity target, int ticks) {
+        COOLDOWN.put(target.getUUID(), serverTick + ticks);
+    }
+
+    /** 目标是否处于弱点再生成冷却中 */
+    public static boolean onCooldown(LivingEntity target) {
+        Integer until = COOLDOWN.get(target.getUUID());
+        if (until == null) return false;
+        if (serverTick >= until) {
+            COOLDOWN.remove(target.getUUID());
+            return false;
+        }
+        return true;
+    }
+
     /** 命中弱点：消耗光点并播放音效与视觉反馈 */
     public static void consume(ServerLevel level, LivingEntity target) {
         WeakPoint wp = ACTIVE.remove(target.getUUID());
@@ -156,6 +174,9 @@ public class WeakPointManager {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         serverTick++;
+        if (!COOLDOWN.isEmpty() && serverTick % 200 == 0) {
+            COOLDOWN.values().removeIf(until -> serverTick >= until);
+        }
         if (ACTIVE.isEmpty()) return;
         boolean emit = serverTick % EMIT_INTERVAL == 0;
         Iterator<Map.Entry<UUID, WeakPoint>> it = ACTIVE.entrySet().iterator();
@@ -184,6 +205,7 @@ public class WeakPointManager {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         ACTIVE.clear();
+        COOLDOWN.clear();
         serverTick = 0;
     }
 }

@@ -84,6 +84,12 @@ public class AttributeEvents {
 
         var data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
 
+        // TACZ 枪械伤害走单独的平衡规则（降档倍率 + 每发一次判定 + 总倍率封顶）
+        if (GunDamage.isGun(source)) {
+            onGunDamage(event, player, data);
+            return;
+        }
+
         // 操作：传奇暴击（仅当操作属性自身满 5 点时激活，按传奇点数叠加）
         int operation = data.get(AttributeType.OPERATION.ordinal());
         int leg = data.legendaryPoints();
@@ -108,6 +114,54 @@ public class AttributeEvents {
                 WeakPointManager.trySpawn(level, event.getEntity(), player, perception);
             }
         }
+    }
+
+    /**
+     * 枪械伤害的暴击 / 弱点结算（见 {@link GunDamage}）：
+     * - 暴击、弱点倍率降档为枪械专用值
+     * - TACZ 每发子弹的「普通 + 穿甲」两次结算只判定一次，第二次复用同一倍率（不再额外掷弱点生成）
+     * - 弱点被枪械消耗后，目标进入弱点冷却，期间枪械命中不会再生成弱点
+     * - 技能乘区 × 暴击 × 弱点 合计不超过总上限
+     */
+    private static void onGunDamage(LivingIncomingDamageEvent event, ServerPlayer player, PlayerAttributeData data) {
+        var target = event.getEntity();
+        DamageSource source = event.getSource();
+        GunDamage.Hit hit = GunDamage.current(player, target, source);
+
+        float extra;
+        if (hit != null && hit.rolled) {
+            extra = hit.extra;
+        } else {
+            extra = 1f;
+            int operation = data.get(AttributeType.OPERATION.ordinal());
+            int leg = data.legendaryPoints();
+            if (operation >= AttributeType.MAX_POINTS && leg > 0
+                    && player.getRandom().nextFloat() < leg * CRIT_CHANCE_PER_LEGENDARY) {
+                extra *= GunDamage.CRIT_MULTIPLIER;
+            }
+            int perception = data.get(AttributeType.PERCEPTION.ordinal());
+            if (perception > 0 && player.level() instanceof ServerLevel level) {
+                var weakPoint = WeakPointManager.get(target);
+                if (weakPoint != null) {
+                    Vec3 wpPos = WeakPointManager.getWorldPos(target, weakPoint);
+                    if (WeakPointManager.isHit(player, source, wpPos)) {
+                        extra *= GunDamage.WEAK_POINT_MULTIPLIER;
+                        WeakPointManager.consume(level, target);
+                        WeakPointManager.startCooldown(target, GunDamage.WEAK_POINT_COOLDOWN_TICKS);
+                    }
+                } else if (!WeakPointManager.onCooldown(target)) {
+                    WeakPointManager.trySpawn(level, target, player, perception);
+                }
+            }
+            // 总倍率封顶：技能乘区已在 TACZ Pre 事件中应用，这里只截断暴击 × 弱点部分
+            float skill = hit != null ? Math.max(1f, hit.skillFactor) : 1f;
+            extra = Math.max(1f, Math.min(extra, GunDamage.TOTAL_CAP / skill));
+            if (hit != null) {
+                hit.rolled = true;
+                hit.extra = extra;
+            }
+        }
+        if (extra != 1f) event.setAmount(event.getAmount() * extra);
     }
 
     /** 耐力：每 5 点使受到的负面效果持续时间降低 15% */
@@ -169,11 +223,13 @@ public class AttributeEvents {
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         LAST_EXHAUSTION.remove(event.getEntity().getUUID());
+        GunDamage.forget(event.getEntity().getUUID());
     }
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         LAST_EXHAUSTION.clear();
+        GunDamage.clear();
     }
 
     /** 饱食度消耗倍率：耐力满 5 后激活，每传奇点分母 +0.5（1 点 = 1/1.5，2 点 = 1/2……） */

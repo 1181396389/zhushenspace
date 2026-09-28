@@ -223,6 +223,7 @@ public class EnergyManager {
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) return;
         if (attacker == event.getEntity()) return;
         if (event.getSource().getDirectEntity() != attacker) return; // 仅近战直击，弹射物除外
+        if (GunDamage.isGun(event.getSource())) return; // TACZ 伪装近战的子弹不算近战
         PlayerEnergyData data = attacker.getData(ModAttachments.PLAYER_ENERGY);
         if (!data.breathEnabled() || data.getPool(POOL_NEILI) == null) return;
         if (TaiChiManager.isPoolSealed(attacker)) return; // 能量池被封印

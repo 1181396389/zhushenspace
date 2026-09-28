@@ -379,7 +379,8 @@ public class SkillManager {
 
         // 被动加成（仅近战直击：投掷物/弹射物/枪弹等由玩家发出但非亲手命中的伤害不计入）
         ItemStack mainhand = player.getMainHandItem();
-        boolean melee = event.getSource().getDirectEntity() == player;
+        // TACZ 对部分实体以「伪装近战」结算子弹（直接来源为玩家），需按伤害类型排除
+        boolean melee = event.getSource().getDirectEntity() == player && !GunDamage.isGun(event.getSource());
         if (melee && mainhand.isEmpty()) {
             int brawl = skills.get(SkillType.BRAWL.ordinal());
             if (brawl > 0) event.setAmount(event.getAmount() + brawl);

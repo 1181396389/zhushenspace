@@ -298,6 +298,7 @@ public class TaiChiManager {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         if (player == event.getEntity()) return;
         if (event.getSource().getDirectEntity() != player) return;
+        if (GunDamage.isGun(event.getSource())) return; // TACZ 伪装近战的子弹不算徒手
         if (!isTaiChiEquipped(player)) return;
 
         float amount = event.getNewDamage();
