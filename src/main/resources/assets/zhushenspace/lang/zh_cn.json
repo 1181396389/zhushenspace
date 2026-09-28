@@ -300,5 +300,8 @@
   "screen.zhushenspace.herta.quote.2": "能量条放那么大，是怕自己看不见吗？",
   "screen.zhushenspace.herta.quote.3": "这个界面我改过了，所以它很完美。",
   "screen.zhushenspace.herta.quote.4": "我在研究……研究你为什么还没点「完成」。",
-  "screen.zhushenspace.herta.quote.5": "无聊。去模拟宇宙转一圈再回来找我。"
+  "screen.zhushenspace.herta.quote.5": "无聊。去模拟宇宙转一圈再回来找我。",
+  "entity.zhushenspace.severed_limb": "断肢",
+  "gamerule.zsDismemberment": "T病毒丧尸部位肢解（测试）",
+  "gamerule.zsDismemberment.description": "开启后，T病毒丧尸的头部、躯干与四肢拥有独立的碰撞箱与部位血量，部位血量耗尽时肢体断落"
 }

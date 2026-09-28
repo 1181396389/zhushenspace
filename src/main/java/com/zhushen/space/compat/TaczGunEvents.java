@@ -7,6 +7,8 @@ import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.zhushen.space.common.DamageCap;
 import com.zhushen.space.common.GunDamage;
 import com.zhushen.space.data.ModAttachments;
+import com.zhushen.space.entity.dismember.BodyPart;
+import com.zhushen.space.entity.dismember.TVirusZombiePart;
 import com.zhushen.space.data.SkillType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,6 +32,9 @@ import net.neoforged.neoforge.common.NeoForge;
  * 乘区只作用于弹头直击：{@link EntityHurtByGunEvent.Pre} 仅由子弹实体直接命中实体时触发，
  * 火箭筒等的爆炸伤害由 TACZ 的 ExplodeUtil 以原版爆炸结算，不经过本事件，因此天然不受乘区影响。
  * 本事件触发时距离衰减已结算，爆头倍率、护甲与穿甲等后续结算照常作用于加成后的伤害。
+ * <p>
+ * 爆头：所有 TACZ 爆头倍率超出 1 的部分减半（{@link #HEADSHOT_EXCESS_SCALE}）；
+ * 命中 T 病毒丧尸的部位碰撞箱时，只有头部碰撞箱算爆头（测试功能：部位肢解）。
  */
 final class TaczGunEvents {
     /** 常规枪械：每点乘区加成 */
@@ -38,6 +43,8 @@ final class TaczGunEvents {
     static final float VOLUME_MULT_PER_POINT = 0.10f;
     /** 狙击 / 单发重武器：每点乘区加成 */
     static final float HEAVY_MULT_PER_POINT = 0.20f;
+    /** 爆头倍率超出 1 的部分的保留比例（0.5 = 减半） */
+    static final float HEADSHOT_EXCESS_SCALE = 0.5f;
     /** 步枪被视为「大容量」的弹匣阈值（基础弹匣容量） */
     static final int LARGE_MAG_THRESHOLD = 50;
 
@@ -80,6 +87,13 @@ final class TaczGunEvents {
 
     private static void onGunHurtPre(EntityHurtByGunEvent.Pre event) {
         if (event.getLogicalSide() != LogicalSide.SERVER) return;
+        // 全局：TACZ 爆头倍率超出 1 的部分减半（×2.5 → ×1.75），对所有射击者与目标生效
+        float hs0 = event.getHeadshotMultiplier();
+        if (hs0 > 1f) event.setHeadshotMultiplier(1f + (hs0 - 1f) * HEADSHOT_EXCESS_SCALE);
+        // T 病毒丧尸部位碰撞箱：TACZ 按「部件自身的眼高」判定爆头会误判四肢，改为只有命中头部碰撞箱才算爆头
+        if (event.getHurtEntity() instanceof TVirusZombiePart part) {
+            event.setHeadshot(part.bodyPart() == BodyPart.HEAD);
+        }
         if (!(event.getAttacker() instanceof ServerPlayer player)) return;
         if (event.getHurtEntity() == null || event.getHurtEntity() == player) return;
         // 仅弹头直击（爆炸伤害不会携带子弹实体，也不会走本事件；此处为双重保险）

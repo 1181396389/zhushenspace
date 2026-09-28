@@ -300,5 +300,8 @@
   "screen.zhushenspace.herta.quote.2": "Making the bars that big? Afraid you can't see them?",
   "screen.zhushenspace.herta.quote.3": "I redesigned this screen, so naturally it's perfect.",
   "screen.zhushenspace.herta.quote.4": "I'm researching... why you still haven't pressed \"Done\".",
-  "screen.zhushenspace.herta.quote.5": "Boring. Go run the Simulated Universe and come back."
+  "screen.zhushenspace.herta.quote.5": "Boring. Go run the Simulated Universe and come back.",
+  "entity.zhushenspace.severed_limb": "Severed Limb",
+  "gamerule.zsDismemberment": "T-Virus Zombie dismemberment (experimental)",
+  "gamerule.zsDismemberment.description": "When enabled, T-Virus Zombies have separate hitboxes and health for head, torso and limbs; a limb is severed when its health runs out"
 }

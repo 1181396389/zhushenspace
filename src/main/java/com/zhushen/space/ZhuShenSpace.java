@@ -69,6 +69,8 @@ public class ZhuShenSpace {
 
     private void commonSetup(FMLCommonSetupEvent event) {
         LOGGER.info("诸神空间模组已加载");
+        // 游戏规则注册表不是线程安全的：放到主线程队列里注册（模组构造是并行的）
+        event.enqueueWork(com.zhushen.space.common.ModGameRules::register);
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {

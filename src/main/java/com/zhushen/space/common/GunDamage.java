@@ -74,6 +74,7 @@ public final class GunDamage {
 
     /** TACZ Pre 事件：开始一发子弹的结算，记录技能乘区并重置判定 */
     public static void beginHit(ServerPlayer attacker, Entity target, float skillFactor, float cap) {
+        if (target instanceof net.neoforged.neoforge.entity.PartEntity<?> part) target = part.getParent(); // 多部件实体按本体记
         if (target == null || attacker.getServer() == null) return;
         Hit hit = HITS.computeIfAbsent(attacker.getUUID(), k -> new Hit());
         hit.targetId = target.getId();

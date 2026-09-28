@@ -27,6 +27,16 @@ public class ModEntities {
                     .clientTrackingRange(10)
                     .build("t_virus_zombie"));
 
+    /** 断肢（T 病毒丧尸部位脱落的表现实体，测试功能） */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.zhushen.space.entity.dismember.SeveredLimb>> SEVERED_LIMB =
+            ENTITY_TYPES.register("severed_limb", () -> EntityType.Builder
+                    .<com.zhushen.space.entity.dismember.SeveredLimb>of(com.zhushen.space.entity.dismember.SeveredLimb::new, MobCategory.MISC)
+                    .sized(0.35F, 0.25F)
+                    .clientTrackingRange(8)
+                    .updateInterval(2)
+                    .noSummon()
+                    .build("severed_limb"));
+
     @SubscribeEvent
     public static void onRegisterAttributes(EntityAttributeCreationEvent event) {
         event.put(T_VIRUS_ZOMBIE.get(), TVirusZombie.createAttributes().build());
