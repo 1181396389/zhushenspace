@@ -297,6 +297,7 @@ public class TaiChiManager {
     public static void onOutgoingDamage(LivingDamageEvent.Pre event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         if (player == event.getEntity()) return;
+        if (WillpowerManager.isBonusStrike(player)) return; // 意志加持追加伤害：固定 9 点
         if (event.getSource().getDirectEntity() != player) return;
         if (GunDamage.isGun(event.getSource())) return; // TACZ 伪装近战的子弹不算徒手
         if (!isTaiChiEquipped(player)) return;
@@ -522,6 +523,7 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleLanquewei(player, SkillAbility.LANQUEWEI_COOLDOWN_TICKS);
+        willContestStrike(player, attacker);
 
         int brawl = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.BRAWL.ordinal());
         float mine = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE)
@@ -615,8 +617,17 @@ public class TaiChiManager {
         int brawl = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.BRAWL.ordinal());
         return (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE)
                 + brawl + (isUnarmed(player) ? (float) TAIJI_DAMAGE_BONUS : 0f)
-                + contestBonus(player)
-                + WillpowerManager.consumeCheckBonus(player); // 意志加持：对抗 +9 完美加值
+                + contestBonus(player);
+    }
+
+    /** 意志加持在对抗中的换算：直接对对手追加 9 点不受浮动影响的伤害 */
+    private static void willContestStrike(ServerPlayer player, LivingEntity target) {
+        MOVE_ATTACK_FLAG.add(player.getUUID()); // 不计入八劲合一普攻附加
+        try {
+            WillpowerManager.contestStrike(player, target);
+        } finally {
+            MOVE_ATTACK_FLAG.remove(player.getUUID());
+        }
     }
 
     /** 攻击者是否使用了能量池（玩家且有非空能量池且吐息开启） */
@@ -642,6 +653,7 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleCloudhands(player, SkillAbility.CLOUD_HANDS_COOLDOWN_TICKS);
+        willContestStrike(player, attacker);
 
         float mine = contestPower(player);
         float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
@@ -685,6 +697,7 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleSeabottom(player, SkillAbility.SEA_BOTTOM_COOLDOWN_TICKS);
+        willContestStrike(player, attacker);
 
         float mine = contestPower(player);
         float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);

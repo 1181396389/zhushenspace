@@ -395,6 +395,7 @@ public class SkillManager {
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         if (player.level().isClientSide()) return;
+        if (WillpowerManager.isBonusStrike(player)) return; // 意志加持追加伤害：固定 9 点
         State st = STATES.get(player.getUUID());
         PlayerSkillData skills = player.getData(ModAttachments.PLAYER_SKILLS);
 

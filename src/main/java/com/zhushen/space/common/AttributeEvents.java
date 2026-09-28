@@ -82,6 +82,7 @@ public class AttributeEvents {
         DamageSource source = event.getSource();
         if (!(source.getEntity() instanceof ServerPlayer player)) return;
         if (player.level().isClientSide()) return;
+        if (WillpowerManager.isBonusStrike(player)) return; // 意志加持追加伤害：固定 9 点
 
         var data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
 

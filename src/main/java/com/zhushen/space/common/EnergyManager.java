@@ -221,6 +221,7 @@ public class EnergyManager {
     public static void onDamagePre(LivingDamageEvent.Pre event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) return;
         if (attacker == event.getEntity()) return;
+        if (WillpowerManager.isBonusStrike(attacker)) return; // 意志加持追加伤害：固定 9 点
         if (event.getSource().getDirectEntity() != attacker) return; // 仅近战直击，弹射物除外
         if (GunDamage.isGun(event.getSource())) return; // TACZ 伪装近战的子弹不算近战
         PlayerEnergyData data = attacker.getData(ModAttachments.PLAYER_ENERGY);

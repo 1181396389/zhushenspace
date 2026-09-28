@@ -43,8 +43,9 @@ import java.util.UUID;
  * <p>
  * 用法（每次支付 1 点意志力）：
  * <ol>
- *   <li><b>意志加持</b>（G 键预备）：下一次检定（攻击伤害 / 对抗等）获得 +9 完美加值，
- *       加在伤害浮动与伤害上限之后，不受浮动上下限影响；一次行动仅生效一次（首个检定消耗后即解除）。</li>
+ *   <li><b>意志加持</b>（G 键预备）：下一次检定换算为 9 点不受浮动影响的伤害——
+ *       战斗攻击时直接加在本次命中伤害上（浮动与伤害上限之后）；对抗（缴械 / 擒抱 / 摔绊）时直接对对手追加 9 点伤害。
+ *       一次行动仅生效一次（首个检定消耗后即解除）。</li>
  *   <li><b>意志守御</b>（B 键预备）：下一次受到攻击时，针对该次攻击获得 +9 护甲与 +9 护甲韧性。</li>
  *   <li><b>强撑</b>：因伤势过重昏迷时按 G 花费 1 点意志力，继续行动 1 分钟（期间不会因伤势过重昏迷）。
  *       到期时若仍伤势满载：非战斗中自动续付 1 点；战斗中给出 5 秒抉择窗口，按 G 续付，否则立即昏迷。</li>
@@ -195,6 +196,7 @@ public final class WillpowerManager {
      * 供攻击伤害、对抗等所有检定调用；首个检定消耗后即失效，因此一次行动只会生效一次。
      */
     public static int consumeCheckBonus(ServerPlayer player) {
+        if (BONUS_STRIKE.contains(player.getUUID())) return 0;
         State s = STATES.get(player.getUUID());
         if (s == null || !s.armedCheck) return 0;
         s.armedCheck = false;
@@ -207,6 +209,30 @@ public final class WillpowerManager {
         willFx(player, false);
         sync(player);
         return PERFECT_BONUS;
+    }
+
+    /** 意志加持追加伤害进行中（跳过伤害浮动、暴击 / 弱点等倍率，也不会再次询问加持） */
+    private static final java.util.Set<UUID> BONUS_STRIKE = new java.util.HashSet<>();
+
+    public static boolean isBonusStrike(ServerPlayer player) {
+        return BONUS_STRIKE.contains(player.getUUID());
+    }
+
+    /**
+     * 对抗中的意志加持：已预备则支付 1 点意志力，直接对对手造成 9 点不受浮动影响的伤害。
+     * （战斗攻击中则是在本次命中伤害上直接 +9，见 DamageCap / onIncomingLast）
+     */
+    public static void contestStrike(ServerPlayer player, LivingEntity target) {
+        if (target == null || !target.isAlive()) return;
+        int bonus = consumeCheckBonus(player);
+        if (bonus <= 0) return;
+        BONUS_STRIKE.add(player.getUUID());
+        try {
+            target.invulnerableTime = 0;
+            target.hurt(player.damageSources().playerAttack(player), bonus);
+        } finally {
+            BONUS_STRIKE.remove(player.getUUID());
+        }
     }
 
     /** 非近战（弹射物 / 枪械 / 技能伤害）的玩家攻击：数值阶段最后追加完好加值（近战在 DamageCap 截断之后追加） */

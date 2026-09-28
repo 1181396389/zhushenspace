@@ -88,6 +88,7 @@ public final class DamageVariance {
         }
         if (!(source.getEntity() instanceof ServerPlayer player)) return;
         if (player == event.getEntity() || event.getAmount() <= 0f) return;
+        if (WillpowerManager.isBonusStrike(player)) return; // 意志加持追加伤害：不浮动
         // TACZ 子弹已在 Pre 事件中对基础伤害掷过（普通 + 穿甲两次结算共用）
         if (GunDamage.isGun(source) && GunDamage.current(player, event.getEntity(), source) != null) return;
         float factor = roll(player.getRandom());
