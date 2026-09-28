@@ -176,6 +176,7 @@ tasks.withType(ProcessResources).configureEach {
             mod_version            : mod_version,
     ]
     inputs.properties replaceProperties
+    filteringCharset = 'UTF-8' // mods.toml 含中文，按 UTF-8 展开，避免在非 UTF-8 系统上构建出乱码
 
     filesMatching(['META-INF/neoforge.mods.toml']) {
         expand replaceProperties
