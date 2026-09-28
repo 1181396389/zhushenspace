@@ -286,11 +286,32 @@ public final class LimbManager {
             level.sendParticles(BLOOD_MIST, player.getX(), y, player.getZ(), 30, 0.25, 0.25, 0.25, 0);
             level.sendParticles(BLOOD_DROP, player.getX(), y, player.getZ(), 24, 0.2, 0.2, 0.2, 0.15);
         }
+        dropLimb(player, part);
         if (part.isArm()) {
             // 断臂：若正在使用该手物品（拉弓 / 举盾 / 进食）立即中止
             if (player.isUsingItem() && armOf(player, player.getUsedItemHand()) == part) player.stopUsingItem();
         }
         sync(player);
+    }
+
+    /** 掉落断肢实体（使用玩家皮肤渲染）：从断口处向外侧抛出 */
+    private static void dropLimb(ServerPlayer player, LimbPart part) {
+        com.zhushen.space.entity.dismember.BodyPart bp = switch (part) {
+            case HEAD -> com.zhushen.space.entity.dismember.BodyPart.HEAD;
+            case RIGHT_ARM -> com.zhushen.space.entity.dismember.BodyPart.RIGHT_ARM;
+            case LEFT_ARM -> com.zhushen.space.entity.dismember.BodyPart.LEFT_ARM;
+            case RIGHT_LEG -> com.zhushen.space.entity.dismember.BodyPart.RIGHT_LEG;
+            case LEFT_LEG -> com.zhushen.space.entity.dismember.BodyPart.LEFT_LEG;
+        };
+        double yaw = Math.toRadians(player.yBodyRot);
+        Vec3 right = new Vec3(-Math.cos(yaw), 0, -Math.sin(yaw));
+        double side = (part == LimbPart.RIGHT_ARM || part == LimbPart.RIGHT_LEG) ? 1 : -1;
+        double lateral = part.isArm() ? 0.35 : 0.12;
+        Vec3 pos = player.position().add(right.scale(side * lateral)).add(0, part.isArm() ? 1.2 : 0.3, 0);
+        Vec3 vel = right.scale(side * (0.15 + player.getRandom().nextDouble() * 0.1))
+                .add(0, 0.25 + player.getRandom().nextDouble() * 0.1, 0);
+        com.zhushen.space.entity.dismember.SeveredLimb.spawn(player.level(), bp, player.getScale(), pos, vel,
+                player.yBodyRot, player.getUUID());
     }
 
     /** 断腿惩罚：一条 −50% 移速 / 跳跃，两条 −85% 移速 / 无法跳跃 */
