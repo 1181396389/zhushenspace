@@ -94,7 +94,7 @@ public class TVirusZombie extends Zombie {
     private static EntityDataAccessor<Float>[] createPartHpAccessors() {
         EntityDataAccessor<Float>[] arr = new EntityDataAccessor[BodyPart.values().length];
         for (BodyPart p : BodyPart.values()) {
-            if (p.severable()) arr[p.ordinal()] = SynchedEntityData.defineId(TVirusZombie.class, EntityDataSerializers.FLOAT);
+            if (p.hasOwnPool()) arr[p.ordinal()] = SynchedEntityData.defineId(TVirusZombie.class, EntityDataSerializers.FLOAT);
         }
         return arr;
     }
@@ -183,7 +183,7 @@ public class TVirusZombie extends Zombie {
 
     /** 部位剩余血量比例（躯干 = 本体生命值比例） */
     public float partHealthRatio(BodyPart part) {
-        if (!part.severable()) return getMaxHealth() > 0 ? Mth.clamp(getHealth() / getMaxHealth(), 0f, 1f) : 0f;
+        if (!part.hasOwnPool()) return getMaxHealth() > 0 ? Mth.clamp(getHealth() / getMaxHealth(), 0f, 1f) : 0f;
         return isSevered(part) ? 0f : entityData.get(DATA_PART_HP[part.ordinal()]);
     }
 
@@ -191,7 +191,7 @@ public class TVirusZombie extends Zombie {
     public boolean anyPartDamaged() {
         if (getHealth() < getMaxHealth() || severedMask() != 0) return true;
         for (BodyPart p : BodyPart.values()) {
-            if (p.severable() && entityData.get(DATA_PART_HP[p.ordinal()]) < 1f) return true;
+            if (p.hasOwnPool() && entityData.get(DATA_PART_HP[p.ordinal()]) < 1f) return true;
         }
         return false;
     }
@@ -234,6 +234,12 @@ public class TVirusZombie extends Zombie {
             return;
         }
         pendingPart = null; // 防止嵌套伤害误记到同一部位
+        if (!bp.hasOwnPool()) {
+            // 头部：全额结算本体生命值；若这一击致死则断头（仅演出，不再有「头部血量耗尽即死」）
+            super.actuallyHurt(source, amount);
+            if (bp == BodyPart.HEAD && isDeadOrDying() && !isSevered(bp)) sever(bp, source);
+            return;
+        }
         float before = getHealth() + getAbsorptionAmount();
         // NeoForge 的 actuallyHurt 以伤害容器中的数值为准（忽略参数），因此直接缩放容器里的伤害
         if (bp.mainDamageFactor != 1f && !damageContainers.isEmpty()) {
@@ -288,7 +294,7 @@ public class TVirusZombie extends Zombie {
 
         switch (bp) {
             case HEAD -> {
-                // 头部脱落 = 死亡：由 hurt 流程在本次结算末尾调用 die(source)
+                // 仅在头部命中致死时触发（见 actuallyHurt）；保险起见确保死亡
                 setHealth(0f);
             }
             case RIGHT_ARM -> dropHeld(EquipmentSlot.MAINHAND);
@@ -399,7 +405,7 @@ public class TVirusZombie extends Zombie {
         tag.putByte("ZsSevered", (byte) severedMask());
         CompoundTag hp = new CompoundTag();
         for (BodyPart p : BodyPart.values()) {
-            if (p.severable()) hp.putFloat(p.name(), entityData.get(DATA_PART_HP[p.ordinal()]));
+            if (p.hasOwnPool()) hp.putFloat(p.name(), entityData.get(DATA_PART_HP[p.ordinal()]));
         }
         tag.put("ZsPartHp", hp);
     }
@@ -410,7 +416,7 @@ public class TVirusZombie extends Zombie {
         entityData.set(DATA_SEVERED, tag.getByte("ZsSevered"));
         CompoundTag hp = tag.getCompound("ZsPartHp");
         for (BodyPart p : BodyPart.values()) {
-            if (p.severable() && hp.contains(p.name())) {
+            if (p.hasOwnPool() && hp.contains(p.name())) {
                 entityData.set(DATA_PART_HP[p.ordinal()], Mth.clamp(hp.getFloat(p.name()), 0f, 1f));
             }
         }
