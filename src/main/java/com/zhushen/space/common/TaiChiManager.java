@@ -523,6 +523,9 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleLanquewei(player, SkillAbility.LANQUEWEI_COOLDOWN_TICKS);
+        TaiChiFx.anim(player, "taiji_lanquewei_strike");
+        TaiChiFx.trail(player, attacker, TaiChiFx.QI);
+        TaiChiFx.shake(player, attacker, 0.5f, 6);
         int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
         int brawl = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.BRAWL.ordinal());
@@ -562,6 +565,8 @@ public class TaiChiManager {
 
     /** 引手启动特效：内力升腾环绕 */
     public static void yinshouActivateEffects(ServerPlayer player) {
+        TaiChiFx.anim(player, "taiji_yinshou");
+        TaiChiFx.stance(player, 1.1f);
         if (player.level() instanceof ServerLevel level) {
             level.sendParticles(ParticleTypes.END_ROD,
                     player.getX(), player.getY() + 1.0, player.getZ(), 16, 0.5, 0.6, 0.5, 0.03);
@@ -572,6 +577,8 @@ public class TaiChiManager {
 
     /** 揽雀尾待势特效：气聚双手 */
     public static void lanqueweiReadyEffects(ServerPlayer player) {
+        TaiChiFx.anim(player, "taiji_lanquewei");
+        TaiChiFx.stance(player, 1.0f);
         if (player.level() instanceof ServerLevel level) {
             level.sendParticles(ParticleTypes.END_ROD,
                     player.getX(), player.getY() + 1.2, player.getZ(), 8, 0.3, 0.4, 0.3, 0.02);
@@ -653,6 +660,9 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleCloudhands(player, SkillAbility.CLOUD_HANDS_COOLDOWN_TICKS);
+        TaiChiFx.anim(player, "taiji_cloud_grab");
+        TaiChiFx.shockRing(player, attacker, TaiChiFx.QI, 0.1, 16);
+        TaiChiFx.shake(player, attacker, 0.45f, 6);
         int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
         float mine = contestPower(player) + will;
@@ -697,6 +707,9 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleSeabottom(player, SkillAbility.SEA_BOTTOM_COOLDOWN_TICKS);
+        TaiChiFx.anim(player, "taiji_sea_bottom_strike");
+        TaiChiFx.groundRing(player, TaiChiFx.QI, 1.4, 24);
+        TaiChiFx.shake(player, attacker, 0.5f, 6);
         int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
         float mine = contestPower(player) + will;
@@ -748,6 +761,7 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleDissolve(player, SkillAbility.DISSOLVE_COOLDOWN_TICKS);
+        TaiChiFx.anim(player, "taiji_dissolve_strike");
 
         // 反击：近战肉搏攻击
         float dmg = contestPower(player);
@@ -780,7 +794,8 @@ public class TaiChiManager {
         }
         player.level().playSound(null, attacker.blockPosition(),
                 ModSounds.TAI_CHI_MOVE.get(), SoundSource.PLAYERS, 1.0f, 0.8f);
-        hitFeel(player, 0.7f, 6);
+        if (dealt > 0) TaiChiFx.impact(player, attacker, dealt, 0.9f);
+        else hitFeel(player, 0.7f, 6);
         return true;
     }
 
@@ -836,6 +851,8 @@ public class TaiChiManager {
 
     /** 云手待势特效：双手画圆 */
     public static void cloudhandsReadyEffects(ServerPlayer player) {
+        TaiChiFx.anim(player, "taiji_cloud_hands");
+        TaiChiFx.stance(player, 1.2f);
         if (player.level() instanceof ServerLevel level) {
             for (int i = 0; i < 8; i++) {
                 double a = Math.PI * 2 * i / 8;
@@ -850,6 +867,8 @@ public class TaiChiManager {
 
     /** 海底针待势特效：下沉气劲 */
     public static void seabottomReadyEffects(ServerPlayer player) {
+        TaiChiFx.anim(player, "taiji_sea_bottom");
+        TaiChiFx.stance(player, 0.7f);
         if (player.level() instanceof ServerLevel level) {
             level.sendParticles(ParticleTypes.CLOUD,
                     player.getX(), player.getY() + 0.1, player.getZ(),
@@ -861,6 +880,8 @@ public class TaiChiManager {
 
     /** 太极化劲待势特效：气漩汇聚 */
     public static void dissolveReadyEffects(ServerPlayer player) {
+        TaiChiFx.anim(player, "taiji_dissolve");
+        TaiChiFx.stance(player, 0.8f);
         if (player.level() instanceof ServerLevel level) {
             for (int i = 0; i < 12; i++) {
                 double a = Math.PI * 2 * i / 12;
@@ -886,6 +907,8 @@ public class TaiChiManager {
             player.displayClientMessage(Component.translatable("msg.zhushenspace.taiji.no_target"), true);
             return false;
         }
+        // 动作：对应招式（第一人称双臂同步挥动）
+        TaiChiFx.anim(player, "taiji_" + ability.name().toLowerCase(java.util.Locale.ROOT));
 
         float damage = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE);
         switch (ability) {
@@ -913,21 +936,17 @@ public class TaiChiManager {
         if (!hurt) return true; // 攻击已消耗（目标无敌帧等），照常进入冷却
         float dealt = before - target.getHealth();
 
-        // 通用特效：太极横扫光环 + 出招风声（重击额外暴星）
-        double ty = target.getY() + target.getBbHeight() * 0.6;
-        if (player.level() instanceof ServerLevel level) {
-            level.sendParticles(ParticleTypes.SWEEP_ATTACK,
-                    target.getX(), ty, target.getZ(), 1, 0, 0, 0, 0);
-            if (dealt >= 12) {
-                level.sendParticles(ParticleTypes.CRIT,
-                        target.getX(), ty, target.getZ(), 12, 0.3, 0.4, 0.3, 0.12);
-            }
-        }
-        player.level().playSound(null, target.blockPosition(),
-                ModSounds.TAI_CHI_MOVE.get(), SoundSource.PLAYERS, 0.9f, 1.0f);
-        // 打击感：命中镜头微震（随伤害强度）
-        if (dealt > 0) {
-            hitFeel(player, Math.min(0.9f, 0.3f + dealt * 0.02f), 5);
+        // 打击感：气劲轨迹 + 径向气浪 + 分层音效 + 双方镜头震动（强度随伤害与招式力度）
+        float heavy = switch (ability) {
+            case WARD_OFF, SHOULDER -> 1.0f;
+            case PRESS, PUSH, ELBOW -> 0.7f;
+            default -> 0.45f;
+        };
+        TaiChiFx.impact(player, target, Math.max(0f, dealt), heavy);
+        // 击中硬直：目标瞬间停顿（仅水平动量清零，靠·击退在其后施加）
+        if (ability != SkillAbility.SHOULDER) {
+            target.setDeltaMovement(target.getDeltaMovement().multiply(0.2, 1.0, 0.2));
+            target.hurtMarked = true;
         }
 
         switch (ability) {
@@ -1016,6 +1035,8 @@ public class TaiChiManager {
 
     /** 听劲启动：钟鸣气场 + 以自身为中心的双层符文环 */
     public static void tingjinActivateEffects(ServerPlayer player) {
+        TaiChiFx.anim(player, "taiji_tingjin");
+        TaiChiFx.stance(player, 0.9f);
         player.level().playSound(null, player.blockPosition(),
                 ModSounds.TAI_CHI_TINGJIN.get(), SoundSource.PLAYERS, 1.0f, 0.9f);
         if (player.level() instanceof ServerLevel level) {

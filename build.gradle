@@ -47,6 +47,10 @@ repositories {
     }
     // Player Animation Library（可选联动：打坐盘坐动作）
     maven {
+        name = "KosmX (Player Animator)"
+        url = "https://maven.kosmx.dev/"
+    }
+    maven {
         name = "Redlance"
         url = "https://repo.redlance.org/public"
     }
@@ -132,8 +136,9 @@ dependencies {
     compileOnly "top.theillusivec4.curios:curios-neoforge:${curios_version}:api"
     localRuntime "top.theillusivec4.curios:curios-neoforge:${curios_version}"
     // 可选依赖：未安装时打坐仅有 HUD 与粒子，无盘坐动作
-    compileOnly "com.zigythebird.playeranim:PlayerAnimationLibNeo:1.1.6+mc.1.21.1"
-    localRuntime "com.zigythebird.playeranim:PlayerAnimationLibNeo:1.1.6+mc.1.21.1"
+    // KosmX Player Animator（https://github.com/KosmX/minecraftPlayerAnimator）：打坐 / 太极拳动作
+    compileOnly "dev.kosmx.player-anim:player-animation-lib-forge:${playeranimator_version}"
+    localRuntime "dev.kosmx.player-anim:player-animation-lib-forge:${playeranimator_version}"
     // TACZ 1.21.1 NeoForge 移植版（MUKSC/TACZ-1.21.1）：仅编译期依赖，运行时为可选联动
     compileOnly "maven.modrinth:tacz-1.21.1:${tacz_version}"
 

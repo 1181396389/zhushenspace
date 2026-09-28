@@ -21,7 +21,7 @@ import java.util.Map;
 
 /**
  * 客户端打坐状态：记录正在盘坐调息的玩家（实体 id → 开始时刻/时长），
- * 驱动 PlayerAnimationLibrary 盘坐动作（可选依赖，未安装时仅显示 HUD）与本地打坐进度 HUD。
+ * 驱动 KosmX Player Animator 盘坐动作（可选依赖，未安装时仅显示 HUD）与本地打坐进度 HUD。
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID, value = Dist.CLIENT)
 public final class ClientMeditation {
@@ -29,14 +29,11 @@ public final class ClientMeditation {
     private ClientMeditation() {
     }
 
-    public static final String PAL_MODID = "player_animation_library";
     private static final Map<Integer, long[]> ACTIVE = new HashMap<>();
-    private static boolean palLoaded;
 
     /** 由 {@link ClientSetup}（MOD 总线）在客户端初始化时调用 */
     static void init(FMLClientSetupEvent event) {
-        palLoaded = ModList.get().isLoaded(PAL_MODID);
-        if (palLoaded) event.enqueueWork(() -> PalMeditationAnim.register());
+        ClientAnims.init(event);
     }
 
     /** 网络包入口：ticks &gt; 0 开始，0 结束 */
@@ -48,8 +45,9 @@ public final class ClientMeditation {
         } else if (ACTIVE.remove(entityId) == null) {
             return;
         }
-        if (palLoaded && entity instanceof AbstractClientPlayer player) {
-            PalMeditationAnim.play(player, ticks > 0);
+        if (entity instanceof AbstractClientPlayer player) {
+            // KosmX Player Animator：盘坐调息（循环）/ 收功起身
+            ClientAnims.play(player, ticks > 0 ? "meditate" : "meditate_end", ticks > 0 ? 8 : 3);
         }
     }
 

@@ -97,11 +97,11 @@ description='''
     ordering="AFTER"
     side="BOTH"
 
-# Player Animation Library - 可选联动：打坐时播放「盘坐调息」动作（未安装不影响运行）
+# KosmX Player Animator - 可选联动：打坐「盘坐调息」与太极拳招式动作（第一人称双臂同步），未安装不影响运行
 [[dependencies.${mod_id}]]
-    modId="player_animation_library"
+    modId="playeranimator"
     type="optional"
-    versionRange="[1.1.6,)"
+    versionRange="[2.0.0,)"
     ordering="NONE"
     side="CLIENT"
 
