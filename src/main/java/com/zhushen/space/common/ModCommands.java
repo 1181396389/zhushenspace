@@ -110,12 +110,64 @@ public class ModCommands {
                                                 .executes(ctx -> unlockSchool(ctx.getSource(),
                                                                 EntityArgument.getPlayer(ctx, "player"),
                                                                 StringArgumentType.getString(ctx, "school"), false))))))
+                // ===== 肢体 / 断肢 =====
+                .then(Commands.literal("limb")
+                        .then(Commands.literal("restore")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> limbRestore(ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "player"), null))
+                                        .then(Commands.argument("part", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.LimbPart.values())
+                                                                .map(com.zhushen.space.data.LimbPart::key), b))
+                                                .executes(ctx -> limbRestore(ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        StringArgumentType.getString(ctx, "part"))))))
+                        .then(Commands.literal("sever")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("part", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.LimbPart.values())
+                                                                .filter(com.zhushen.space.data.LimbPart::severable)
+                                                                .map(com.zhushen.space.data.LimbPart::key), b))
+                                                .executes(ctx -> limbSever(ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        StringArgumentType.getString(ctx, "part")))))))
                 // ===== 大厅场景 =====
                 .then(Commands.literal("hall")
                         .then(Commands.literal("rebuild")
                                 .executes(ctx -> rebuildHall(ctx.getSource())))
                         .then(Commands.literal("clear")
                                 .executes(ctx -> clearHall(ctx.getSource())))));
+    }
+
+    private static int limbRestore(CommandSourceStack source, ServerPlayer player, String key) {
+        com.zhushen.space.data.LimbPart part = null;
+        if (key != null && !key.equals("all")) {
+            part = com.zhushen.space.data.LimbPart.byKey(key);
+            if (part == null) {
+                source.sendFailure(Component.translatable("commands.zhushenspace.limb.unknown", key));
+                return 0;
+            }
+        }
+        LimbManager.restore(player, part);
+        final com.zhushen.space.data.LimbPart fp = part;
+        source.sendSuccess(() -> Component.translatable("commands.zhushenspace.limb.restore",
+                player.getName().getString(),
+                fp == null ? Component.translatable("limb.zhushenspace.all") : Component.translatable(fp.nameKey())), true);
+        return 1;
+    }
+
+    private static int limbSever(CommandSourceStack source, ServerPlayer player, String key) {
+        com.zhushen.space.data.LimbPart part = com.zhushen.space.data.LimbPart.byKey(key);
+        if (part == null || !part.severable()) {
+            source.sendFailure(Component.translatable("commands.zhushenspace.limb.unknown", key));
+            return 0;
+        }
+        LimbManager.sever(player, part);
+        source.sendSuccess(() -> Component.translatable("commands.zhushenspace.limb.sever",
+                player.getName().getString(), Component.translatable(part.nameKey())), true);
+        return 1;
     }
 
     private static int give(CommandSourceStack source, ServerPlayer player, String id, double max) {

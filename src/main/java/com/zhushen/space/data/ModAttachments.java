@@ -35,6 +35,11 @@ public class ModAttachments {
             ATTACHMENTS.register("player_health",
                     () -> AttachmentType.serializable(PlayerHealthData::new).build());
 
+    /** 肢体血量与断肢：死亡不保留 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerLimbData>> PLAYER_LIMBS =
+            ATTACHMENTS.register("player_limbs",
+                    () -> AttachmentType.serializable(PlayerLimbData::new).build());
+
     /** 大厅返回点：持久化，服务器重启后仍能返回进入大厅前的位置 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<HallReturnData>> HALL_RETURN =
             ATTACHMENTS.register("hall_return",

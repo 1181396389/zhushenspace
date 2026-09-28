@@ -326,5 +326,18 @@
   "hud.zhushenspace.willpower.sustain": "意志强撑中：%s 秒（伤害照常结算）",
   "hud.zhushenspace.willpower.decide": "按 G 继续强撑（%s）",
   "hud.zhushenspace.willpower.check": "◆ 意志加持就绪（+9 固定伤害）",
-  "hud.zhushenspace.willpower.guard": "◆ 意志守御就绪（+9 护甲/韧性）"
+  "hud.zhushenspace.willpower.guard": "◆ 意志守御就绪（+9 护甲/韧性）",
+  "limb.zhushenspace.head": "头部",
+  "limb.zhushenspace.right_arm": "右臂",
+  "limb.zhushenspace.left_arm": "左臂",
+  "limb.zhushenspace.right_leg": "右腿",
+  "limb.zhushenspace.left_leg": "左腿",
+  "limb.zhushenspace.all": "全部部位",
+  "msg.zhushenspace.limb.head_out": "头部遭受重创——你眼前一黑……",
+  "msg.zhushenspace.limb.severed": "你的%s被打断了！",
+  "msg.zhushenspace.limb.arm_lost": "这只手已经断了，无法使用",
+  "hud.zhushenspace.limb.title": "肢体",
+  "commands.zhushenspace.limb.restore": "已恢复 %s 的%s",
+  "commands.zhushenspace.limb.sever": "已使 %s 的%s断肢",
+  "commands.zhushenspace.limb.unknown": "未知部位：%s（可用：head / right_arm / left_arm / right_leg / left_leg / all）"
 }

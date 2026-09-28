@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("7"); // 协议版本：新增玩家动作（KosmX Player Animator）
+        PayloadRegistrar registrar = event.registrar("8"); // 协议版本：新增肢体血量与断肢
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -95,6 +95,10 @@ public class ModNetworking {
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientCameraShake.trigger(payload.power(), payload.ticks())));
 
+        registrar.playToClient(SyncLimbPayload.TYPE, SyncLimbPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientLimbData.update(payload.entityId(), payload.current(),
+                                payload.max(), payload.severedMask())));
         registrar.playToClient(PlayerAnimPayload.TYPE, PlayerAnimPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientAnims.handle(payload.entityId(), payload.name())));

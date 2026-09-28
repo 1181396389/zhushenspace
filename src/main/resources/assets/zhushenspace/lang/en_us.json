@@ -326,5 +326,18 @@
   "hud.zhushenspace.willpower.sustain": "Holding on: %ss (damage still applies)",
   "hud.zhushenspace.willpower.decide": "Press G to keep holding on (%s)",
   "hud.zhushenspace.willpower.check": "◆ Will Surge ready (+9 fixed damage)",
-  "hud.zhushenspace.willpower.guard": "◆ Will Guard ready (+9 armor/toughness)"
+  "hud.zhushenspace.willpower.guard": "◆ Will Guard ready (+9 armor/toughness)",
+  "limb.zhushenspace.head": "Head",
+  "limb.zhushenspace.right_arm": "Right Arm",
+  "limb.zhushenspace.left_arm": "Left Arm",
+  "limb.zhushenspace.right_leg": "Right Leg",
+  "limb.zhushenspace.left_leg": "Left Leg",
+  "limb.zhushenspace.all": "all limbs",
+  "msg.zhushenspace.limb.head_out": "A crushing blow to the head — everything goes dark...",
+  "msg.zhushenspace.limb.severed": "Your %s has been severed!",
+  "msg.zhushenspace.limb.arm_lost": "That arm is gone — you can't use it",
+  "hud.zhushenspace.limb.title": "Limbs",
+  "commands.zhushenspace.limb.restore": "Restored %2$s of %1$s",
+  "commands.zhushenspace.limb.sever": "Severed %2$s of %1$s",
+  "commands.zhushenspace.limb.unknown": "Unknown part: %s (head / right_arm / left_arm / right_leg / left_leg / all)"
 }

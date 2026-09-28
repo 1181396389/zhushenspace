@@ -97,10 +97,10 @@ description='''
     ordering="AFTER"
     side="BOTH"
 
-# KosmX Player Animator - 可选联动：打坐「盘坐调息」与太极拳招式动作（第一人称双臂同步），未安装不影响运行
+# KosmX Player Animator - 必需前置：打坐 / 太极拳动作、断肢渲染（第一人称双臂同步）
 [[dependencies.${mod_id}]]
     modId="playeranimator"
-    type="optional"
+    type="required"
     versionRange="[2.0.0,)"
     ordering="NONE"
     side="CLIENT"

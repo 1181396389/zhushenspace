@@ -27,10 +27,13 @@ final class KosmxAnim {
     }
 
     static final ResourceLocation LAYER = ResourceLocation.fromNamespaceAndPath(ZhuShenSpace.MODID, "action");
+    static final ResourceLocation LIMB_LAYER = ResourceLocation.fromNamespaceAndPath(ZhuShenSpace.MODID, "limbs");
 
     /** 注册动作层：优先级 1000，高于行走 / 手持姿态 */
     static void register() {
         PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory(LAYER, 1000, player -> new ModifierLayer<>());
+        // 断肢层：最高优先级，最后覆盖缩放（已断部位缩放为 0）
+        PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory(LIMB_LAYER, 5000, KosmxLimbLayer::new);
     }
 
     @SuppressWarnings("unchecked")

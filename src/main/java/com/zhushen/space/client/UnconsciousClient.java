@@ -27,8 +27,9 @@ public class UnconsciousClient {
     /** 与服务端 HealthManager 一致的昏迷判定 */
     public static boolean isUnconscious(LocalPlayer player) {
         float maxHp = ClientHealthData.maxHp(player.getMaxHealth());
-        return maxHp - ClientHealthData.total() <= 0.0f && ClientHealthData.l() > 0
-                && !ClientWillpower.holdingOn(); // 意志力强撑中不昏迷
+        boolean out = (maxHp - ClientHealthData.total() <= 0.0f && ClientHealthData.l() > 0)
+                || ClientLimbData.selfHeadOut(); // 头部血量清空同样昏迷
+        return out && !ClientWillpower.holdingOn(); // 意志力强撑中不昏迷
     }
 
     @SubscribeEvent

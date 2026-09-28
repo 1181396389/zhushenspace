@@ -302,7 +302,7 @@ public final class WillpowerManager {
 
     private static boolean isWoundedOut(ServerPlayer player) {
         PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
-        return data.total() >= Math.round(player.getMaxHealth()) && data.l() > 0;
+        return (data.total() >= Math.round(player.getMaxHealth()) && data.l() > 0) || LimbManager.headOut(player);
     }
 
     /** 是否处于强撑持续时间或抉择窗口内（不会因伤势过重昏迷） */

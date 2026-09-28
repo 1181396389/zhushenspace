@@ -41,6 +41,8 @@ public class HealthManager {
 
     /** 昏迷状态缓存：玩家 UUID → 当前是否昏迷（用于一次性提示） */
     private static final Map<UUID, Boolean> UNCONSCIOUS = new HashMap<>();
+    /** 仅因头部血量清空而昏迷（伤势未满载）：头部恢复即可苏醒，不要求严重伤清零 */
+    private static final java.util.Set<UUID> HEAD_ONLY = new java.util.HashSet<>();
 
     // ===== 对外接口 =====
 
@@ -107,6 +109,7 @@ public class HealthManager {
         event.setCanceled(true);
         PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
         data.heal(Math.round(event.getAmount()));
+        LimbManager.heal(player, Math.round(event.getAmount())); // 未断部位同步回复（头优先）
         normalize(player);
         sync(player);
         checkWake(player, data);
@@ -145,7 +148,8 @@ public class HealthManager {
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
             PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
             int maxHp = Math.round(player.getMaxHealth());
-            boolean wounded = data.total() >= maxHp && data.l() > 0;
+            // 昏迷条件：伤势满载（仍有严重伤） 或 头部血量清空
+            boolean wounded = (data.total() >= maxHp && data.l() > 0) || LimbManager.headOut(player);
             // 意志力强撑：持续时间内不会因伤势过重昏迷
             boolean out = wounded && !WillpowerManager.holdsOn(player, wounded);
             boolean prev = UNCONSCIOUS.getOrDefault(player.getUUID(), false);
@@ -155,6 +159,8 @@ public class HealthManager {
                 player.addEffect(new MobEffectInstance(MobEffects.DIG_SLOWDOWN, 60, 0, true, false));
                 player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 3, true, false));
                 if (!prev) {
+                    if (!(data.total() >= maxHp && data.l() > 0)) HEAD_ONLY.add(player.getUUID());
+                    else HEAD_ONLY.remove(player.getUUID());
                     player.displayClientMessage(Component.translatable(
                             "msg.zhushenspace.health.unconscious"), false);
                     if (WillpowerManager.current(player) >= 1) {
@@ -185,7 +191,11 @@ public class HealthManager {
     /** 苏醒检查：此前处于昏迷且严重伤已清零 → 清除昏迷效果并提示（死亡时不提示） */
     private static void checkWake(ServerPlayer player, PlayerHealthData data) {
         if (!UNCONSCIOUS.getOrDefault(player.getUUID(), false)) return;
-        if (data.l() > 0 || player.isDeadOrDying()) return;
+        if (player.isDeadOrDying()) return;
+        if (LimbManager.headOut(player)) return; // 头部血量仍为空：继续昏迷
+        boolean woundOut = data.total() >= Math.round(player.getMaxHealth()) && data.l() > 0;
+        if (HEAD_ONLY.contains(player.getUUID()) ? woundOut : data.l() > 0) return;
+        HEAD_ONLY.remove(player.getUUID());
         UNCONSCIOUS.put(player.getUUID(), false);
         player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
         player.removeEffect(MobEffects.DIG_SLOWDOWN);
