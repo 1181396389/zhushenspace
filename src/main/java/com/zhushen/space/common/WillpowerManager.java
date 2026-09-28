@@ -44,7 +44,7 @@ import java.util.UUID;
  * 用法（每次支付 1 点意志力）：
  * <ol>
  *   <li><b>意志加持</b>（G 键预备）：下一次检定换算为 9 点不受浮动影响的伤害——
- *       战斗攻击时直接加在本次命中伤害上（浮动与伤害上限之后）；对抗（缴械 / 擒抱 / 摔绊）时直接对对手追加 9 点伤害。
+ *       战斗攻击时直接加在本次命中伤害上（浮动与伤害上限之后）；对抗（缴械 / 擒抱 / 摔绊）时对抗权重 +9 优势，并直接对对手追加 9 点伤害。
  *       一次行动仅生效一次（首个检定消耗后即解除）。</li>
  *   <li><b>意志守御</b>（B 键预备）：下一次受到攻击时，针对该次攻击获得 +9 护甲与 +9 护甲韧性。</li>
  *   <li><b>强撑</b>：因伤势过重昏迷时按 G 花费 1 点意志力，继续行动 1 分钟（期间不会因伤势过重昏迷）。
@@ -219,13 +219,14 @@ public final class WillpowerManager {
     }
 
     /**
-     * 对抗中的意志加持：已预备则支付 1 点意志力，直接对对手造成 9 点不受浮动影响的伤害。
+     * 对抗中的意志加持：已预备则支付 1 点意志力，直接对对手造成 9 点不受浮动影响的伤害，
+     * 并返回 9 供调用方计入对抗权重（同一次支付，两者同时生效）。
      * （战斗攻击中则是在本次命中伤害上直接 +9，见 DamageCap / onIncomingLast）
      */
-    public static void contestStrike(ServerPlayer player, LivingEntity target) {
-        if (target == null || !target.isAlive()) return;
+    public static int contestStrike(ServerPlayer player, LivingEntity target) {
+        if (target == null || !target.isAlive()) return 0;
         int bonus = consumeCheckBonus(player);
-        if (bonus <= 0) return;
+        if (bonus <= 0) return 0;
         BONUS_STRIKE.add(player.getUUID());
         try {
             target.invulnerableTime = 0;
@@ -233,6 +234,7 @@ public final class WillpowerManager {
         } finally {
             BONUS_STRIKE.remove(player.getUUID());
         }
+        return bonus;
     }
 
     /** 非近战（弹射物 / 枪械 / 技能伤害）的玩家攻击：数值阶段最后追加完好加值（近战在 DamageCap 截断之后追加） */

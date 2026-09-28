@@ -523,11 +523,11 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleLanquewei(player, SkillAbility.LANQUEWEI_COOLDOWN_TICKS);
-        willContestStrike(player, attacker);
+        int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
         int brawl = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.BRAWL.ordinal());
         float mine = (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE)
-                + brawl + (isUnarmed(player) ? (float) TAIJI_DAMAGE_BONUS : 0f);
+                + brawl + (isUnarmed(player) ? (float) TAIJI_DAMAGE_BONUS : 0f) + will;
         float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
 
         if (mine > theirs && !attacker.getMainHandItem().isEmpty()) {
@@ -620,11 +620,11 @@ public class TaiChiManager {
                 + contestBonus(player);
     }
 
-    /** 意志加持在对抗中的换算：直接对对手追加 9 点不受浮动影响的伤害 */
-    private static void willContestStrike(ServerPlayer player, LivingEntity target) {
+    /** 意志加持在对抗中的换算：对抗权重 +9 优势（返回值），并直接对对手追加 9 点不受浮动影响的伤害 */
+    private static int willContestStrike(ServerPlayer player, LivingEntity target) {
         MOVE_ATTACK_FLAG.add(player.getUUID()); // 不计入八劲合一普攻附加
         try {
-            WillpowerManager.contestStrike(player, target);
+            return WillpowerManager.contestStrike(player, target);
         } finally {
             MOVE_ATTACK_FLAG.remove(player.getUUID());
         }
@@ -653,9 +653,9 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleCloudhands(player, SkillAbility.CLOUD_HANDS_COOLDOWN_TICKS);
-        willContestStrike(player, attacker);
+        int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
-        float mine = contestPower(player);
+        float mine = contestPower(player) + will;
         float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
         float margin = mine - theirs;
 
@@ -697,9 +697,9 @@ public class TaiChiManager {
         }
         EnergyManager.sync(player);
         SkillManager.settleSeabottom(player, SkillAbility.SEA_BOTTOM_COOLDOWN_TICKS);
-        willContestStrike(player, attacker);
+        int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
-        float mine = contestPower(player);
+        float mine = contestPower(player) + will;
         float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
         float margin = mine - theirs;
 
