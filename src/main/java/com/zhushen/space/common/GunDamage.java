@@ -20,8 +20,8 @@ import java.util.UUID;
  *       本类保证每发子弹只判定一次，两次结算共用同一结果；弱点被枪械命中消耗后，
  *       该目标在 {@link #WEAK_POINT_COOLDOWN_TICKS} 内不会因枪械命中再生成弱点。</li>
  *   <li><b>B. 狙击 / 重武器爆头相加</b>：由 TaczGunEvents 实现，爆头时技能加成与爆头倍率相加而非相乘。</li>
- *   <li><b>C. 总倍率封顶</b>：本模组对枪械伤害的全部加成（技能乘区 × 暴击 × 弱点）
- *       合计不超过 {@link #TOTAL_CAP}；TACZ 自带的爆头倍率不计入。</li>
+ *   <li><b>C. 总倍率上限</b>：本模组对枪械伤害的全部加成（技能乘区 × 暴击 × 弱点）
+ *       合计不超过 {@link DamageCap#capFor(int)}（随枪械技能点数上涨）；TACZ 自带的爆头倍率不计入。</li>
  * </ul>
  */
 public final class GunDamage {
@@ -30,8 +30,6 @@ public final class GunDamage {
     public static final float CRIT_MULTIPLIER = 1.2f;
     /** 枪械伤害的感知弱点倍率（近战为 1.5） */
     public static final float WEAK_POINT_MULTIPLIER = 1.2f;
-    /** 本模组对枪械伤害的总加成上限（技能乘区 × 暴击 × 弱点，不含 TACZ 爆头倍率） */
-    public static final float TOTAL_CAP = 2.5f;
     /** 枪械命中消耗弱点后，同一目标弱点再生成的冷却（tick，3 秒） */
     public static final int WEAK_POINT_COOLDOWN_TICKS = 60;
 
@@ -64,6 +62,8 @@ public final class GunDamage {
         long tick;
         /** 本发子弹已应用的技能乘区（折算为对最终伤害的倍率） */
         public float skillFactor = 1f;
+        /** 本发子弹的总加成上限（按枪械技能点数） */
+        public float cap = DamageCap.BASE_CAP;
         /** 是否已判定暴击 / 弱点 */
         public boolean rolled;
         /** 已判定的暴击 × 弱点倍率（已按总上限截断） */
@@ -73,12 +73,13 @@ public final class GunDamage {
     private static final Map<UUID, Hit> HITS = new HashMap<>();
 
     /** TACZ Pre 事件：开始一发子弹的结算，记录技能乘区并重置判定 */
-    public static void beginHit(ServerPlayer attacker, Entity target, float skillFactor) {
+    public static void beginHit(ServerPlayer attacker, Entity target, float skillFactor, float cap) {
         if (target == null || attacker.getServer() == null) return;
         Hit hit = HITS.computeIfAbsent(attacker.getUUID(), k -> new Hit());
         hit.targetId = target.getId();
         hit.tick = attacker.getServer().getTickCount();
         hit.skillFactor = skillFactor;
+        hit.cap = cap;
         hit.rolled = false;
         hit.extra = 1f;
     }

@@ -153,9 +153,10 @@ public class AttributeEvents {
                     WeakPointManager.trySpawn(level, target, player, perception);
                 }
             }
-            // 总倍率封顶：技能乘区已在 TACZ Pre 事件中应用，这里只截断暴击 × 弱点部分
+            // 总倍率上限（随枪械技能点数上涨）：技能乘区已在 TACZ Pre 事件中应用，这里只截断暴击 × 弱点部分
             float skill = hit != null ? Math.max(1f, hit.skillFactor) : 1f;
-            extra = Math.max(1f, Math.min(extra, GunDamage.TOTAL_CAP / skill));
+            float cap = hit != null ? hit.cap : DamageCap.gunCap(player);
+            extra = Math.max(1f, Math.min(extra, cap / skill));
             if (hit != null) {
                 hit.rolled = true;
                 hit.extra = extra;

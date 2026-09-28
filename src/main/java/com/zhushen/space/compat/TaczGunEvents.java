@@ -4,6 +4,7 @@ import com.tacz.guns.api.TimelessAPI;
 import com.tacz.guns.api.event.common.EntityHurtByGunEvent;
 import com.tacz.guns.resource.index.CommonGunIndex;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
+import com.zhushen.space.common.DamageCap;
 import com.zhushen.space.common.GunDamage;
 import com.zhushen.space.data.ModAttachments;
 import com.zhushen.space.data.SkillType;
@@ -18,14 +19,14 @@ import net.neoforged.neoforge.common.NeoForge;
  * <p>
  * 「枪械」技能按枪械类别走三条不同的加成曲线（{@link Tier}）：
  * <ul>
- *   <li>{@link Tier#REGULAR 常规}（手枪 / 冲锋枪 / 小弹匣步枪）：独立乘区，每点 +5%（满级 ×1.25）</li>
+ *   <li>{@link Tier#REGULAR 常规}（手枪 / 冲锋枪 / 小弹匣步枪）：独立乘区，每点 +5%（5 点时 ×1.25）</li>
  *   <li>{@link Tier#VOLUME 霰弹 / 大容量}（霰弹枪、全部机枪、弹匣 ≥ 50 的步枪）：
- *       独立乘区，每点 +10%（满级 ×1.5）。霰弹枪每颗弹丸分别触发本事件，
+ *       独立乘区，每点 +10%（5 点时 ×1.5）。霰弹枪每颗弹丸分别触发本事件，
  *       若仍用 +1 的算法会被弹丸数放大，故改为乘区。</li>
- *   <li>{@link Tier#HEAVY 狙击 / 单发重武器}（狙击枪、火箭筒）：独立乘区，每点 +20%（满级 ×2.0）；
+ *   <li>{@link Tier#HEAVY 狙击 / 单发重武器}（狙击枪、火箭筒）：独立乘区，每点 +20%（5 点时 ×2.0）；
  *       <b>爆头时</b>加成改为与爆头倍率相加（爆头倍率 + 0.2×等级），不再与爆头倍率相乘。</li>
  * </ul>
- * 技能乘区与操作暴击、感知弱点合计不超过 {@link GunDamage#TOTAL_CAP}（见 {@link GunDamage}）。
+ * 技能乘区与操作暴击、感知弱点合计不超过 {@link DamageCap#capFor(int)}：0 点 ×1.5，每点 +1（见 {@link DamageCap}）。
  * 乘区只作用于弹头直击：{@link EntityHurtByGunEvent.Pre} 仅由子弹实体直接命中实体时触发，
  * 火箭筒等的爆炸伤害由 TACZ 的 ExplodeUtil 以原版爆炸结算，不经过本事件，因此天然不受乘区影响。
  * 本事件触发时距离衰减已结算，爆头倍率、护甲与穿甲等后续结算照常作用于加成后的伤害。
@@ -85,21 +86,22 @@ final class TaczGunEvents {
         if (event.getBullet() == null) return;
         int level = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.FIREARMS.ordinal());
         float factor = 1f;
+        float cap = DamageCap.capFor(level);
         if (level > 0) {
             Tier tier = tierOf(event.getGunId());
             float bonus = tier.bonus(level);
             float hs = event.getHeadshotMultiplier();
             if (tier == Tier.HEAVY && event.isHeadShot() && hs > 0) {
                 // B：狙击 / 重武器爆头时，技能加成与爆头倍率相加（hs + bonus），而非相乘（hs × (1 + bonus)）
-                factor = Math.min((hs + bonus) / hs, GunDamage.TOTAL_CAP);
+                factor = Math.min((hs + bonus) / hs, cap);
                 event.setHeadshotMultiplier(hs * factor);
             } else {
-                factor = Math.min(1f + bonus, GunDamage.TOTAL_CAP);
+                factor = Math.min(1f + bonus, cap);
                 event.setBaseAmount(event.getBaseAmount() * factor);
             }
         }
         // 开始本发子弹的结算上下文：暴击 / 弱点每发只判定一次，并与技能乘区合并封顶（C）
-        GunDamage.beginHit(player, event.getHurtEntity(), factor);
+        GunDamage.beginHit(player, event.getHurtEntity(), factor, cap);
     }
 
     /** 根据枪械 id 判定加成档位；未知枪械回退为常规档 */
