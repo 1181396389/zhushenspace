@@ -145,7 +145,9 @@ public class HealthManager {
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
             PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
             int maxHp = Math.round(player.getMaxHealth());
-            boolean out = data.total() >= maxHp && data.l() > 0;
+            boolean wounded = data.total() >= maxHp && data.l() > 0;
+            // 意志力强撑：持续时间内不会因伤势过重昏迷
+            boolean out = wounded && !WillpowerManager.holdsOn(player, wounded);
             boolean prev = UNCONSCIOUS.getOrDefault(player.getUUID(), false);
             if (out) {
                 // 60t 效果每 10t 无缝重加，覆盖昏迷全程
@@ -155,13 +157,29 @@ public class HealthManager {
                 if (!prev) {
                     player.displayClientMessage(Component.translatable(
                             "msg.zhushenspace.health.unconscious"), false);
+                    if (WillpowerManager.current(player) >= 1) {
+                        player.displayClientMessage(Component.translatable(
+                                "msg.zhushenspace.willpower.can_sustain"), false);
+                    }
                 }
                 UNCONSCIOUS.put(player.getUUID(), true);
+            } else if (wounded) {
+                // 意志力强撑中：解除昏迷硬控
+                if (prev) releaseByWillpower(player);
             } else {
                 // L 已清零（或伤势未满载）→ 从昏迷中醒来
                 checkWake(player, data);
             }
         }
+    }
+
+    /** 花费意志力强撑：立即解除昏迷状态与效果（伤势不变） */
+    public static void releaseByWillpower(ServerPlayer player) {
+        if (!UNCONSCIOUS.getOrDefault(player.getUUID(), false)) return;
+        UNCONSCIOUS.put(player.getUUID(), false);
+        player.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+        player.removeEffect(MobEffects.DIG_SLOWDOWN);
+        player.removeEffect(MobEffects.WEAKNESS);
     }
 
     /** 苏醒检查：此前处于昏迷且严重伤已清零 → 清除昏迷效果并提示（死亡时不提示） */

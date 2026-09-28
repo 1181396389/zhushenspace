@@ -32,9 +32,9 @@ import java.util.UUID;
  * 能量池服务端管理。能量池没有通用回复速率——恢复方式由各加成来源分别提供。
  *
  * 主能量池：玩家基础容量最大的能量池（通常是内力池），不生成任何额外的池。
- * 决心与沉着的传奇加成直接扩充主能量池容量：
- * - 决心满 5 点：每点传奇点数 +3 上限（1 点传奇即 5 → 8）
- * - 沉着满 5 点：每点传奇点数 +3 上限（与决心叠加）
+ * 沉着的传奇加成直接扩充主能量池容量：
+ * - 沉着满 5 点：每点传奇点数 +3 上限
+ * 决心不再扩充任何能量池，改为决定意志力池（{@link WillpowerManager}）：上限 = 决心加点，满级后每点传奇 +3。
  * 上限每次由属性重新推导（基础容量 + 加成），不会重复累加；玩家没有任何能量池时加成不生效、也不会凭空生成池。
  *
  * 内力（neili）：东方通用能量池，容量 = 耐力 + 感知。获得时自动附带两个技能：
@@ -87,9 +87,6 @@ public class EnergyManager {
 
         double bonus = 0;
         if (leg > 0) {
-            if (p[AttributeType.RESOLVE.ordinal()] >= AttributeType.MAX_POINTS) {
-                bonus += leg * CAPACITY_PER_LEGENDARY;
-            }
             if (p[AttributeType.COMPOSURE.ordinal()] >= AttributeType.MAX_POINTS) {
                 bonus += leg * CAPACITY_PER_LEGENDARY;
             }
@@ -109,6 +106,8 @@ public class EnergyManager {
 
         // 主能量池 = 基础容量最大的池：传奇加成直接扩充其上限（无池时 applyMainPoolBonus 无事可做）
         data.applyMainPoolBonus(bonus);
+        // 意志力池：上限 = 决心加点（+ 决心满级时每点传奇 +3），独立于主能量池
+        WillpowerManager.recalc(player, data);
         sync(player);
     }
 
@@ -323,6 +322,7 @@ public class EnergyManager {
         return switch (id) {
             case POOL_MAIN -> 0xFFE0B84D;         // 主能量池：鎏金（传奇能量）
             case POOL_NEILI -> 0xFF4DE0C0;        // 内力：青碧（东方之气）
+            case WillpowerManager.POOL_ID -> 0xFFE0704D; // 意志力：赤焰
             default -> PALETTE[Math.floorMod(id.hashCode(), PALETTE.length)];
         };
     }

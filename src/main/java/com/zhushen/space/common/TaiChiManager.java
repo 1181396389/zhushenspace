@@ -615,7 +615,8 @@ public class TaiChiManager {
         int brawl = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.BRAWL.ordinal());
         return (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE)
                 + brawl + (isUnarmed(player) ? (float) TAIJI_DAMAGE_BONUS : 0f)
-                + contestBonus(player);
+                + contestBonus(player)
+                + WillpowerManager.consumeCheckBonus(player); // 意志加持：对抗 +9 完美加值
     }
 
     /** 攻击者是否使用了能量池（玩家且有非空能量池且吐息开启） */

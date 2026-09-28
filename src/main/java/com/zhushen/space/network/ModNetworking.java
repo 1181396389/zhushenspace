@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("5"); // 协议版本：新增伤害面板同步（伤害浮动区间 HUD）
+        PayloadRegistrar registrar = event.registrar("6"); // 协议版本：新增意志力池
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -72,6 +72,18 @@ public class ModNetworking {
         registrar.playToClient(SyncHealthPayload.TYPE, SyncHealthPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientHealthData.update(payload.b(), payload.l(), payload.a(), payload.maxHp())));
+
+        // ===== 意志力 =====
+        registrar.playToClient(SyncWillpowerPayload.TYPE, SyncWillpowerPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientWillpower.update(payload.sustainTicks(),
+                                payload.graceTicks(), payload.armedCheck(), payload.armedGuard())));
+        registrar.playToServer(WillpowerActionPayload.TYPE, WillpowerActionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer serverPlayer) {
+                        com.zhushen.space.common.WillpowerManager.handleAction(serverPlayer, payload.action());
+                    }
+                }));
 
         // ===== 能量池 =====
         registrar.playToClient(SyncEnergyPayload.TYPE, SyncEnergyPayload.STREAM_CODEC,

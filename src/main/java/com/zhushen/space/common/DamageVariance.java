@@ -47,6 +47,10 @@ public final class DamageVariance {
     public static final float MIN_FACTOR = 0.2f;
     /** 浮动上限（占面板伤害的比例） */
     public static final float MAX_FACTOR = 1.0f;
+    /** 敌对怪物攻击浮动下限 */
+    public static final float MOB_MIN_FACTOR = 0.5f;
+    /** 敌对怪物攻击浮动上限 */
+    public static final float MOB_MAX_FACTOR = 1.0f;
     /** 面板伤害同步间隔（tick） */
     private static final int SYNC_INTERVAL = 2;
 
@@ -73,6 +77,15 @@ public final class DamageVariance {
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         DamageSource source = event.getSource();
+        // 敌对怪物（含其弹射物）的攻击：50% ~ 100% 浮动
+        if (source.getEntity() instanceof net.minecraft.world.entity.monster.Enemy
+                && source.getEntity() instanceof net.minecraft.world.entity.LivingEntity mob
+                && !(mob instanceof net.minecraft.world.entity.player.Player)
+                && mob != event.getEntity() && event.getAmount() > 0f) {
+            float f = MOB_MIN_FACTOR + mob.getRandom().nextFloat() * (MOB_MAX_FACTOR - MOB_MIN_FACTOR);
+            event.setAmount(event.getAmount() * f);
+            return;
+        }
         if (!(source.getEntity() instanceof ServerPlayer player)) return;
         if (player == event.getEntity() || event.getAmount() <= 0f) return;
         // TACZ 子弹已在 Pre 事件中对基础伤害掷过（普通 + 穿甲两次结算共用）

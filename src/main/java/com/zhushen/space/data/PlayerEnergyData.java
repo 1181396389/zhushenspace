@@ -41,6 +41,9 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
         }
     }
 
+    /** 意志力池 id（不属于能量池，不参与主能量池判定） */
+    public static final String WILLPOWER_ID = "willpower";
+
     /** id → 池（LinkedHashMap 保持添加顺序，HUD 按此顺序排列） */
     private final Map<String, Pool> pools = new LinkedHashMap<>();
 
@@ -122,10 +125,13 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
      */
     public void applyMainPoolBonus(double bonus) {
         Pool largest = null;
-        for (Pool pool : pools.values()) {
-            if (largest == null || pool.base > largest.base) largest = pool;
+        for (Map.Entry<String, Pool> e : pools.entrySet()) {
+            if (WILLPOWER_ID.equals(e.getKey())) continue;
+            if (largest == null || e.getValue().base > largest.base) largest = e.getValue();
         }
-        for (Pool pool : pools.values()) {
+        for (Map.Entry<String, Pool> e : pools.entrySet()) {
+            if (WILLPOWER_ID.equals(e.getKey())) continue; // 意志力池上限由决心单独推导
+            Pool pool = e.getValue();
             double target = pool.base + (pool == largest && bonus > 0 ? bonus : 0);
             pool.max = target;
             pool.current = Math.min(pool.current, target);
@@ -136,6 +142,7 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
     public Map.Entry<String, Pool> mainPool() {
         Map.Entry<String, Pool> best = null;
         for (Map.Entry<String, Pool> e : pools.entrySet()) {
+            if (WILLPOWER_ID.equals(e.getKey())) continue;
             if (best == null || e.getValue().base > best.getValue().base) best = e;
         }
         return best;

@@ -14,6 +14,7 @@ import org.lwjgl.glfw.GLFW;
  * - V 切换战斗预设技能栏（A/B）
  * - K 切换内力吐息（自动档）
  * - H 打坐（恢复内力）
+ * - G 意志力：强撑 / 意志加持；B 意志守御
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class ClientSetup {
@@ -30,6 +31,18 @@ public class ClientSetup {
             GLFW.GLFW_KEY_V,
             "key.categories.zhushenspace");
 
+    /** 意志力（默认 G）：昏迷时强撑 / 否则预备意志加持（下一次检定 +9） */
+    public static final KeyMapping WILLPOWER = new KeyMapping(
+            "key.zhushenspace.willpower",
+            GLFW.GLFW_KEY_G,
+            "key.categories.zhushenspace");
+
+    /** 意志守御（默认 B）：预备下一次受击 +9 护甲 / +9 韧性 */
+    public static final KeyMapping WILLPOWER_GUARD = new KeyMapping(
+            "key.zhushenspace.willpower_guard",
+            GLFW.GLFW_KEY_B,
+            "key.categories.zhushenspace");
+
     @SubscribeEvent
     public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
         ClientMeditation.init(event);
@@ -39,5 +52,7 @@ public class ClientSetup {
     public static void onRegisterKeys(RegisterKeyMappingsEvent event) {
         event.register(TOGGLE_COMBAT);
         event.register(SWITCH_SKILL_BAR);
+        event.register(WILLPOWER);
+        event.register(WILLPOWER_GUARD);
     }
 }

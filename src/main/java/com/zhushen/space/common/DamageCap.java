@@ -99,7 +99,7 @@ public final class DamageCap {
     private static final Map<Integer, Melee> MELEE = new HashMap<>();
 
     /** 玩家亲手近战（排除弹射物与 TACZ 伪装近战的子弹） */
-    private static ServerPlayer meleeAttacker(DamageSource source, LivingEntity victim) {
+    static ServerPlayer meleeAttacker(DamageSource source, LivingEntity victim) {
         if (!(source.getEntity() instanceof ServerPlayer player)) return null;
         if (player == victim || source.getDirectEntity() != player) return null;
         if (GunDamage.isGun(source)) return null;
@@ -146,6 +146,12 @@ public final class DamageCap {
         if (m == null) return;
         float limit = m.base * m.cap;
         if (event.getAmount() > limit) event.setAmount(limit);
+        // 意志加持：+9 完美加值，在浮动与上限截断之后追加，不受其影响
+        int will = WillpowerManager.consumeCheckBonus(player);
+        if (will > 0) {
+            event.setAmount(event.getAmount() + will);
+            m.cap += will / Math.max(0.001f, m.base); // 护甲后阶段同比放行这部分加值
+        }
         m.incomingFinal = event.getAmount();
     }
 
