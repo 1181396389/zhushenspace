@@ -362,6 +362,18 @@ public final class LimbManager {
         }
     }
 
+    /** 双腿皆断：强制趴伏（SWIMMING 姿态 → 0.6×0.6 碰撞箱，渲染为贴地爬行，只占一格） */
+    @SubscribeEvent
+    public static void onPlayerTickCrawl(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post e) {
+        if (!(e.getEntity() instanceof ServerPlayer player)) return;
+        PlayerLimbData d = data(player);
+        if (d.isSevered(LimbPart.RIGHT_LEG) && d.isSevered(LimbPart.LEFT_LEG)
+                && !player.isPassenger() && !player.isSleeping() && !player.getAbilities().flying
+                && player.getPose() != net.minecraft.world.entity.Pose.SWIMMING) {
+            player.setPose(net.minecraft.world.entity.Pose.SWIMMING);
+        }
+    }
+
     @SubscribeEvent
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem e) {
         if (handSevered(e.getEntity(), e.getHand())) { e.setCanceled(true); deny(e.getEntity()); }

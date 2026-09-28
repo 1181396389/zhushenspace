@@ -42,6 +42,17 @@ public class ClientUiConfig {
         public int activeBar = 0;
         /** 拔剑演出时是否浮现宝具名（誓约胜利之剑 / 乖离剑） */
         public boolean showSwordNames = true;
+        /** 战斗模式肢体 HUD：是否显示 */
+        public boolean limbHudEnabled = true;
+        /** 肢体 HUD 风格：true = 恶搞动态小人，false = 经典色块 */
+        public boolean limbHudFun = true;
+        /** 肢体 HUD 是否显示吐槽气泡 */
+        public boolean limbHudQuips = true;
+        /** 肢体 HUD 左上角（-1 = 默认：伤势面板下方） */
+        public float limbX = -1;
+        public float limbY = -1;
+        /** 肢体 HUD 缩放（0.5 ~ 2.0） */
+        public float limbScale = 1.0f;
     }
 
     public static Data get() {
@@ -61,6 +72,7 @@ public class ClientUiConfig {
         if (data.energyScale < 0.5f || data.energyScale > 2.0f) data.energyScale = 1.0f;
         if (data.woundScale < 0.5f || data.woundScale > 2.0f) data.woundScale = 1.0f;
         if (data.damageScale < 0.5f || data.damageScale > 2.0f) data.damageScale = 1.0f;
+        if (data.limbScale < 0.5f || data.limbScale > 2.0f) data.limbScale = 1.0f;
         if (data.activeBar < 0 || data.activeBar > 1) data.activeBar = 0;
     }
 

@@ -63,6 +63,18 @@ public final class ClientLimbEvents {
         }
     }
 
+    /** 双腿皆断：本地玩家同步强制趴伏（与服务端一致，碰撞箱 / 视角高度只剩一格） */
+    @SubscribeEvent
+    public static void onPlayerTick(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof LocalPlayer p)) return;
+        int id = p.getId();
+        if (ClientLimbData.severed(id, LimbPart.RIGHT_LEG) && ClientLimbData.severed(id, LimbPart.LEFT_LEG)
+                && !p.isPassenger() && !p.isSleeping() && !p.getAbilities().flying
+                && p.getPose() != net.minecraft.world.entity.Pose.SWIMMING) {
+            p.setPose(net.minecraft.world.entity.Pose.SWIMMING);
+        }
+    }
+
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientLimbData.clear();
