@@ -48,7 +48,7 @@ import static com.zhushen.space.screen.ZsTheme.*;
  */
 public class GodPanelScreen extends Screen {
 
-    private enum Tab { ATTRIBUTES, SKILLS, PRESET, SHOP }
+    private enum Tab { ATTRIBUTES, SKILLS, PRESET, SHOP, FEATS }
 
 
     private static final int ROW_HEIGHT = 20;
@@ -98,8 +98,8 @@ public class GodPanelScreen extends Screen {
     private int gearX;
     /** 主神大厅按钮（标签行，齿轮左侧） */
     private int hallX;
-    private final int[] tabX = new int[4];
-    private final int[] tabW = {44, 44, 62, 40};
+    private final int[] tabX = new int[5];
+    private final int[] tabW = {44, 44, 62, 40, 40};
 
     /**
      * 从外部入口打开主神面板：未使用过主神邀请函的玩家无法打开（提示并播放拒绝音效）。
@@ -107,7 +107,7 @@ public class GodPanelScreen extends Screen {
      */
     public static boolean tryOpen() {
         Minecraft mc = Minecraft.getInstance();
-        if (!com.zhushen.space.client.ClientFeatData.envelopeUsed()) {
+        if (!com.zhushen.space.client.ClientEnvelopeData.used()) {
             if (mc.player != null) {
                 mc.player.displayClientMessage(Component.translatable("screen.zhushenspace.godpanel.locked"), true);
                 mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
@@ -223,17 +223,13 @@ public class GodPanelScreen extends Screen {
         gearX = panelX + panelW - 26;
         hallX = gearX - 36;
         int tx = panelX + 6;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 5; i++) {
             tabX[i] = tx;
             tx += tabW[i] + 4;
         }
-        featX = tabX[3] + tabW[3] + 8;
         clampScroll();
     }
 
-    /** 专长入口（咒术回战风格，标签行） */
-    private int featX;
-    private static final int FEAT_W = 44;
 
     private int rowY(PointList list, int index) {
         return listTop + index * ROW_HEIGHT - list.scroll;
@@ -286,6 +282,7 @@ public class GodPanelScreen extends Screen {
             case SKILLS -> renderPointTab(g, mouseX, mouseY, skillList);
             case PRESET -> renderPresetTab(g, mouseX, mouseY);
             case SHOP -> renderShopTab(g, mouseX, mouseY);
+            case FEATS -> renderFeatTab(g);
         }
         g.pose().popPose();
         ZsTheme.endOpen(g);
@@ -302,9 +299,15 @@ public class GodPanelScreen extends Screen {
             SgStyle.chrome(g, panelX, panelY, panelW, panelH);
             return;
         }
+        if (tab == Tab.FEATS) {
+            // 专长页：两种领域结界自中缝向两侧展开的外框
+            JjkStyle.chrome(g, panelX, panelY, panelW, panelH, tabChangedAt, HEADER_HEIGHT);
+            return;
+        }
         if (tab == Tab.PRESET) {
             // 战斗预设页：锻铁 + 余烬外框，与剑冢背景统一
             BladeBar.chrome(g, panelX, panelY, panelW, panelH);
+            renderBattlefield(g);
             return;
         }
         ZsTheme.panel(g, panelX, panelY, panelW, panelH);
@@ -319,10 +322,11 @@ public class GodPanelScreen extends Screen {
                 Component.translatable("screen.zhushenspace.godpanel.tab.attributes").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.skills").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.preset").getString(),
-                Component.translatable("screen.zhushenspace.godpanel.tab.shop").getString()
+                Component.translatable("screen.zhushenspace.godpanel.tab.shop").getString(),
+                Component.translatable("screen.zhushenspace.godpanel.tab.feats").getString()
         };
-        Component[] tabLabels = new Component[4];
-        for (int i = 0; i < 4; i++) {
+        Component[] tabLabels = new Component[5];
+        for (int i = 0; i < 5; i++) {
             // 有未确认改动的加点页在标签上打 * 提醒
             boolean dirty = (i == 0 && attrList.dirty()) || (i == 1 && skillList.dirty());
             tabLabels[i] = Component.literal(dirty ? labels[i] + "*" : labels[i]);
@@ -336,11 +340,6 @@ public class GodPanelScreen extends Screen {
         } else {
             ZsTheme.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal(), 1);
         }
-
-        // 专长入口：领域对撞小按钮（打开咒术回战风格专长界面）
-        JjkStyle.entryButton(g, font, mouseX, mouseY, featX, panelY + 5, FEAT_W, TAB_H,
-                Component.translatable("screen.zhushenspace.godpanel.tab.feats"),
-                com.zhushen.space.client.ClientFeatData.free(com.zhushen.space.client.ClientFeatData.owned()) > 0);
 
         // 主神空间大厅（标签行，齿轮左侧）：进入大厅 / 返回主世界
         boolean inHall = minecraft != null && minecraft.player != null
@@ -389,6 +388,9 @@ public class GodPanelScreen extends Screen {
             case SHOP -> g.drawString(font,
                     Component.translatable("screen.zhushenspace.shop.hint"),
                     panelX + 8, panelY + 26, TEXT_SUB, true);
+            case FEATS -> g.drawString(font,
+                    Component.translatable("screen.zhushenspace.feats.hint"),
+                    panelX + 8, panelY + 26, 0xFFD8E4F0, true);
         }
 
         // 生命 / 伤势显示已移至战斗模式 HUD（WoundHudRenderer）
@@ -401,6 +403,14 @@ public class GodPanelScreen extends Screen {
         g.drawString(font, currency, panelX + 8, panelY + panelH - 12,
                 tab == Tab.SKILLS ? XytStyle.ORANGE : tab == Tab.PRESET ? BladeBar.EMBER
                         : tab == Tab.ATTRIBUTES ? SgStyle.NIXIE : CURRENCY, tab != Tab.SKILLS);
+    }
+
+    /** 专长页内容：专长暂未开放（占位） */
+    private void renderFeatTab(GuiGraphics g) {
+        Component c = Component.translatable("screen.zhushenspace.feats.empty");
+        float a = ZsAnim.clamp01((ZsAnim.nowMs() - tabChangedAt - 500) / 400f);
+        if (a <= 0.02f) return;
+        g.drawCenteredString(font, c, panelX + panelW / 2, panelY + panelH / 2, ZsAnim.withAlpha(0xFFE8EEF8, a));
     }
 
     /** 可购买按钮外圈呼吸金光，吸引注意 */
@@ -717,24 +727,20 @@ public class GodPanelScreen extends Screen {
 
     /** 战斗预设背景：无限剑制（燃烧黄昏、空中巨轮、剑冢荒原、升腾火星） */
     private void renderBattlefield(GuiGraphics g) {
-        int top = panelY + HEADER_HEIGHT - 2;
-        int x = panelX + 1, w = panelW - 2, h = panelY + panelH - 1 - top;
-        // 完整显示整幅动图（等比缩放装入内容区，居中），两侧以同色暗底衔接
+        // 铺满整个面板内部（等比放大裁切，覆盖标签行至底栏）
+        int top = panelY + 1;
+        int x = panelX + 1, w = panelW - 2, h = panelH - 2;
         g.fill(x, top, x + w, top + h, 0xFF120806);
-        float sc = Math.min(w / 256f, h / 192f);
+        float sc = Math.max(w / 256f, h / 192f);
         int dw = Math.round(256 * sc), dh = Math.round(192 * sc);
         int dx = x + (w - dw) / 2, dy = top + (h - dh) / 2;
+        g.enableScissor(x, top, x + w, top + h);
         ZsAnim.UBW.draw(g, dx, dy, dw, dh);
-        // 画幅边缘柔化：左右渐隐进暗底
-        int fade = 10;
-        for (int i = 0; i < fade; i++) {
-            int a = (int) (0xFF * (1 - i / (float) fade));
-            g.fill(dx + i, dy, dx + i + 1, dy + dh, a << 24 | 0x120806);
-            g.fill(dx + dw - 1 - i, dy, dx + dw - i, dy + dh, a << 24 | 0x120806);
-        }
-        g.fillGradient(x, top, x + w, top + 20, 0xCC120806, 0x00120806);
+        g.disableScissor();
+        // 顶部标签行 / 说明文字区压暗保证可读；技能芯片区略压暗
+        g.fillGradient(x, top, x + w, panelY + HEADER_HEIGHT + 6, 0xCC120806, 0x33120806);
         int chipTop = barY(1) + BAR_H + 6;
-        g.fillGradient(x, chipTop, x + w, top + h, 0x55120806, 0xAA120806);
+        g.fillGradient(x, chipTop, x + w, top + h, 0x44120806, 0xAA120806);
     }
 
     /** 当前是否处于战斗预设页（悬停提示框切换为锻铁风格） */
@@ -745,7 +751,7 @@ public class GodPanelScreen extends Screen {
     private void renderPresetTab(GuiGraphics g, int mouseX, int mouseY) {
         // 悬停提示延后到所有格子/芯片绘制完之后统一绘制（优先级最高，避免被边框遮挡）
         List<FormattedCharSequence> hoverTip = null;
-        renderBattlefield(g);
+        // 剑冢背景已在 renderPanel 中铺满面板（位于标签行之下）
 
         // 两套预设栏（A/B），共享已解锁技能
         for (int bar = 0; bar < slots.length; bar++) {
@@ -1313,13 +1319,6 @@ public class GodPanelScreen extends Screen {
                 return true;
             }
 
-            // 专长界面
-            if (over(mouseX, mouseY, featX, panelY + 5, FEAT_W, TAB_H)) {
-                playClick(1.2f);
-                Minecraft.getInstance().setScreen(new FeatScreen(this));
-                return true;
-            }
-
             // 主神空间大厅：进入大厅 / 返回主世界
             if (over(mouseX, mouseY, hallX, panelY + 5, 32, TAB_H)) {
                 playClick(1.0f);
@@ -1336,7 +1335,7 @@ public class GodPanelScreen extends Screen {
             }
 
             // 选项卡切换
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 5; i++) {
                 if (over(mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H)) {
                     if (tab != Tab.values()[i]) {
                         tabChangedAt = ZsAnim.nowMs();

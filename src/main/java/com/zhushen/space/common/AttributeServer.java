@@ -48,7 +48,6 @@ public class AttributeServer {
             skills.addTotalPoints(SkillType.ENVELOPE_SKILL_POINTS);
         }
 
-        FeatServer.grantEnvelope(player);
         sync(player);
         SkillServer.sync(player);
     }
@@ -58,7 +57,7 @@ public class AttributeServer {
         PlayerAttributeData data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         PacketDistributor.sendToPlayer(player,
                 new SyncAttributesPayload(data.points(), data.totalPoints()));
-        FeatServer.sync(player);
+        PacketDistributor.sendToPlayer(player, new com.zhushen.space.network.SyncEnvelopePayload(data.envelopeUsed()));
     }
 
     /** 应用属性加成并同步（登录/重生/换维度时调用） */

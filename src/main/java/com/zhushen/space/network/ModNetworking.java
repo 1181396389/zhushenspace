@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("9"); // 协议版本：新增专长
+        PayloadRegistrar registrar = event.registrar("9"); // 协议版本：邀请函状态同步
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -37,16 +37,8 @@ public class ModNetworking {
                     }
                 }));
 
-        // ===== 专长 =====
-        registrar.playToClient(SyncFeatsPayload.TYPE, SyncFeatsPayload.STREAM_CODEC,
-                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientFeatData.update(
-                        payload.totalPoints(), payload.owned(), payload.envelopeUsed())));
-        registrar.playToServer(CommitFeatsPayload.TYPE, CommitFeatsPayload.STREAM_CODEC,
-                (payload, ctx) -> ctx.enqueueWork(() -> {
-                    if (ctx.player() instanceof ServerPlayer serverPlayer) {
-                        com.zhushen.space.common.FeatServer.commit(serverPlayer, payload.owned());
-                    }
-                }));
+        registrar.playToClient(SyncEnvelopePayload.TYPE, SyncEnvelopePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientEnvelopeData.update(payload.used())));
 
         // ===== 技能系统 =====
         registrar.playToClient(SyncSkillsPayload.TYPE, SyncSkillsPayload.STREAM_CODEC,

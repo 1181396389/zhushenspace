@@ -133,31 +133,6 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
-                // ===== 专长 =====
-                .then(Commands.literal("feat")
-                        .then(Commands.literal("points")
-                                .then(Commands.argument("player", EntityArgument.player())
-                                        .then(Commands.argument("amount", IntegerArgumentType.integer(-999, 999))
-                                                .executes(ctx -> {
-                                                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
-                                                    int n = IntegerArgumentType.getInteger(ctx, "amount");
-                                                    com.zhushen.space.common.FeatServer.data(p).addTotalPoints(n);
-                                                    com.zhushen.space.common.FeatServer.sync(p);
-                                                    ctx.getSource().sendSuccess(() -> Component.translatable(
-                                                            "command.zhushenspace.feat.points", p.getDisplayName(), n,
-                                                            com.zhushen.space.common.FeatServer.data(p).totalPoints()), true);
-                                                    return 1;
-                                                }))))
-                        .then(Commands.literal("reset")
-                                .then(Commands.argument("player", EntityArgument.player())
-                                        .executes(ctx -> {
-                                            ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
-                                            com.zhushen.space.common.FeatServer.data(p).setOwned(0);
-                                            com.zhushen.space.common.FeatServer.sync(p);
-                                            ctx.getSource().sendSuccess(() -> Component.translatable(
-                                                    "command.zhushenspace.feat.reset", p.getDisplayName()), true);
-                                            return 1;
-                                        }))))
                 // ===== 大厅场景 =====
                 .then(Commands.literal("hall")
                         .then(Commands.literal("rebuild")
