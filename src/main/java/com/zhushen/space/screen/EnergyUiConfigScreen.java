@@ -79,7 +79,7 @@ public class EnergyUiConfigScreen extends Screen {
             b.setMessage(limbShowText());
         }));
         limbStyleBtn = addRenderableWidget(new ZsButton(cx - 48, 44, 96, 18, limbStyleText(), b -> {
-            ClientUiConfig.get().limbHudFun = !ClientUiConfig.get().limbHudFun;
+            ClientUiConfig.get().limbHudStyle = 1 - ClientUiConfig.get().limbHudStyle;
             ClientUiConfig.save();
             b.setMessage(limbStyleText());
         }));
@@ -100,8 +100,8 @@ public class EnergyUiConfigScreen extends Screen {
 
     private Component limbStyleText() {
         return Component.translatable("screen.zhushenspace.limb_hud.style",
-                Component.translatable(ClientUiConfig.get().limbHudFun
-                        ? "screen.zhushenspace.limb_hud.style.fun" : "screen.zhushenspace.limb_hud.style.classic"));
+                Component.translatable(ClientUiConfig.get().limbHudStyle == 1
+                        ? "screen.zhushenspace.limb_hud.style.herta" : "screen.zhushenspace.limb_hud.style.terminal"));
     }
 
     private Component limbQuipText() {
