@@ -662,9 +662,9 @@ public class GodPanelScreen extends Screen {
             int nx = lx + 7 + (int) ZsAnim.tween(ZsAnim.key(93, k, 0), sel ? 4f : hov ? 2f : 0f, 14f);
             g.drawString(font, name, nx, ry + 4, featEditable(f) ? 0xFFE8EEF8 : 0xFF8A92A0, false);
             int top2 = featTopLevel(k);
-            String lv = top2 == 0 ? "—" : "Lv" + top2 + "/" + f.maxLevel;
+            String lv = featCur[k] == 0 ? "—" : "Lv" + top2 + "/" + f.maxLevel;
             boolean pend = featCur[k] != featSaved[k];
-            g.drawString(font, lv, lx + lw - 6 - font.width(lv), ry + 4, pend ? JjkStyle.GOJO : top2 > 0 ? 0xFFF2ECE0 : 0xFF5A6070, false);
+            g.drawString(font, lv, lx + lw - 6 - font.width(lv), ry + 4, pend ? JjkStyle.GOJO : featCur[k] != 0 ? 0xFFF2ECE0 : 0xFF5A6070, false);
             g.fill(lx + 4, ry + FEAT_ROW_H - 1, lx + lw - 4, ry + FEAT_ROW_H, 0x14FFFFFF);
         }
         if (vis.isEmpty()) {

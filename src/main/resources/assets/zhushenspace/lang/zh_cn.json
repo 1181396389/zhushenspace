@@ -462,5 +462,8 @@
   "screen.zhushenspace.discard.title": "有未确认的加点改动",
   "screen.zhushenspace.discard.hint": "要放弃这些改动吗？",
   "screen.zhushenspace.discard.discard": "放弃",
-  "screen.zhushenspace.discard.apply": "确认加点"
+  "screen.zhushenspace.discard.apply": "确认加点",
+  "feat.zhushenspace.born_femboy": "先天男娘",
+  "feat.zhushenspace.born_femboy.prereq": "男性",
+  "feat.zhushenspace.born_femboy.level0": "你天生就如像女孩一样般可爱或妩媚，虽然你是男性。\n效果：你的身材纤细娇小，容貌如同女孩一般。你在专长和天赋、缺陷、怪癖以外的资源兑换前提和效果上视为女性，而不视为男性。但在接受针对性别的负面效果时你同时视为男性，在接受针对性别的攻击和针对器官的效果时你也依然视为男性。"
 }

@@ -462,5 +462,8 @@
   "screen.zhushenspace.discard.title": "Unconfirmed allocation changes",
   "screen.zhushenspace.discard.hint": "Discard these changes?",
   "screen.zhushenspace.discard.discard": "Discard",
-  "screen.zhushenspace.discard.apply": "Apply"
+  "screen.zhushenspace.discard.apply": "Apply",
+  "feat.zhushenspace.born_femboy": "Born Femboy",
+  "feat.zhushenspace.born_femboy.prereq": "Male",
+  "feat.zhushenspace.born_femboy.level0": "You were born as cute or charming as a girl, even though you are male.\nEffect: slender and petite, with a girlish face. For prerequisites and effects of resource exchanges other than feats, talents, flaws and quirks you count as female rather than male. Against gender-targeted negative effects you also count as male; against gender-targeted attacks and organ-targeted effects you still count as male."
 }

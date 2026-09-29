@@ -11,7 +11,9 @@ package com.zhushen.space.data;
  */
 public enum FeatType {
     SPECIAL_IDENTITY("special_identity", Category.CREATION, 1, 3),
-    SUPERNATURAL_IDENTITY("supernatural_identity", Category.CREATION, 5, 5);
+    SUPERNATURAL_IDENTITY("supernatural_identity", Category.CREATION, 5, 5),
+    /** 先天男娘（0 级，0 XP）。前提：男性。性别判定见 common/GenderRules */
+    BORN_FEMBOY("born_femboy", Category.NORMAL, 0, 0);
 
     public enum Category {
         NORMAL(3), REINCARNATION(6), CREATION(3);

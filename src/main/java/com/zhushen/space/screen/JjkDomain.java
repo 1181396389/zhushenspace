@@ -108,7 +108,7 @@ public final class JjkDomain {
         // 底：深墨蓝 → 冷灰（云翳）
         g.fillGradient(x, y, x1, y + h, 0xFF0B0F1A, 0xFF1A2130);
         // 墨云团块（缓慢漂移）
-        for (int i = 0; i < 22; i++) {
+        for (int i = 0; i < 8; i++) {
             float cx = x + ((hash(i, 301) * (w * 0.6f) + t * (3 + hash(i, 302) * 5)) % (w * 0.6f));
             float cy = y + hash(i, 303) * h;
             float r = 8 + hash(i, 304) * 22;
@@ -120,13 +120,13 @@ public final class JjkDomain {
         // —— 白光裂隙：斜向贯穿，边缘为撕裂墨块 ——
         float slope = -0.32f;
         float rift = 0.5f + 0.5f * (float) Math.sin(t * 0.9);
-        for (int px = x; px < x1; px += 2) {
+        for (int px = x; px < x1; px += 3) {
             float cy = gy + (px - gx) * slope;
             float n1 = hash(px / 2, 311), n2 = hash(px / 2, 312);
             float hw = (R * 0.18f + 3) * (0.7f + 0.3f * rift) + (n1 - 0.5f) * 6;
             float hw2 = hw + 2 + n2 * 5;
-            g.fill(px, (int) (cy - hw2), px + 2, (int) (cy + hw2), alpha(0xFFBFD6EA, 0.35f));
-            g.fill(px, (int) (cy - hw), px + 2, (int) (cy + hw), 0xFFF4F8FF);
+            g.fill(px, (int) (cy - hw2), px + 3, (int) (cy + hw2), alpha(0xFFBFD6EA, 0.35f));
+            g.fill(px, (int) (cy - hw), px + 3, (int) (cy + hw), 0xFFF4F8FF);
             // 墨块啃噬边缘
             if (n2 > 0.72f) {
                 int bs = 1 + (int) (hash(px, 313) * 4);
@@ -140,33 +140,33 @@ public final class JjkDomain {
         if (R < 2) return;
         // —— 外围吸积旋涡：灰白流线顺时针旋转 ——
         float rot = t * 0.35f;
-        for (int a = 0; a < 240; a++) {
-            double ang = a * Math.PI * 2 / 240;
-            for (int k = 0; k < 14; k++) {
-                float d = k / 14f;
+        for (int a = 0; a < 120; a++) {
+            double ang = a * Math.PI * 2 / 120;
+            for (int k = 0; k < 6; k++) {
+                float d = k / 6f;
                 float rr = R * (1.02f + d * 0.75f);
                 double aa = ang + rot + d * 1.4;
                 float streak = (float) (0.5 + 0.5 * Math.sin(ang * 9 + d * 7 - t * 1.3));
                 float av = (1 - d) * (0.15f + 0.55f * streak);
                 int px = (int) (gx + Math.cos(aa) * rr), py = (int) (gy + Math.sin(aa) * rr * 0.92f);
-                g.fill(px, py, px + 1, py + 1, alpha(k < 3 ? 0xFFE6EEF8 : 0xFF8FA0B8, av));
+                g.fill(px, py, px + 2, py + 1, alpha(k < 2 ? 0xFFE6EEF8 : 0xFF8FA0B8, av));
             }
         }
         // —— 虹彩光环（金 → 青 → 紫，随角度与时间流转）——
-        for (int a = 0; a < 360; a++) {
-            double ang = a * Math.PI / 180;
+        for (int a = 0; a < 180; a++) {
+            double ang = a * Math.PI / 90;
             float lum = (float) (0.55 + 0.45 * Math.sin(ang * 2 - t * 2.1));
             int col = hsv(0.12f + (float) Math.sin(ang + t * 0.6) * 0.35f, 0.55f, 1f);
             for (int k = 0; k < 3; k++) {
                 float rr = R * (0.94f + k * 0.035f);
                 int px = (int) (gx + Math.cos(ang) * rr), py = (int) (gy + Math.sin(ang) * rr * 0.92f);
-                g.fill(px, py, px + 1, py + 1, alpha(k == 1 ? 0xFFFFFFFF : col, lum * (k == 1 ? 0.9f : 0.7f)));
+                g.fill(px, py, px + 2, py + 1, alpha(k == 1 ? 0xFFFFFFFF : col, lum * (k == 1 ? 0.9f : 0.7f)));
             }
         }
         // —— 视界：纯黑 + 内侧暗蓝旋纹 ——
         disk(g, gx, gy, R * 0.92f, 0.92f, 0xFF000000);
-        for (int j = 0; j < 120; j++) {
-            float d = j / 120f;
+        for (int j = 0; j < 50; j++) {
+            float d = j / 50f;
             double aa = -t * 0.8 + d * 9;
             float rr = R * (0.88f - d * 0.5f);
             int px = (int) (gx + Math.cos(aa) * rr), py = (int) (gy + Math.sin(aa) * rr * 0.92f);
@@ -176,7 +176,7 @@ public final class JjkDomain {
         float blink = (float) Math.pow(0.5 + 0.5 * Math.sin(t * 1.7), 6);
         disk(g, gx, gy, 1 + 1.5f * blink, 1f, alpha(0xFFFFFFFF, 0.4f + 0.6f * blink));
         // —— 被吸入的墨点碎屑 ——
-        for (int i = 0; i < 60; i++) {
+        for (int i = 0; i < 30; i++) {
             float ph = (t * (0.12f + hash(i, 321) * 0.2f) + hash(i, 322)) % 1f;
             double ang = hash(i, 323) * Math.PI * 2 + ph * 2.2;
             float rr = R * (2.4f - ph * 1.45f);
@@ -216,22 +216,22 @@ public final class JjkDomain {
         // 天幕：纯黑 → 暗红
         g.fillGradient(x0, y, x1, waterY, 0xFF030001, 0xFF1A0205);
         // 血色涡云：多条正弦流带，缓慢翻涌
-        for (int band = 0; band < 7; band++) {
-            float by = y + h * (0.05f + band * 0.065f);
+        for (int band = 0; band < 4; band++) {
+            float by = y + h * (0.06f + band * 0.1f);
             float amp = 4 + band * 1.5f, fq = 0.03f + hash(band, 401) * 0.03f, sp = 0.4f + hash(band, 402) * 0.6f;
-            for (int px = x0; px < x1; px += 1) {
+            for (int px = x0; px < x1; px += 3) {
                 float yy = by + (float) Math.sin(px * fq + t * sp + band) * amp
                         + (float) Math.sin(px * fq * 2.7f - t * sp * 1.3f) * amp * 0.4f;
                 float den = (float) (0.5 + 0.5 * Math.sin(px * 0.05 + t * 0.7 + band * 2));
                 int th = 1 + (int) (den * 3);
-                g.fill(px, (int) yy, px + 1, (int) yy + th, alpha(band % 2 == 0 ? 0xFFB0121E : 0xFF6A0810, 0.18f + 0.3f * den));
+                g.fill(px, (int) yy, px + 3, (int) yy + th, alpha(band % 2 == 0 ? 0xFFB0121E : 0xFF6A0810, 0.18f + 0.3f * den));
             }
         }
         // 涡旋：两团旋转的血云
         for (int v = 0; v < 2; v++) {
             float vx = x0 + w * (v == 0 ? 0.2f : 0.82f), vy = y + h * 0.14f;
-            for (int j = 0; j < 140; j++) {
-                float d = j / 140f;
+            for (int j = 0; j < 60; j++) {
+                float d = j / 60f;
                 double a = d * 10 + t * (v == 0 ? 0.6 : -0.6);
                 float r = d * w * 0.16f;
                 int px = (int) (vx + Math.cos(a) * r), py = (int) (vy + Math.sin(a) * r * 0.4f);
@@ -246,7 +246,7 @@ public final class JjkDomain {
         // —— 黑水 ——
         g.fillGradient(x0, waterY, x1, y + h, 0xFF02080C, 0xFF03141A);
         // 青色水光斑块（水底反光，缓慢流动）
-        for (int i = 0; i < 90; i++) {
+        for (int i = 0; i < 36; i++) {
             float fx = (hash(i, 411) * w + t * (4 + hash(i, 412) * 6)) % w;
             float fy = waterY + 4 + hash(i, 413) * (y + h - waterY - 4);
             float pw = 6 + hash(i, 414) * 18;
@@ -259,7 +259,7 @@ public final class JjkDomain {
         shrine2(g, cx, waterY - 2, size, t, 0.55f);
         MY = Float.NaN;
         // 波纹：横向错位暗条扫过倒影
-        for (int r = waterY + 2; r < y + h; r += 3) {
+        for (int r = waterY + 2; r < y + h; r += 5) {
             float ph = (float) Math.sin(r * 0.4 + t * 2.2);
             int off = (int) (ph * 6);
             g.fill(x0 + Math.max(0, off), r, x1 + Math.min(0, off), r + 1, alpha(0xFF02080C, 0.35f + 0.2f * ph));

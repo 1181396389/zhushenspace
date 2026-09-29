@@ -111,6 +111,10 @@ public final class BuildServer {
     }
 
     /** 旧存档迁移（登录时）：切换到 XP 建卡系统，旧的属性 / 技能分配清空，重新建卡 */
+    public static boolean hasFeat(net.minecraft.world.entity.player.Player player, FeatType f, int level) {
+        return FeatType.has(player.getData(ModAttachments.PLAYER_BUILD).featMask, f, level);
+    }
+
     public static void migrate(ServerPlayer player) {
         PlayerBuildData b = player.getData(ModAttachments.PLAYER_BUILD);
         if (b.version >= PlayerBuildData.VERSION) return;
