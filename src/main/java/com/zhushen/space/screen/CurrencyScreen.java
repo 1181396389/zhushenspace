@@ -36,8 +36,16 @@ public class CurrencyScreen extends Screen {
 
     private long openedAt = -1;
 
+    /** 返回目标（保留主神面板的选项卡与未确认改动） */
+    private final Screen parent;
+
     public CurrencyScreen() {
+        this(null);
+    }
+
+    public CurrencyScreen(Screen parent) {
         super(Component.translatable("screen.zhushenspace.currency.title"));
+        this.parent = parent;
     }
 
     @Override
@@ -152,9 +160,18 @@ public class CurrencyScreen extends Screen {
     }
 
     @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_E) {
+            onClose();
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
     public void onClose() {
         if (this.minecraft != null) {
-            this.minecraft.setScreen(new GodPanelScreen());
+            this.minecraft.setScreen(parent != null ? parent : new GodPanelScreen());
         }
     }
 

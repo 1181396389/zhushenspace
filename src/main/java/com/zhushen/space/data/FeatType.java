@@ -38,6 +38,9 @@ public enum FeatType {
 
     public String levelDescKey(int level) { return "feat.zhushenspace." + key + ".level" + level; }
 
+    /** 前提条件文本键（语言文件未提供时显示「无」） */
+    public String prereqKey() { return "feat.zhushenspace." + key + ".prereq"; }
+
     public boolean creationOnly() { return category == Category.CREATION; }
 
     /** 单个等级的价格 */

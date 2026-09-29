@@ -141,7 +141,7 @@ public class GodPanelScreen extends Screen {
     /** 详情页技能列表滚动偏移（行） */
     private int detailScroll = 0;
 
-    private Tab tab = Tab.ATTRIBUTES;
+    private Tab tab = lastTab;
     /** 打开 / 切换选项卡时刻（驱动弹出与内容滑入动画） */
     private long openedAt = -1, tabChangedAt;
 
@@ -352,6 +352,7 @@ public class GodPanelScreen extends Screen {
         ZsTheme.endOpen(g);
         if (tab == Tab.SKILLS) renderProfChooser(g, mouseX, mouseY);
         else profChooser = -1;
+        renderDiscardConfirm(g, mouseX, mouseY);
     }
 
     private void renderPanel(GuiGraphics g) {
@@ -483,95 +484,258 @@ public class GodPanelScreen extends Screen {
                 ? "screen.zhushenspace.feats.game_on" : "screen.zhushenspace.feats.game_off");
     }
 
-    // ===== 专长：XP 购买（建卡专长仅建卡时可选） =====
+    // ===== 专长：可容纳大量条目的购买界面（筛选 + 搜索 + 滚动列表 + 详情） =====
 
-    private static final int FEAT_CARD_H = 42, FEAT_PIP_W = 58, FEAT_PIP_H = 13;
+    private static final int FEAT_ROW_H = 15, FEAT_PIP_W = 52, FEAT_PIP_H = 13;
+    /** 筛选：0 全部 / 1 普通 / 2 轮回之境 / 3 加点专长 / 4 已拥有 */
+    private int featFilter = 0;
+    private int featScroll = 0, featMaxScroll = 0;
+    private int featSel = 0;
+    private int featDescScroll = 0, featDescMax = 0;
+    private int featHoverLevel = -1;
+    private String featSearch = "";
+    private boolean featSearchFocus = false;
 
-    private int featCardY(int k) {
-        return panelY + HEADER_HEIGHT + 2 + k * (FEAT_CARD_H + 4);
+    private int featListX() { return panelX + 10; }
+    private int featListW() { return Math.max(110, (panelW - 20) * 2 / 5); }
+    private int featPaneTop() { return panelY + HEADER_HEIGHT + 15; }
+    private int featPaneBottom() { return listBottom - 1; }
+    private int featDetailX() { return featListX() + featListW() + 5; }
+    private int featDetailW() { return panelX + panelW - 10 - featDetailX(); }
+    private int[] featSearchRect() {
+        int w = Math.min(96, panelW / 3);
+        return new int[]{resetX - w - 6, actionY, w, actionH};
     }
 
-    private int featPipX(FeatType f, int level) {
-        return panelX + 16 + (level - f.minLevel) * (FEAT_PIP_W + 4);
+    private String[] featFilterKeys() {
+        return new String[]{"build.zhushenspace.filter.all", "feat_category.zhushenspace.normal",
+                "feat_category.zhushenspace.reincarnation", "feat_category.zhushenspace.creation",
+                "build.zhushenspace.filter.owned"};
     }
 
-    private int[] featChoiceRect(int k, int idx) {
-        return new int[]{panelX + 16 + idx * 110, featCardY(k) + 28, 104, 11};
+    private int[] featChipX = new int[5], featChipW = new int[5];
+
+    private List<FeatType> featVisible() {
+        List<FeatType> out = new ArrayList<>();
+        String q = featSearch.toLowerCase(java.util.Locale.ROOT).trim();
+        for (FeatType f : FeatType.VALUES) {
+            switch (featFilter) {
+                case 1 -> { if (f.category != FeatType.Category.NORMAL) continue; }
+                case 2 -> { if (f.category != FeatType.Category.REINCARNATION) continue; }
+                case 3 -> { if (f.category != FeatType.Category.CREATION) continue; }
+                case 4 -> { if (featCur[f.ordinal()] == 0) continue; }
+                default -> { }
+            }
+            if (!q.isEmpty()) {
+                String n = Component.translatable(f.nameKey()).getString().toLowerCase(java.util.Locale.ROOT);
+                if (!n.contains(q) && !f.key.contains(q)) continue;
+            }
+            out.add(f);
+        }
+        return out;
+    }
+
+    private static int catColor(FeatType.Category c) {
+        return switch (c) {
+            case NORMAL -> 0xFF8FD18F;
+            case REINCARNATION -> 0xFFB48CFF;
+            case CREATION -> JjkStyle.GOJO;
+        };
     }
 
     private boolean featEditable(FeatType f) {
         return !(f.creationOnly() && ClientBuildData.created);
     }
 
-    private String skillLabel(int s) {
-        return s < 0 ? Component.translatable("build.zhushenspace.none").getString()
-                : Component.translatable(SkillType.values()[s].nameKey()).getString();
+    private String skillLabel(int sk) {
+        return sk < 0 ? Component.translatable("build.zhushenspace.none").getString()
+                : Component.translatable(SkillType.values()[sk].nameKey()).getString();
+    }
+
+    private int featTopLevel(int k) {
+        int m = featCur[k];
+        return m == 0 ? 0 : 31 - Integer.numberOfLeadingZeros(m);
+    }
+
+    /** 详情区布局：返回 {pipsY, pipsPerRow, choicesY, descY} */
+    private int[] featDetailLayout(FeatType f) {
+        int y = featPaneTop() + 4;
+        int perRow = Math.max(1, (featDetailW() - 8) / (FEAT_PIP_W + 3));
+        int pipsY = y + 24;
+        int n = f.maxLevel - f.minLevel + 1;
+        int rows = (n + perRow - 1) / perRow;
+        int choicesY = pipsY + rows * (FEAT_PIP_H + 3) + 2;
+        int choices = featChoiceCount(f);
+        int descY = choicesY + choices * 14 + (choices > 0 ? 2 : 0);
+        return new int[]{pipsY, perRow, choicesY, descY};
+    }
+
+    private int featChoiceCount(FeatType f) {
+        int k = f.ordinal();
+        if (f == FeatType.SPECIAL_IDENTITY) return ((featCur[k] & 2) != 0 ? 1 : 0) + ((featCur[k] & 8) != 0 ? 2 : 0);
+        return 0;
+    }
+
+    private int[] featPipRect(FeatType f, int level, int[] lay) {
+        int idx = level - f.minLevel;
+        int x = featDetailX() + 4 + (idx % lay[1]) * (FEAT_PIP_W + 3);
+        int y = lay[0] + (idx / lay[1]) * (FEAT_PIP_H + 3);
+        return new int[]{x, y, FEAT_PIP_W, FEAT_PIP_H};
+    }
+
+    private int[] featChoiceRect(int idx, int[] lay) {
+        return new int[]{featDetailX() + 4, lay[2] + idx * 14, featDetailW() - 8, 12};
     }
 
     private void renderFeatCards(GuiGraphics g, int mouseX, int mouseY, float fade) {
-        // 头部：标题 + 重置 / 确认
+        // —— 头部：标题 + 搜索 + 重置 / 确认 ——
         g.drawString(font, Component.translatable("screen.zhushenspace.godpanel.tab.feats"), panelX + 10, actionY + 3,
                 ZsAnim.withAlpha(0xFFF2ECE0, fade), true);
+        int[] sr = featSearchRect();
+        g.fill(sr[0], sr[1], sr[0] + sr[2], sr[1] + sr[3], 0xCC06070C);
+        g.renderOutline(sr[0], sr[1], sr[2], sr[3], featSearchFocus ? 0xFFFFFFFF : 0xFF3A4050);
+        String shown = featSearch.isEmpty() && !featSearchFocus
+                ? Component.translatable("build.zhushenspace.search").getString() : featSearch;
+        String clip = font.plainSubstrByWidth(shown, sr[2] - 10, true);
+        g.drawString(font, clip, sr[0] + 4, sr[1] + (sr[3] - 8) / 2, featSearch.isEmpty() && !featSearchFocus ? 0xFF6A7080 : 0xFFE8EEF8, false);
+        if (featSearchFocus && (ZsAnim.nowMs() / 500) % 2 == 0) {
+            int cx = sr[0] + 4 + font.width(clip);
+            g.fill(cx, sr[1] + 3, cx + 1, sr[1] + sr[3] - 3, 0xFFFFFFFF);
+        }
         boolean dirty = buildDirty();
         JjkStyle.button(g, font, mouseX, mouseY, resetX, actionY, resetW, actionH,
                 Component.translatable("screen.zhushenspace.reset"), JjkStyle.SUKUNA, dirty);
         JjkStyle.button(g, font, mouseX, mouseY, confirmX, actionY, confirmW, actionH,
                 Component.translatable("screen.zhushenspace.apply"), JjkStyle.GOJO, dirty && buildCheck().ok());
-        List<FormattedCharSequence> tip = null;
-        for (int k = 0; k < FeatType.COUNT; k++) {
-            FeatType f = FeatType.VALUES[k];
-            int y = featCardY(k), x = panelX + 10, w = panelW - 20;
-            int accent = k % 2 == 0 ? JjkStyle.GOJO : JjkStyle.SUKUNA_GLOW;
-            g.fill(x, y, x + w, y + FEAT_CARD_H, ZsAnim.withAlpha(0xFF06070C, 0.78f * fade));
-            g.renderOutline(x, y, w, FEAT_CARD_H, ZsAnim.withAlpha(accent, 0.7f * fade));
-            g.fill(x, y, x + 2, y + FEAT_CARD_H, ZsAnim.withAlpha(accent, fade));
-            Component name = Component.translatable(f.nameKey());
-            g.drawString(font, name, x + 6, y + 3, ZsAnim.withAlpha(0xFFF2ECE0, fade), false);
-            Component cat = Component.translatable(f.category.nameKey());
-            g.drawString(font, cat, x + 10 + font.width(name), y + 3, ZsAnim.withAlpha(0xFF8A94A4, fade), false);
-            if (!featEditable(f)) {
-                Component lk = Component.translatable("build.zhushenspace.creation_locked");
-                g.drawString(font, lk, x + w - 6 - font.width(lk), y + 3, 0xFF7A8090, false);
+
+        // —— 筛选标签 ——
+        String[] keys = featFilterKeys();
+        int cx = featListX(), cy = panelY + HEADER_HEIGHT + 1;
+        for (int i = 0; i < keys.length; i++) {
+            Component c = Component.translatable(keys[i]);
+            int w = font.width(c) + 8;
+            featChipX[i] = cx;
+            featChipW[i] = w;
+            boolean sel = featFilter == i, hov = over(mouseX, mouseY, cx, cy, w, 11);
+            g.fill(cx, cy, cx + w, cy + 11, sel ? ZsAnim.withAlpha(JjkStyle.GOJO, 0.85f * fade) : ZsAnim.withAlpha(0xFF06070C, 0.8f * fade));
+            g.renderOutline(cx, cy, w, 11, hov ? 0xFFFFFFFF : ZsAnim.withAlpha(0xFF3A4050, fade));
+            g.drawString(font, c, cx + 4, cy + 2, sel ? 0xFF05060A : 0xFFC8D0DC, false);
+            cx += w + 3;
+        }
+
+        // —— 左：列表 ——
+        List<FeatType> vis = featVisible();
+        int lx = featListX(), lw = featListW(), top = featPaneTop(), bot = featPaneBottom();
+        g.fill(lx, top, lx + lw, bot, ZsAnim.withAlpha(0xFF05060A, 0.82f * fade));
+        g.renderOutline(lx, top, lw, bot - top, ZsAnim.withAlpha(0xFF2A3040, fade));
+        featMaxScroll = Math.max(0, vis.size() * FEAT_ROW_H - (bot - top - 2));
+        featScroll = Math.max(0, Math.min(featScroll, featMaxScroll));
+        if (!vis.isEmpty() && !vis.contains(FeatType.VALUES[Math.min(featSel, FeatType.COUNT - 1)])) featSel = vis.get(0).ordinal();
+        g.enableScissor(lx + 1, top + 1, lx + lw - 1, bot - 1);
+        for (int r = 0; r < vis.size(); r++) {
+            FeatType f = vis.get(r);
+            int ry = top + 1 + r * FEAT_ROW_H - featScroll;
+            if (ry + FEAT_ROW_H < top || ry > bot) continue;
+            int k = f.ordinal();
+            boolean sel = k == featSel, hov = over(mouseX, mouseY, lx, ry, lw - 4, FEAT_ROW_H) && mouseY >= top && mouseY < bot;
+            if (sel) g.fill(lx + 1, ry, lx + lw - 1, ry + FEAT_ROW_H, 0x402A6090);
+            else if (hov) g.fill(lx + 1, ry, lx + lw - 1, ry + FEAT_ROW_H, 0x22FFFFFF);
+            g.fill(lx + 1, ry, lx + 3, ry + FEAT_ROW_H, sel ? catColor(f.category) : ZsAnim.withAlpha(catColor(f.category), 0.45f));
+            String name = font.plainSubstrByWidth(Component.translatable(f.nameKey()).getString(), lw - 44);
+            g.drawString(font, name, lx + 7, ry + 4, featEditable(f) ? 0xFFE8EEF8 : 0xFF8A92A0, false);
+            int top2 = featTopLevel(k);
+            String lv = top2 == 0 ? "—" : "Lv" + top2 + "/" + f.maxLevel;
+            boolean pend = featCur[k] != featSaved[k];
+            g.drawString(font, lv, lx + lw - 6 - font.width(lv), ry + 4, pend ? JjkStyle.GOJO : top2 > 0 ? 0xFFF2ECE0 : 0xFF5A6070, false);
+            g.fill(lx + 4, ry + FEAT_ROW_H - 1, lx + lw - 4, ry + FEAT_ROW_H, 0x14FFFFFF);
+        }
+        if (vis.isEmpty()) {
+            g.drawCenteredString(font, Component.translatable("build.zhushenspace.empty"), lx + lw / 2, top + 10, 0xFF6A7080);
+        }
+        g.disableScissor();
+        if (featMaxScroll > 0) {
+            int trackH = bot - top - 4;
+            int barH = Math.max(12, trackH * (bot - top) / (vis.size() * FEAT_ROW_H));
+            int by = top + 2 + (trackH - barH) * featScroll / featMaxScroll;
+            g.fill(lx + lw - 3, top + 2, lx + lw - 2, bot - 2, 0x22FFFFFF);
+            g.fill(lx + lw - 4, by, lx + lw - 1, by + barH, 0xAA8FB8E0);
+        }
+
+        // —— 右：详情 ——
+        int dx = featDetailX(), dw = featDetailW();
+        g.fill(dx, top, dx + dw, bot, ZsAnim.withAlpha(0xFF05060A, 0.82f * fade));
+        g.renderOutline(dx, top, dw, bot - top, ZsAnim.withAlpha(0xFF2A3040, fade));
+        featHoverLevel = -1;
+        if (vis.isEmpty()) return;
+        FeatType f = FeatType.VALUES[featSel];
+        int k = f.ordinal();
+        int accent = catColor(f.category);
+        int y = top + 4;
+        g.drawString(font, Component.translatable(f.nameKey()), dx + 5, y, 0xFFF2ECE0, false);
+        Component cat = Component.translatable(f.category.nameKey());
+        g.drawString(font, cat, dx + dw - 5 - font.width(cat), y, accent, false);
+        Component pre = Component.translatable("build.zhushenspace.prereq",
+                Component.translatable(f.prereqKey()));
+        g.drawString(font, font.plainSubstrByWidth(pre.getString(), dw - 10), dx + 5, y + 11, 0xFF8A94A4, false);
+        int[] lay = featDetailLayout(f);
+        for (int l = f.minLevel; l <= f.maxLevel; l++) {
+            int[] r = featPipRect(f, l, lay);
+            boolean own = (featCur[k] & (1 << l)) != 0, saved = (featSaved[k] & (1 << l)) != 0;
+            boolean hov = over(mouseX, mouseY, r[0], r[1], r[2], r[3]);
+            if (hov) featHoverLevel = l;
+            int price = f.creationOnly() ? f.payLowerPrice(l) : f.levelPrice(l);
+            int bg = own ? (saved ? accent : ZsAnim.withAlpha(accent, 0.45f + 0.35f * ZsAnim.pulse(800))) : 0xCC101218;
+            g.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], bg);
+            g.renderOutline(r[0], r[1], r[2], r[3], hov && featEditable(f) ? 0xFFFFFFFF : ZsAnim.withAlpha(accent, 0.7f));
+            String lbl = "Lv" + l + " · " + price;
+            g.drawString(font, lbl, r[0] + (r[2] - font.width(lbl)) / 2, r[1] + 3, own ? 0xFF05060A : 0xFFD8DEE8, false);
+        }
+        // 选择项
+        if (f == FeatType.SPECIAL_IDENTITY) {
+            int idx = 0;
+            if ((featCur[k] & 2) != 0) {
+                int[] r = featChoiceRect(idx++, lay);
+                JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                        Component.translatable("build.zhushenspace.si1", skillLabel(si1Cur)), accent, featEditable(f));
             }
-            for (int l = f.minLevel; l <= f.maxLevel; l++) {
-                int px = featPipX(f, l), py = y + 13;
-                boolean own = (featCur[k] & (1 << l)) != 0, saved = (featSaved[k] & (1 << l)) != 0;
-                boolean hov = over(mouseX, mouseY, px, py, FEAT_PIP_W, FEAT_PIP_H);
-                int price = f.creationOnly() ? f.payLowerPrice(l) : f.levelPrice(l);
-                int bg = own ? (saved ? accent : ZsAnim.withAlpha(accent, 0.45f + 0.35f * ZsAnim.pulse(800))) : 0xCC101218;
-                g.fill(px, py, px + FEAT_PIP_W, py + FEAT_PIP_H, bg);
-                g.renderOutline(px, py, FEAT_PIP_W, FEAT_PIP_H, hov && featEditable(f) ? 0xFFFFFFFF : ZsAnim.withAlpha(accent, 0.8f));
-                String lbl = "Lv" + l + "  " + price + "XP";
-                g.drawString(font, lbl, px + (FEAT_PIP_W - font.width(lbl)) / 2, py + 3, own ? 0xFF05060A : 0xFFD8DEE8, false);
-                if (hov) {
-                    tip = new ArrayList<>();
-                    tip.add(Component.translatable(f.nameKey()).append(" Lv" + l).getVisualOrderText());
-                    tip.addAll(font.split(Component.translatable(f.levelDescKey(l)), TOOLTIP_WIDTH + 60));
-                }
-            }
-            // 建卡专长的选择
-            if (f == FeatType.SPECIAL_IDENTITY) {
-                int idx = 0;
-                if ((featCur[k] & 2) != 0) {
-                    int[] r = featChoiceRect(k, idx++);
-                    JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
-                            Component.translatable("build.zhushenspace.si1", skillLabel(si1Cur)), accent, featEditable(f));
-                }
-                if ((featCur[k] & 8) != 0) {
-                    int[] r = featChoiceRect(k, idx++);
-                    JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
-                            Component.translatable("build.zhushenspace.si3", skillLabel(si3aCur)), accent, featEditable(f));
-                    r = featChoiceRect(k, idx);
-                    JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
-                            Component.translatable("build.zhushenspace.si3", skillLabel(si3bCur)), accent, featEditable(f));
-                }
-            } else if (f == FeatType.SUPERNATURAL_IDENTITY && (featCur[k] & (1 << 5)) != 0) {
-                g.drawString(font, Component.translatable(ClientBuildData.pendingExchange
-                        ? "build.zhushenspace.exchange_pending" : "build.zhushenspace.exchange_note"),
-                        panelX + 16, y + 30, 0xFFB0B8C8, false);
+            if ((featCur[k] & 8) != 0) {
+                int[] r = featChoiceRect(idx++, lay);
+                JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                        Component.translatable("build.zhushenspace.si3", skillLabel(si3aCur)), accent, featEditable(f));
+                r = featChoiceRect(idx, lay);
+                JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                        Component.translatable("build.zhushenspace.si3", skillLabel(si3bCur)), accent, featEditable(f));
             }
         }
-        if (tip != null) g.renderTooltip(font, tip, mouseX, mouseY);
+        // 说明（悬停等级优先，否则当前最高等级，否则最低等级），可滚动
+        int showL = featHoverLevel >= 0 ? featHoverLevel : Math.max(f.minLevel, featTopLevel(k));
+        List<FormattedCharSequence> lines = new ArrayList<>();
+        lines.add(Component.literal("Lv" + showL).withStyle(s2 -> s2.withColor(accent)).getVisualOrderText());
+        lines.addAll(font.split(Component.translatable(f.levelDescKey(showL)), dw - 14));
+        if (f == FeatType.SUPERNATURAL_IDENTITY && (featCur[k] & (1 << 5)) != 0) {
+            lines.addAll(font.split(Component.translatable(ClientBuildData.pendingExchange
+                    ? "build.zhushenspace.exchange_pending" : "build.zhushenspace.exchange_note")
+                    .withStyle(net.minecraft.ChatFormatting.GRAY), dw - 14));
+        }
+        if (!featEditable(f)) {
+            lines.addAll(font.split(Component.translatable("build.zhushenspace.creation_locked")
+                    .withStyle(net.minecraft.ChatFormatting.DARK_GRAY), dw - 14));
+        }
+        int descTop = lay[3], descH = bot - 3 - descTop;
+        g.fill(dx + 4, descTop - 2, dx + dw - 4, descTop - 1, 0x22FFFFFF);
+        featDescMax = Math.max(0, lines.size() * 10 - descH);
+        featDescScroll = Math.max(0, Math.min(featDescScroll, featDescMax));
+        if (descH > 8) {
+            g.enableScissor(dx + 1, descTop, dx + dw - 1, bot - 2);
+            for (int li = 0; li < lines.size(); li++) {
+                g.drawString(font, lines.get(li), dx + 6, descTop + li * 10 - featDescScroll, 0xFFC8D0DC, false);
+            }
+            g.disableScissor();
+            if (featDescMax > 0) {
+                int by = descTop + (descH - 10) * featDescScroll / featDescMax;
+                g.fill(dx + dw - 3, by, dx + dw - 1, by + 10, 0xAA8FB8E0);
+            }
+        }
     }
 
     private int cycleSkill(int cur, int dir, boolean allowNone) {
@@ -581,7 +745,40 @@ public class GodPanelScreen extends Screen {
         return allowNone ? idx - 1 : idx;
     }
 
+    private void toggleFeatLevel(FeatType f, int l) {
+        int k = f.ordinal();
+        if (!featEditable(f)) { ZsTheme.click(0.5f); return; }
+        int bit = 1 << l;
+        if ((featSaved[k] & bit) != 0) { ZsTheme.click(0.5f); return; }
+        int m = featCur[k] ^ bit;
+        if (!f.validMask(m)) {
+            // 普通 / 轮回专长：点高级时自动补齐前置等级，点低级时连同更高等级一起取消
+            if ((featCur[k] & bit) == 0) {
+                for (int q = f.minLevel; q <= l; q++) m |= 1 << q;
+            } else {
+                m = featCur[k];
+                for (int q = l; q <= f.maxLevel; q++) if ((featSaved[k] & (1 << q)) == 0) m &= ~(1 << q);
+            }
+            if (!f.validMask(m)) { ZsTheme.click(0.5f); return; }
+        }
+        featCur[k] = m;
+        if (f == FeatType.SPECIAL_IDENTITY) {
+            if ((m & 2) == 0) si1Cur = -1;
+            else if (si1Cur < 0) si1Cur = 0;
+            if ((m & 8) == 0) { si3aCur = -1; si3bCur = -1; }
+        }
+        ZsTheme.click((m & bit) != 0 ? 1.2f : 0.8f);
+    }
+
     private boolean handleFeatClick(double mouseX, double mouseY, int button) {
+        int[] sr = featSearchRect();
+        boolean inSearch = over(mouseX, mouseY, sr[0], sr[1], sr[2], sr[3]);
+        if (inSearch) {
+            featSearchFocus = true;
+            if (button == 1) { featSearch = ""; featScroll = 0; }
+            return true;
+        }
+        featSearchFocus = false;
         if (button == 0 && buildDirty() && over(mouseX, mouseY, resetX, actionY, resetW, actionH)) {
             resetBuild();
             ZsTheme.click(0.8f);
@@ -592,54 +789,81 @@ public class GodPanelScreen extends Screen {
             else ZsTheme.click(0.5f);
             return true;
         }
-        for (int k = 0; k < FeatType.COUNT; k++) {
-            FeatType f = FeatType.VALUES[k];
-            int y = featCardY(k);
-            if (button == 0) {
-                for (int l = f.minLevel; l <= f.maxLevel; l++) {
-                    if (!over(mouseX, mouseY, featPipX(f, l), y + 13, FEAT_PIP_W, FEAT_PIP_H)) continue;
-                    if (!featEditable(f)) return true;
-                    int bit = 1 << l;
-                    if ((featSaved[k] & bit) != 0) return true;
-                    int m = featCur[k] ^ bit;
-                    if (!f.validMask(m)) { ZsTheme.click(0.5f); return true; }
-                    featCur[k] = m;
-                    if (f == FeatType.SPECIAL_IDENTITY) {
-                        if ((m & 2) == 0) si1Cur = -1;
-                        else if (si1Cur < 0) si1Cur = 0;
-                        if ((m & 8) == 0) { si3aCur = -1; si3bCur = -1; }
-                    }
-                    ZsTheme.click((m & bit) != 0 ? 1.2f : 0.8f);
+        int cy = panelY + HEADER_HEIGHT + 1;
+        for (int i = 0; i < featChipX.length; i++) {
+            if (button == 0 && over(mouseX, mouseY, featChipX[i], cy, featChipW[i], 11)) {
+                featFilter = i;
+                featScroll = 0;
+                ZsTheme.click(1.0f);
+                return true;
+            }
+        }
+        int lx = featListX(), lw = featListW(), top = featPaneTop(), bot = featPaneBottom();
+        List<FeatType> vis = featVisible();
+        if (over(mouseX, mouseY, lx, top, lw, bot - top)) {
+            int r = (int) ((mouseY - top - 1 + featScroll) / FEAT_ROW_H);
+            if (r >= 0 && r < vis.size()) {
+                if (featSel != vis.get(r).ordinal()) {
+                    featSel = vis.get(r).ordinal();
+                    featDescScroll = 0;
+                    ZsTheme.click(1.1f);
+                }
+                return true;
+            }
+            return false; // 空白处：交给术式演练
+        }
+        if (vis.isEmpty()) return false;
+        FeatType f = FeatType.VALUES[featSel];
+        int k = f.ordinal();
+        int[] lay = featDetailLayout(f);
+        if (button == 0) {
+            for (int l = f.minLevel; l <= f.maxLevel; l++) {
+                int[] r = featPipRect(f, l, lay);
+                if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
+                    toggleFeatLevel(f, l);
                     return true;
                 }
             }
-            if (f == FeatType.SPECIAL_IDENTITY && featEditable(f) && (button == 0 || button == 1)) {
-                int dir = button == 0 ? 1 : -1;
-                int idx = 0;
-                if ((featCur[k] & 2) != 0) {
-                    int[] r = featChoiceRect(k, idx++);
-                    if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
-                        si1Cur = cycleSkill(si1Cur, dir, false);
-                        ZsTheme.click(1.0f);
-                        return true;
-                    }
-                }
-                if ((featCur[k] & 8) != 0) {
-                    int[] r = featChoiceRect(k, idx++);
-                    if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
-                        do si3aCur = cycleSkill(si3aCur, dir, true); while (si3aCur >= 0 && si3aCur == si3bCur);
-                        ZsTheme.click(1.0f);
-                        return true;
-                    }
-                    r = featChoiceRect(k, idx);
-                    if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
-                        do si3bCur = cycleSkill(si3bCur, dir, true); while (si3bCur >= 0 && si3bCur == si3aCur);
-                        ZsTheme.click(1.0f);
-                        return true;
-                    }
+        }
+        if (f == FeatType.SPECIAL_IDENTITY && featEditable(f) && (button == 0 || button == 1)) {
+            int dir = button == 0 ? 1 : -1;
+            int idx = 0;
+            if ((featCur[k] & 2) != 0) {
+                int[] r = featChoiceRect(idx++, lay);
+                if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
+                    si1Cur = cycleSkill(si1Cur, dir, false);
+                    ZsTheme.click(1.0f);
+                    return true;
                 }
             }
-            if (over(mouseX, mouseY, panelX + 10, y, panelW - 20, FEAT_CARD_H)) return true;
+            if ((featCur[k] & 8) != 0) {
+                int[] r = featChoiceRect(idx++, lay);
+                if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
+                    do si3aCur = cycleSkill(si3aCur, dir, true); while (si3aCur >= 0 && si3aCur == si3bCur);
+                    ZsTheme.click(1.0f);
+                    return true;
+                }
+                r = featChoiceRect(idx, lay);
+                if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
+                    do si3bCur = cycleSkill(si3bCur, dir, true); while (si3bCur >= 0 && si3bCur == si3aCur);
+                    ZsTheme.click(1.0f);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** 专长页滚轮：列表 / 详情说明 */
+    private boolean scrollFeats(double mouseX, double mouseY, int dir) {
+        int top = featPaneTop(), bot = featPaneBottom();
+        if (over(mouseX, mouseY, featListX(), top, featListW(), bot - top)) {
+            featScroll = Math.max(0, Math.min(featMaxScroll, featScroll + dir * FEAT_ROW_H));
+            return true;
+        }
+        if (over(mouseX, mouseY, featDetailX(), top, featDetailW(), bot - top)) {
+            featDescScroll = Math.max(0, Math.min(featDescMax, featDescScroll + dir * 10));
+            return true;
         }
         return false;
     }
@@ -1675,6 +1899,7 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (discardConfirm) return button == 0 ? handleDiscardClick(mouseX, mouseY) : true;
         if (tab == Tab.FEATS && ZsAnim.nowMs() - tabChangedAt > 400 && handleFeatClick(mouseX, mouseY, button)) return true;
         if (tab == Tab.FEATS && button == 0) {
             int[] r = gameToggleRect();
@@ -1710,7 +1935,7 @@ public class GodPanelScreen extends Screen {
         if (button == 0) {
             // 底部货币栏：点击打开货币界面（拖拽拼合/拆解）
             if (over(mouseX, mouseY, panelX + 4, panelY + panelH - 16, panelW - 8, 14)) {
-                Minecraft.getInstance().setScreen(new CurrencyScreen());
+                Minecraft.getInstance().setScreen(new CurrencyScreen(this));
                 return true;
             }
 
@@ -1732,11 +1957,7 @@ public class GodPanelScreen extends Screen {
             // 选项卡切换
             for (int i = 0; i < 5; i++) {
                 if (over(mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H)) {
-                    if (tab != Tab.values()[i]) {
-                        tabChangedAt = ZsAnim.nowMs();
-                        if (Tab.values()[i] == Tab.ATTRIBUTES) SgStyle.rollIn();
-                    }
-                    tab = Tab.values()[i];
+                    switchTab(Tab.values()[i]);
                     dragging = -1;
                     dragFromSlot = -1;
                     dragFromBar = -1;
@@ -1853,6 +2074,8 @@ public class GodPanelScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         int dir = -(int) Math.signum(scrollY);
+        if (discardConfirm) return true;
+        if (tab == Tab.FEATS && scrollFeats(mouseX, mouseY, dir)) return true;
         PointList list = activeList();
         if (list != null) {
             list.scroll += dir * ROW_HEIGHT;
@@ -1891,17 +2114,136 @@ public class GodPanelScreen extends Screen {
     }
 
     @Override
+    public boolean charTyped(char c, int modifiers) {
+        if (tab == Tab.FEATS && featSearchFocus) {
+            if (c >= ' ' && featSearch.length() < 32) {
+                featSearch += c;
+                featScroll = 0;
+            }
+            return true;
+        }
+        return super.charTyped(c, modifiers);
+    }
+
+    /**
+     * 键盘：Esc / E 逐层返回（输入框 → 弹窗 → 详情 → 未保存确认 → 关闭）；
+     * 1~5 切换选项卡，Ctrl+Tab / Ctrl+Shift+Tab 循环切换；回车确认加点；Ctrl+Z 撤销本次未确认的改动。
+     */
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_E) {
-            onClose();
+        if (tab == Tab.FEATS && featSearchFocus) {
+            if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+                if (!featSearch.isEmpty()) featSearch = featSearch.substring(0, featSearch.length() - 1);
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_ENTER) {
+                featSearchFocus = false;
+                return true;
+            }
+            return true; // 输入中屏蔽其他快捷键（含 E）
+        }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_E) {
+            back();
+            return true;
+        }
+        if (discardConfirm) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER) { resetBuild(); discardConfirm = false; forceClose(); }
+            return true;
+        }
+        if (keyCode >= GLFW.GLFW_KEY_1 && keyCode <= GLFW.GLFW_KEY_5) {
+            switchTab(Tab.values()[keyCode - GLFW.GLFW_KEY_1]);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_TAB && Screen.hasControlDown()) {
+            int n = Tab.values().length;
+            switchTab(Tab.values()[(tab.ordinal() + (Screen.hasShiftDown() ? n - 1 : 1)) % n]);
+            return true;
+        }
+        if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER)
+                && (tab == Tab.ATTRIBUTES || tab == Tab.SKILLS || tab == Tab.FEATS) && buildDirty()) {
+            if (buildCheck().ok()) commitBuild();
+            else ZsTheme.click(0.5f);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_Z && Screen.hasControlDown() && buildDirty()) {
+            resetBuild();
+            ZsTheme.click(0.8f);
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    /** 关闭面板时返回背包界面（仿照创造选项卡的体验） */
+    /** 未确认改动时关闭面板的二次确认 */
+    private boolean discardConfirm = false;
+
+    private void switchTab(Tab t) {
+        if (tab == t) return;
+        tabChangedAt = ZsAnim.nowMs();
+        if (t == Tab.ATTRIBUTES) SgStyle.rollIn();
+        tab = t;
+        lastTab = t;
+        profChooser = -1;
+        featSearchFocus = false;
+        playClick(1.0f);
+    }
+
+    /** 逐层返回 */
+    private void back() {
+        if (discardConfirm) { discardConfirm = false; playClick(0.8f); return; }
+        if (profChooser >= 0) { profChooser = -1; playClick(0.8f); return; }
+        if (tab == Tab.SHOP && detailSchool >= 0) { detailSchool = -1; playClick(0.8f); return; }
+        if (dragging >= 0) { dragging = -1; return; }
+        if (buildDirty()) { discardConfirm = true; playClick(0.6f); return; }
+        forceClose();
+    }
+
+    private int[] discardBox() {
+        int w = 200, h = 62;
+        return new int[]{panelX + (panelW - w) / 2, panelY + (panelH - h) / 2, w, h};
+    }
+
+    private void renderDiscardConfirm(GuiGraphics g, int mouseX, int mouseY) {
+        if (!discardConfirm) return;
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 500);
+        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xAA000000);
+        int[] b = discardBox();
+        ZsTheme.panel(g, b[0], b[1], b[2], b[3]);
+        g.drawCenteredString(font, Component.translatable("screen.zhushenspace.discard.title"), b[0] + b[2] / 2, b[1] + 10, 0xFFFFFFFF);
+        g.drawCenteredString(font, Component.translatable("screen.zhushenspace.discard.hint"), b[0] + b[2] / 2, b[1] + 22, 0xFFB0B8C8);
+        int by = b[1] + b[3] - 20;
+        renderSmallButton(g, mouseX, mouseY, b[0] + 10, by, 56, 14, Component.translatable("screen.zhushenspace.discard.discard"));
+        renderSmallButton(g, mouseX, mouseY, b[0] + 72, by, 56, 14, Component.translatable("screen.zhushenspace.discard.apply"));
+        renderSmallButton(g, mouseX, mouseY, b[0] + 134, by, 56, 14, Component.translatable("gui.cancel"));
+        g.pose().popPose();
+    }
+
+    private boolean handleDiscardClick(double mx, double my) {
+        int[] b = discardBox();
+        int by = b[1] + b[3] - 20;
+        if (over(mx, my, b[0] + 10, by, 56, 14)) { resetBuild(); discardConfirm = false; forceClose(); }
+        else if (over(mx, my, b[0] + 72, by, 56, 14)) {
+            discardConfirm = false;
+            if (buildCheck().ok()) { commitBuild(); forceClose(); }
+            else { ZsTheme.click(0.5f); if (tab == Tab.PRESET || tab == Tab.SHOP) switchTab(Tab.ATTRIBUTES); }
+        } else if (over(mx, my, b[0] + 134, by, 56, 14) || !over(mx, my, b[0], b[1], b[2], b[3])) {
+            discardConfirm = false;
+            playClick(0.8f);
+        }
+        return true;
+    }
+
+    /** 窗口关闭按钮 / 外部调用：同样走逐层返回 */
     @Override
     public void onClose() {
+        back();
+    }
+
+    /** 上次停留的选项卡（关闭后再打开、从货币界面返回时恢复） */
+    private static Tab lastTab = Tab.ATTRIBUTES;
+
+    /** 关闭面板时返回背包界面（仿照创造选项卡的体验） */
+    private void forceClose() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             mc.setScreen(new InventoryScreen(mc.player));
