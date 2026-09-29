@@ -153,285 +153,247 @@ public final class JjkStyle {
         // 标签行下压暗，保证文字可读
         g.fillGradient(x + 1, y + 1, x + w - 1, y + headerH, 0x88000000, 0x00000000);
 
-        // —— 边框：从上下中点向四角生长 ——
-        float grow = ZsAnim.clamp01((now - since0) / 750f);
-        grow = ZsAnim.easeOutCubic(grow);
-        for (int side = 0; side < 2; side++) {
-            boolean left = side == 0;
-            int core = left ? 0xFFE8F8FF : 0xFFFF4A5A, glow = left ? GOJO : SUKUNA;
-            int steps = (int) ((half * 2 + h) * grow / 2);  // 上半程（自上中点）与下半程（自下中点）各生长一半
-            for (int i = 0; i < steps; i++) {
-                float u = i / (float) (half * 2 + h);
-                float[] a = path(x, y, w, h, u, left);
-                float[] b = path(x, y, w, h, 1 - u, left);
-                g.fill((int) a[0], (int) a[1], (int) a[0] + 1, (int) a[1] + 1, core);
-                g.fill((int) b[0], (int) b[1], (int) b[0] + 1, (int) b[1] + 1, core);
-            }
-            // 外圈辉光（完全展开后）
-            if (grow >= 1f) {
-                int gx0 = left ? x - 2 : mid, gx1 = left ? mid : x + w + 2;
-                int ga = alpha(glow, 0.18f + 0.1f * ZsAnim.pulse(2400));
-                g.fill(gx0, y - 2, gx1, y, ga);
-                g.fill(gx0, y + h, gx1, y + h + 2, ga);
-                if (left) g.fill(x - 2, y, x, y + h, ga); else g.fill(x + w, y, x + w + 2, y + h, ga);
-                g.fill(left ? x + 1 : mid, y + 1, left ? mid : x + w - 1, y + 2, alpha(glow, 0.35f));
-            }
-        }
-        if (grow < 1f) return;
-
-        // 左：光点沿边框奔流（自中缝向外）
-        for (int i = 0; i < 10; i++) {
-            float u = (t * 0.12f + i / 10f) % 1f;
-            float[] p = path(x, y, w, h, u, true);
-            g.fill((int) p[0] - 1, (int) p[1] - 1, (int) p[0] + 2, (int) p[1] + 2, alpha(0xFFFFFFFF, 0.8f));
-            g.fill((int) p[0] - 2, (int) p[1], (int) p[0] + 3, (int) p[1] + 1, alpha(GOJO, 0.6f));
-        }
-        // 右：边框上周期闪现的斩痕刻口
-        int L = half * 2 + h;
-        for (int i = 0; i < 12; i++) {
-            long cyc = (now + i * 157) / 700;
-            float ph = ((now + i * 157) % 700) / 700f;
-            float[] p = path(x, y, w, h, hash(i, cyc), false);
-            float a = 1 - ph;
-            line(g, p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3, 1, alpha(0xFFFFFFFF, a));
-            line(g, p[0] - 4, p[1] - 3, p[0] + 2, p[1] + 3, 2, alpha(SUKUNA, a * 0.7f));
-        }
-        // 展开波：每 4 秒一道亮波沿边框从中缝奔向两侧
-        float wph = (now % 4000) / 4000f;
-        if (wph < 0.5f) {
-            float u = wph / 0.5f;
-            for (int j = 0; j < 14; j++) {
-                float uu = u - j / (float) L;
-                if (uu < 0) break;
-                float a = (1 - j / 14f) * (1 - u * 0.5f);
-                for (int side = 0; side < 2; side++) {
-                    boolean left = side == 0;
-                    float[] p1 = path(x, y, w, h, uu * 0.5f, left), p2 = path(x, y, w, h, 1 - uu * 0.5f, left);
-                    int c = alpha(left ? 0xFFFFFFFF : 0xFFFFB0B0, a);
-                    g.fill((int) p1[0] - 1, (int) p1[1] - 1, (int) p1[0] + 2, (int) p1[1] + 2, c);
-                    g.fill((int) p2[0] - 1, (int) p2[1] - 1, (int) p2[0] + 2, (int) p2[1] + 2, c);
-                }
-            }
-        }
-        // 上下中缝：对撞火花
-        for (int e = 0; e < 2; e++) {
-            int sy = e == 0 ? y : y + h - 1;
-            int dirY = e == 0 ? 1 : -1;
-            for (int j = 0; j < 4; j++) {
-                int jx = (int) ((hash(j + e * 10, now / 50) - 0.5f) * 3);
-                g.fill(mid + jx, sy + dirY * j * 2, mid + jx + 1, sy + dirY * j * 2 + 2 * dirY, 0xFFFFFFFF);
-            }
-            for (int i = 0; i < 10; i++) {
-                long cyc = (now + i * 83) / 500;
-                float ph = ((now + i * 83) % 500) / 500f;
-                int dir = i % 2 == 0 ? -1 : 1;
-                float px = mid + dir * ph * (6 + hash(i, cyc) * 14);
-                float py = sy + dirY * (ph * 4 + hash(i + 3, cyc) * 3);
-                g.fill((int) px, (int) py, (int) px + 1, (int) py + 1,
-                        alpha(dir < 0 ? GOJO : SUKUNA_GLOW, 1 - ph));
-            }
-        }
+        frame(g, x, y, w, h, since0);
     }
 
-    /** 专长页实体边框宽度 */
-    public static final int BAND = 10;
+    /** 外框内缩：小游戏区域 = 标签行以下、货币栏以上，距外框 FRAME_IN */
+    public static final int FRAME_IN = 7;
 
-    /** 实体边框内圈（小游戏区域）：{x0, y0, x1, y1} */
     public static int[] frameInner(int x, int y, int w, int h, int headerH) {
-        int fx = x + 2, fy = y + headerH, fw = w - 4, fh = h - headerH - 18;
-        return new int[]{fx + BAND, fy + BAND, fx + fw - BAND, fy + fh - BAND};
+        return new int[]{x + FRAME_IN, y + headerH, x + w - FRAME_IN, y + h - 17};
     }
 
-    /** 竖向三角（尖朝 dir：1 向下 / -1 向上） */
-    private static void fangV(GuiGraphics g, int cx, int baseY, int dir, int len, int half, int col) {
-        for (int j = 0; j < len; j++) {
-            int hw = Math.max(0, Math.round(half * (1 - j / (float) len)));
-            int yy = baseY + dir * j;
-            g.fill(cx - hw, yy, cx + hw + 1, yy + 1, col);
-        }
-    }
-
-    /** 横向三角（尖朝 dir：1 向右 / -1 向左） */
-    private static void fangH(GuiGraphics g, int baseX, int cy, int dir, int len, int half, int col) {
-        for (int j = 0; j < len; j++) {
-            int hh = Math.max(0, Math.round(half * (1 - j / (float) len)));
-            int xx = baseX + dir * j;
-            g.fill(xx, cy - hh, xx + 1, cy + hh + 1, col);
-        }
+    /** 半透明单像素点 */
+    private static void px(GuiGraphics g, float x, float y, int col) {
+        int ix = (int) x, iy = (int) y;
+        g.fill(ix, iy, ix + 1, iy + 1, col);
     }
 
     /**
-     * 实体领域边框：左半「无量空处」（深空质地的金属框，信息流沿框奔流、刻度随无限波动闪烁、
-     * 左中嵌奇点徽盘），右半「伏魔御厨子」（猩红漆框、骨节横肋、内缘獠牙开合、血脉流动、右中嵌斩痕徽盘）。
-     * 打开时边框从上下中缝向两侧展开；两半在上下中缝以扣环咬合。
+     * 整个面板外框（精细动态）：两层发丝线构成实体框身（外线 + 内线，间距 5px），
+     * 左半「无量空处」：框身内是缓慢流动的星尘与无限细分刻度（越靠近角越密，象征无限趋近），
+     *   沿框奔流的细光、左中嵌一枚极小的奇点环、四角是细线同心弧。
+     * 右半「伏魔御厨子」：框身内是暗红漆底与一排细密的齿痕，沿框随机闪现发丝般的斩线（带细小错位），
+     *   右中嵌细线獠牙环、四角是交叉细斩痕。上下中缝两种结界互相侵蚀，边界抖动并迸出细火花。
+     * 打开时框从上下中缝向四角描出。
      */
-    public static void frame(GuiGraphics g, int x, int y, int w, int h, long since0, int headerH) {
+    public static void frame(GuiGraphics g, int x, int y, int w, int h, long since0) {
         long now = ZsAnim.nowMs();
         float t = now / 1000f;
-        int fx = x + 2, fy = y + headerH, fw = w - 4, fh = h - headerH - 18;
-        int fx1 = fx + fw, fy1 = fy + fh, mid = fx + fw / 2, B = BAND;
-        float k = ZsAnim.easeOutCubic(ZsAnim.clamp01((now - since0 - 150) / 800f));
-        int ex = Math.round((fw / 2f + 2) * k);
-        if (ex <= 0) return;
+        int mid = x + w / 2, x1 = x + w - 1, y1 = y + h - 1;
+        int IN = 5;
+        float grow = ZsAnim.easeOutCubic(ZsAnim.clamp01((now - since0) / 800f));
+        int reach = Math.round((w / 2f + 1) * Math.min(1f, grow * 1.4f));        // 横向描出
+        float vgrow = ZsAnim.clamp01(grow * 1.4f - 0.4f);                         // 竖边随后描出
 
-        // ================= 左：无量空处 =================
-        g.enableScissor(mid - ex, fy - 2, mid, fy1 + 2);
-        int[][] lb = {{fx, fy, mid, fy + B}, {fx, fy1 - B, mid, fy1}, {fx, fy, fx + B, fy1}};
-        for (int[] r : lb) g.fillGradient(r[0], r[1], r[2], r[3], 0xFF0C1838, 0xFF02040E);
-        // 刻度：随时间向外奔涌的明暗波
-        for (int xx = mid - 4; xx > fx + B; xx -= 5) {
-            float wv = (float) Math.max(0, Math.sin((mid - xx) * 0.08 - t * 5));
-            int c = alpha(GOJO_LIGHT, 0.12f + 0.6f * wv * wv);
-            g.fill(xx, fy + 3, xx + 1, fy + B - 3, c);
-            g.fill(xx, fy1 - B + 3, xx + 1, fy1 - 3, c);
-        }
-        for (int yy = fy + B + 2; yy < fy1 - B; yy += 5) {
-            float wv = (float) Math.max(0, Math.sin(Math.abs(yy - (fy + fy1) / 2f) * 0.08 - t * 5 + 3));
-            g.fill(fx + 3, yy, fx + B - 3, yy + 1, alpha(GOJO_LIGHT, 0.12f + 0.6f * wv * wv));
-        }
-        // 信息流：光点沿框中线自中缝向外奔流
-        int Lh = (mid - fx) + (fh / 2);
-        for (int i = 0; i < 16; i++) {
-            float u = (t * (0.18f + hash(i, 11) * 0.12f) + hash(i, 12)) % 1f;
-            float d = u * Lh;
-            boolean top = i % 2 == 0;
-            int px, py;
-            if (d < mid - fx - B / 2f) { px = (int) (mid - d); py = top ? fy + B / 2 : fy1 - B / 2 - 1; }
-            else { px = fx + B / 2; float dd = d - (mid - fx - B / 2f); py = (int) (top ? fy + B / 2 + dd : fy1 - B / 2 - dd); }
-            int tail = 3 + (int) (hash(i, 13) * 5);
-            g.fill(px, py, px + tail, py + 1, alpha(GOJO, 0.5f));
-            g.fill(px, py, px + 1, py + 1, 0xFFFFFFFF);
-        }
-        // 边缘：外亮内蓝 + 倒角高光
-        g.fill(fx, fy, mid, fy + 1, GOJO_LIGHT);
-        g.fill(fx, fy1 - 1, mid, fy1, alpha(GOJO_LIGHT, 0.7f));
-        g.fill(fx, fy, fx + 1, fy1, GOJO_LIGHT);
-        g.fill(fx + B, fy + B - 1, mid, fy + B, GOJO);
-        g.fill(fx + B, fy1 - B, mid, fy1 - B + 1, GOJO);
-        g.fill(fx + B - 1, fy + B - 1, fx + B, fy1 - B + 1, GOJO);
-        g.fill(fx + 1, fy + 1, mid, fy + 2, 0x55FFFFFF);
-        g.fill(fx + 1, fy + 1, fx + 2, fy1 - 1, 0x55FFFFFF);
-        // 角板：旋转的同心点环
-        for (int e = 0; e < 2; e++) {
-            int cy = e == 0 ? fy + B / 2 : fy1 - B / 2;
-            int cx = fx + B / 2;
-            g.fill(cx - 8, cy - 8, cx + 9, cy + 9, 0xFF050A1A);
-            g.renderOutline(cx - 8, cy - 8, 17, 17, GOJO);
-            ring(g, cx, cy, 6, 6, t * 1.6f, 14, GOJO_LIGHT);
-            ring(g, cx, cy, 3.5f, 3.5f, -t * 2.4f, 8, GOJO);
-            g.fill(cx, cy, cx + 1, cy + 1, 0xFFFFFFFF);
-        }
-        // 左中徽盘：奇点（虚空 + 星尘 + 三重点环 + 脉动白芯）
-        {
-            int cx = fx + B / 2, cy = (fy + fy1) / 2;
-            disk(g, cx, cy, 15, 1, GOJO);
-            disk(g, cx, cy, 14, 1, 0xFF01020A);
-            for (int i = 0; i < 18; i++) {
-                double a = hash(i, 21) * Math.PI * 2 + t * (0.3 + hash(i, 22));
-                float r = 3 + hash(i, 23) * 10;
-                float tw = (float) Math.abs(Math.sin(t * 3 + i));
-                g.fill(cx + (int) (Math.cos(a) * r), cy + (int) (Math.sin(a) * r),
-                        cx + (int) (Math.cos(a) * r) + 1, cy + (int) (Math.sin(a) * r) + 1, alpha(GOJO_LIGHT, 0.3f + 0.7f * tw));
-            }
-            ring(g, cx, cy, 12, 12, t, 36, alpha(GOJO_LIGHT, 0.8f));
-            ring(g, cx, cy, 8.5f, 8.5f, -t * 1.7f, 24, alpha(GOJO, 0.9f));
-            ring(g, cx, cy, 5, 5, t * 3, 12, GOJO_LIGHT);
-            float p = 0.6f + 0.4f * (float) Math.sin(t * 4);
-            disk(g, cx, cy, 2.5f + p, 1, alpha(0xFFFFFFFF, 0.9f));
-        }
+        // 边界抖动（两种结界互相侵蚀）
+        int seam = mid + Math.round((float) Math.sin(t * 1.3f) * 2 + (float) Math.sin(t * 3.7f));
+
+        // ---------- 框身底色 ----------
+        g.enableScissor(mid - reach, y, seam, y + h);
+        band(g, x, y, w, h, IN, 0xE0081028, 0xE0030612);
+        g.disableScissor();
+        g.enableScissor(seam, y, mid + reach + 1, y + h);
+        band(g, x, y, w, h, IN, 0xE0300610, 0xE0120206);
         g.disableScissor();
 
-        // ================= 右：伏魔御厨子 =================
-        g.enableScissor(mid, fy - 2, mid + ex, fy1 + 2);
-        int[][] rb = {{mid, fy, fx1, fy + B}, {mid, fy1 - B, fx1, fy1}, {fx1 - B, fy, fx1, fy1}};
-        for (int[] r : rb) g.fillGradient(r[0], r[1], r[2], r[3], 0xFF4A0812, 0xFF140206);
-        // 血脉：沿框向外流动的暗红脉冲
-        for (int xx = mid + 2; xx < fx1 - B; xx++) {
-            float wv = (float) Math.max(0, Math.sin((xx - mid) * 0.05 - t * 3));
-            if (wv < 0.3f) continue;
-            int c = alpha(SUKUNA_GLOW, (wv - 0.3f) * 0.5f);
-            g.fill(xx, fy + B / 2, xx + 1, fy + B / 2 + 1, c);
-            g.fill(xx, fy1 - B / 2 - 1, xx + 1, fy1 - B / 2, c);
+        // ---------- 左：无量空处 ----------
+        g.enableScissor(mid - reach, y, seam, y + h);
+        int vy = Math.round(h / 2f * vgrow);
+        int cyM = y + h / 2;
+        // 发丝双线
+        g.fill(x, y, seam, y + 1, 0xFFE8F6FF);
+        g.fill(x, y1, seam, y1 + 1, 0xCCE8F6FF);
+        g.fill(x + IN, y + IN, seam, y + IN + 1, alpha(GOJO, 0.8f));
+        g.fill(x + IN, y1 - IN, seam, y1 - IN + 1, alpha(GOJO, 0.8f));
+        if (vgrow > 0) {
+            g.fill(x, y, x + 1, y + vy, 0xFFE8F6FF);
+            g.fill(x, y1 - vy, x + 1, y1 + 1, 0xFFE8F6FF);
+            g.fill(x + IN, y + IN, x + IN + 1, Math.min(cyM, y + IN + vy), alpha(GOJO, 0.8f));
+            g.fill(x + IN, Math.max(cyM, y1 - IN - vy), x + IN + 1, y1 - IN + 1, alpha(GOJO, 0.8f));
         }
-        for (int yy = fy + B; yy < fy1 - B; yy++) {
-            float wv = (float) Math.max(0, Math.sin(Math.abs(yy - (fy + fy1) / 2f) * 0.05 - t * 3 + 2));
-            if (wv < 0.3f) continue;
-            g.fill(fx1 - B / 2 - 1, yy, fx1 - B / 2, yy + 1, alpha(SUKUNA_GLOW, (wv - 0.3f) * 0.5f));
+        // 无限细分刻度：越靠近角越密（1/n 分布），亮度随时间波动
+        for (int n = 1; n < 60; n++) {
+            float f = 1f - 1f / (1 + n * 0.12f);
+            float wv = 0.5f + 0.5f * (float) Math.sin(n * 0.7f - t * 4);
+            int c = alpha(GOJO_LIGHT, 0.10f + 0.35f * wv);
+            int tx = Math.round(seam - (seam - x - IN) * f);
+            g.fill(tx, y + 2, tx + 1, y + 4, c);
+            g.fill(tx, y1 - 3, tx + 1, y1 - 1, c);
+            if (vgrow > 0.99f) {
+                int ty = Math.round(cyM - (cyM - y - IN) * f);
+                int by2 = Math.round(cyM + (y1 - IN - cyM) * f);
+                g.fill(x + 2, ty, x + 4, ty + 1, c);
+                g.fill(x + 2, by2, x + 4, by2 + 1, c);
+            }
         }
-        // 骨节横肋
-        int bone = 0xFFD8C8A8;
-        for (int xx = mid + 8; xx < fx1 - B; xx += 12) {
-            g.fill(xx, fy + 2, xx + 2, fy + B - 2, alpha(bone, 0.55f));
-            g.fill(xx - 1, fy + 2, xx + 3, fy + 3, alpha(bone, 0.7f));
-            g.fill(xx, fy1 - B + 2, xx + 2, fy1 - 2, alpha(bone, 0.55f));
-            g.fill(xx - 1, fy1 - 3, xx + 3, fy1 - 2, alpha(bone, 0.7f));
+        // 星尘：框身里缓慢漂移的亮点
+        for (int i = 0; i < 46; i++) {
+            float u = (hash(i, 51) + t * 0.02f * (0.5f + hash(i, 52))) % 1f;
+            float[] p = halfPath(x, y, w, h, IN, u, true, seam);
+            float tw = (float) Math.abs(Math.sin(t * (1.5f + hash(i, 53) * 3) + i));
+            px(g, p[0] + (hash(i, 54) - 0.5f) * 3, p[1] + (hash(i, 55) - 0.5f) * 3, alpha(0xFFFFFFFF, 0.15f + 0.6f * tw));
         }
-        for (int yy = fy + B + 8; yy < fy1 - B; yy += 12) {
-            g.fill(fx1 - B + 2, yy, fx1 - 2, yy + 2, alpha(bone, 0.55f));
-            g.fill(fx1 - 3, yy - 1, fx1 - 2, yy + 3, alpha(bone, 0.7f));
+        // 沿框奔流的细光（自中缝向外，带渐隐尾）
+        for (int i = 0; i < 5; i++) {
+            float u = (t * 0.09f + i / 5f) % 1f;
+            for (int j = 0; j < 14; j++) {
+                float[] p = halfPath(x, y, w, h, IN, u - j * 0.0025f, true, seam);
+                px(g, p[0], p[1], alpha(j == 0 ? 0xFFFFFFFF : GOJO, 0.9f * (1 - j / 14f)));
+            }
         }
-        // 边缘：骨白外缘 + 猩红内缘
-        g.fill(mid, fy, fx1, fy + 1, bone);
-        g.fill(mid, fy1 - 1, fx1, fy1, alpha(bone, 0.7f));
-        g.fill(fx1 - 1, fy, fx1, fy1, bone);
-        g.fill(mid, fy + B - 1, fx1 - B, fy + B, SUKUNA);
-        g.fill(mid, fy1 - B, fx1 - B, fy1 - B + 1, SUKUNA);
-        g.fill(fx1 - B, fy + B - 1, fx1 - B + 1, fy1 - B + 1, SUKUNA);
-        // 内缘獠牙：缓慢开合（咬合）
-        float chomp = 0.5f + 0.5f * (float) Math.sin(t * 2.2f);
-        int fang = 0xFFEDE0C8;
-        for (int xx = mid + 6, n = 0; xx < fx1 - B - 3; xx += 9, n++) {
-            int len = 3 + Math.round(3 * chomp) + (n % 3 == 0 ? 2 : 0);
-            fangV(g, xx, fy + B, 1, len, 2, fang);
-            fangV(g, xx, fy1 - B - 1, -1, len, 2, fang);
-        }
-        for (int yy = fy + B + 6, n = 0; yy < fy1 - B - 3; yy += 9, n++) {
-            int len = 3 + Math.round(3 * chomp) + (n % 3 == 0 ? 2 : 0);
-            fangH(g, fx1 - B - 1, yy, -1, len, 2, fang);
-        }
-        // 角板：交叉斩痕
-        for (int e = 0; e < 2; e++) {
-            int cy = e == 0 ? fy + B / 2 : fy1 - B / 2, cx = fx1 - B / 2 - 1;
-            g.fill(cx - 8, cy - 8, cx + 9, cy + 9, 0xFF1A0306);
-            g.renderOutline(cx - 8, cy - 8, 17, 17, SUKUNA);
-            float fl = (now / 90) % 20 == e * 7 ? 1f : 0.6f;
-            line(g, cx - 6, cy - 6, cx + 6, cy + 6, 1, alpha(0xFFFFFFFF, fl));
-            line(g, cx + 6, cy - 6, cx - 6, cy + 6, 1, alpha(SUKUNA_GLOW, fl));
-        }
-        // 右中徽盘：旋转的獠牙环 + 十字斩痕 + 血光内核
-        {
-            int cx = fx1 - B / 2 - 1, cy = (fy + fy1) / 2;
-            disk(g, cx, cy, 15, 1, bone);
-            disk(g, cx, cy, 14, 1, 0xFF1A0206);
-            float p = 0.5f + 0.5f * (float) Math.sin(t * 3);
-            disk(g, cx, cy, 9, 1, alpha(SUKUNA, 0.25f + 0.25f * p));
+        // 四角：细线同心弧（缓转）
+        cornerArcs(g, x + 2.5f, y + 2.5f, 0, t);
+        cornerArcs(g, x + 2.5f, y1 - 2.5f, 3, t);
+        // 左中：极小的奇点环
+        if (vgrow > 0.99f) {
+            float cx = x + 2.5f;
+            disk(g, cx, cyM, 5.5f, 1, 0xFF01030C);
+            ring(g, cx, cyM, 6.5f, 6.5f, t * 0.8f, 40, alpha(GOJO_LIGHT, 0.9f));
+            ring(g, cx, cyM, 4.5f, 4.5f, -t * 1.6f, 24, alpha(GOJO, 0.9f));
+            ring(g, cx, cyM, 2.5f, 2.5f, t * 3f, 12, alpha(GOJO_LIGHT, 0.7f));
+            float pl = 0.5f + 0.5f * (float) Math.sin(t * 4);
+            px(g, cx, cyM, alpha(0xFFFFFFFF, 0.6f + 0.4f * pl));
+            // 引力：周围细点被缓慢吸入
             for (int i = 0; i < 8; i++) {
-                double a = t * 0.8 + i * Math.PI / 4;
-                float c = (float) Math.cos(a), s2 = (float) Math.sin(a);
-                line(g, cx + c * 13, cy + s2 * 13, cx + c * 9, cy + s2 * 9, 2, fang);
+                float ph = (t * 0.6f + hash(i, 61)) % 1f;
+                double a = hash(i, 62) * Math.PI * 2;
+                float r = 14 * (1 - ph) + 3;
+                px(g, cx + (float) Math.cos(a) * r, cyM + (float) Math.sin(a) * r, alpha(GOJO_LIGHT, ph * 0.8f));
             }
-            double sa = -t * 1.3;
-            for (int j = 0; j < 2; j++) {
-                double a = sa + j * Math.PI / 2;
-                float c = (float) Math.cos(a) * 8, s2 = (float) Math.sin(a) * 8;
-                line(g, cx - c, cy - s2, cx + c, cy + s2, 1, 0xFFFFFFFF);
-            }
-            disk(g, cx, cy, 2 + p, 1, SUKUNA_GLOW);
         }
         g.disableScissor();
 
-        // ================= 上下中缝扣环 =================
-        if (k >= 1f) {
-            for (int e = 0; e < 2; e++) {
-                int cy = e == 0 ? fy + B / 2 : fy1 - B / 2;
-                g.fill(mid - 6, cy - 6, mid, cy + 7, 0xFF0A1430);
-                g.fill(mid, cy - 6, mid + 6, cy + 7, 0xFF3A0610);
-                g.renderOutline(mid - 6, cy - 6, 12, 13, 0xFFFFFFFF);
-                float fl = 0.5f + 0.5f * (float) Math.sin(t * 7 + e);
-                g.fill(mid - 3, cy - 2, mid, cy + 3, alpha(GOJO, fl));
-                g.fill(mid, cy - 2, mid + 3, cy + 3, alpha(SUKUNA_GLOW, 1 - fl));
-                g.fill(mid, cy - 6, mid + 1, cy + 7, 0xFFFFFFFF);
+        // ---------- 右：伏魔御厨子 ----------
+        g.enableScissor(seam, y, mid + reach + 1, y + h);
+        int bone = 0xFFE6D8BC;
+        g.fill(seam, y, x1 + 1, y + 1, bone);
+        g.fill(seam, y1, x1 + 1, y1 + 1, alpha(bone, 0.8f));
+        g.fill(seam, y + IN, x1 - IN + 1, y + IN + 1, alpha(SUKUNA, 0.9f));
+        g.fill(seam, y1 - IN, x1 - IN + 1, y1 - IN + 1, alpha(SUKUNA, 0.9f));
+        if (vgrow > 0) {
+            g.fill(x1, y, x1 + 1, y + vy, bone);
+            g.fill(x1, y1 - vy, x1 + 1, y1 + 1, bone);
+            g.fill(x1 - IN, y + IN, x1 - IN + 1, Math.min(cyM, y + IN + vy), alpha(SUKUNA, 0.9f));
+            g.fill(x1 - IN, Math.max(cyM, y1 - IN - vy), x1 - IN + 1, y1 - IN + 1, alpha(SUKUNA, 0.9f));
+        }
+        // 细密齿痕：内线上一排 2px 小齿，缓慢咬合
+        float chomp = 0.5f + 0.5f * (float) Math.sin(t * 2.4f);
+        for (int xx = seam + 3; xx < x1 - IN; xx += 4) {
+            int len = 1 + (chomp > 0.5f && (xx / 4) % 3 == 0 ? 1 : 0);
+            g.fill(xx, y + IN - len, xx + 1, y + IN, alpha(bone, 0.75f));
+            g.fill(xx, y1 - IN + 1, xx + 1, y1 - IN + 1 + len, alpha(bone, 0.75f));
+        }
+        if (vgrow > 0.99f) {
+            for (int yy = y + IN + 3; yy < y1 - IN; yy += 4) {
+                int len = 1 + (chomp > 0.5f && (yy / 4) % 3 == 0 ? 1 : 0);
+                g.fill(x1 - IN + 1, yy, x1 - IN + 1 + len, yy + 1, alpha(bone, 0.75f));
             }
         }
+        // 血脉：框身中线上缓慢流动的暗红细线
+        for (int i = 0; i < 4; i++) {
+            float u = (t * 0.06f + i / 4f) % 1f;
+            for (int j = 0; j < 22; j++) {
+                float[] p = halfPath(x, y, w, h, IN, u - j * 0.003f, false, seam);
+                px(g, p[0], p[1], alpha(SUKUNA_GLOW, 0.55f * (1 - j / 22f)));
+            }
+        }
+        // 发丝斩线：沿框随机闪现，一瞬划开后留下细小错位再消散
+        for (int i = 0; i < 9; i++) {
+            long cyc = (now + i * 173) / 620;
+            float ph = ((now + i * 173) % 620) / 620f;
+            if (hash(i, cyc * 7) < 0.35f) continue;
+            float[] p = halfPath(x, y, w, h, IN, hash(i, cyc), false, seam);
+            float ang = (float) (hash(i + 20, cyc) * Math.PI);
+            float len = 5 + hash(i + 30, cyc) * 9;
+            float gr = Math.min(1f, ph * 8f), a = ph < 0.15f ? 1f : 1 - (ph - 0.15f) / 0.85f;
+            float cx = (float) Math.cos(ang) * len / 2 * gr, cy = (float) Math.sin(ang) * len / 2 * gr;
+            line(g, p[0] - cx, p[1] - cy, p[0] + cx, p[1] + cy, 1, alpha(0xFFFFFFFF, a));
+            float nx = -(float) Math.sin(ang), ny = (float) Math.cos(ang);
+            line(g, p[0] - cx + nx, p[1] - cy + ny, p[0] + cx + nx, p[1] + cy + ny, 1, alpha(SUKUNA, a * 0.6f));
+        }
+        // 四角：交叉细斩痕
+        crossCut(g, x1 - 2.5f, y + 2.5f, now, 0);
+        crossCut(g, x1 - 2.5f, y1 - 2.5f, now, 1);
+        // 右中：细线獠牙环
+        if (vgrow > 0.99f) {
+            float cx = x1 - 2.5f;
+            disk(g, cx, cyM, 5.5f, 1, 0xFF140205);
+            ring(g, cx, cyM, 6.5f, 6.5f, 0, 40, alpha(bone, 0.85f));
+            for (int i = 0; i < 10; i++) {
+                double a = -t * 0.7 + i * Math.PI / 5;
+                float c = (float) Math.cos(a), sn = (float) Math.sin(a);
+                px(g, cx + c * 5, cyM + sn * 5, bone);
+                px(g, cx + c * 4, cyM + sn * 4, alpha(bone, 0.5f));
+            }
+            float pl = 0.5f + 0.5f * (float) Math.sin(t * 3);
+            disk(g, cx, cyM, 1.5f + pl, 1, alpha(SUKUNA_GLOW, 0.9f));
+        }
+        g.disableScissor();
+
+        // ---------- 上下中缝：侵蚀边界 + 细火花 ----------
+        if (grow > 0.3f) {
+            for (int e = 0; e < 2; e++) {
+                int sy = e == 0 ? y : y1 - IN;
+                int jit = Math.round((hash(e, now / 60) - 0.5f) * 2);
+                g.fill(seam + jit, sy, seam + jit + 1, sy + IN + 1, 0xFFFFFFFF);
+                for (int i = 0; i < 8; i++) {
+                    long cyc = (now + i * 97) / 420;
+                    float ph = ((now + i * 97) % 420) / 420f;
+                    int dir = i % 2 == 0 ? -1 : 1;
+                    float pxx = seam + dir * ph * (3 + hash(i + e * 10, cyc) * 9);
+                    float pyy = sy + IN / 2f + (hash(i + 5 + e, cyc) - 0.5f) * (IN + ph * 6);
+                    px(g, pxx, pyy, alpha(dir < 0 ? GOJO_LIGHT : SUKUNA_GLOW, 1 - ph));
+                }
+            }
+        }
+        // 外阴影
+        g.fill(x + 1, y1 + 1, x1 + 2, y1 + 2, 0x55000000);
+        g.fill(x1 + 1, y + 1, x1 + 2, y1 + 1, 0x55000000);
+    }
+
+    /** 框身（两层线之间）底色 */
+    private static void band(GuiGraphics g, int x, int y, int w, int h, int IN, int c0, int c1) {
+        g.fillGradient(x + 1, y + 1, x + w - 1, y + IN, c0, c1);
+        g.fillGradient(x + 1, y + h - IN, x + w - 1, y + h - 1, c1, c0);
+        g.fill(x + 1, y + IN, x + IN, y + h - IN, c1);
+        g.fill(x + w - IN, y + IN, x + w - 1, y + h - IN, c1);
+    }
+
+    /** 框身中线上的点：u∈[0,1]，自上中缝 → 角 → 竖边中点（u<0.5 上半程，u≥0.5 对称下半程） */
+    private static float[] halfPath(int x, int y, int w, int h, int IN, float u, boolean left, int seam) {
+        u = ((u % 1f) + 1f) % 1f;
+        boolean top = u < 0.5f;
+        float v = top ? u * 2 : (u - 0.5f) * 2;
+        float c = IN / 2f + 0.5f;
+        float edgeX = left ? x + c : x + w - 1 - c;
+        float horiz = Math.abs(seam - edgeX), vert = h / 2f - c;
+        float d = v * (horiz + vert);
+        float sx = left ? -1 : 1;
+        float ly = top ? y + c : y + h - 1 - c;
+        if (d < horiz) return new float[]{seam + sx * d, ly};
+        d -= horiz;
+        return new float[]{edgeX, top ? ly + d : ly - d};
+    }
+
+    private static void cornerArcs(GuiGraphics g, float cx, float cy, int q, float t) {
+        for (int k = 0; k < 3; k++) {
+            float r = 5 + k * 3;
+            int n = 10 + k * 5;
+            for (int i = 0; i <= n; i++) {
+                double a = q * Math.PI / 2 + (i / (float) n) * Math.PI / 2;
+                if (q == 3) a = -i / (float) n * Math.PI / 2;
+                if (q == 0) a = i / (float) n * Math.PI / 2;
+                float tw = 0.5f + 0.5f * (float) Math.sin(t * 2 - k + i * 0.4f);
+                px(g, cx + (float) Math.cos(a) * r, cy + (float) Math.sin(a) * r, alpha(GOJO_LIGHT, 0.2f + 0.5f * tw));
+            }
+        }
+    }
+
+    private static void crossCut(GuiGraphics g, float cx, float cy, long now, int e) {
+        float fl = ((now / 80) % 25) == e * 11 ? 1f : 0.55f;
+        line(g, cx - 5, cy - 5, cx + 5, cy + 5, 1, alpha(0xFFFFFFFF, fl));
+        line(g, cx + 5, cy - 5, cx - 5, cy + 5, 1, alpha(SUKUNA_GLOW, fl));
+        line(g, cx - 6, cy - 4, cx + 4, cy + 6, 1, alpha(SUKUNA, fl * 0.4f));
     }
 }

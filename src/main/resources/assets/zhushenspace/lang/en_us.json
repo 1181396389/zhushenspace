@@ -402,10 +402,21 @@
   "screen.zhushenspace.profession.choose": "Pick",
   "screen.zhushenspace.profession.title_blade": "Choose a blade profession",
   "screen.zhushenspace.profession.title_gun": "Choose a firearms profession",
-  "screen.zhushenspace.profession.warn": "Permanent (one at skill 3 and 4; max 3 from points)",
+  "screen.zhushenspace.profession.warn": "This choice is permanent",
   "message.zhushenspace.weapon.too_heavy": "Not strong enough to use this weapon",
   "message.zhushenspace.weapon.cant_draw": "Not strong enough to draw this bow",
   "message.zhushenspace.weapon.two_handed": "Bows require both hands",
   "command.zhushenspace.profession.reset": "Reset professions of %s",
-  "screen.zhushenspace.profession.choose_n": "Pick ×%s"
+  "screen.zhushenspace.profession.choose_n": "Pick ×%s",
+  "screen.zhushenspace.godpanel.tab.profession": "Prof.",
+  "screen.zhushenspace.profession.header": "Professions",
+  "screen.zhushenspace.profession.count": "Owned %s / %s",
+  "screen.zhushenspace.profession.pending": "Pick ×%s",
+  "screen.zhushenspace.profession.locked": "Unlocks at 3",
+  "screen.zhushenspace.profession.none_left": "No picks left",
+  "screen.zhushenspace.profession.owned": "Owned",
+  "screen.zhushenspace.profession.pick": "Pick",
+  "screen.zhushenspace.profession.penalty": "−9",
+  "screen.zhushenspace.profession.confirm": "Take %s as a profession?",
+  "screen.zhushenspace.profession.rules": "Gain a free profession of a skill at level 3 and again at 4 (max 3 from points). Weapons of a category without the profession take a 9-point penalty."
 }

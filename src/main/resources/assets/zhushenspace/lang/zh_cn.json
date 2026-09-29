@@ -402,10 +402,21 @@
   "screen.zhushenspace.profession.choose": "选专业",
   "screen.zhushenspace.profession.title_blade": "选择白刃专业",
   "screen.zhushenspace.profession.title_gun": "选择枪械专业",
-  "screen.zhushenspace.profession.warn": "选择后不可更改（技能 3、4 各得一个，加点最多共 3 个）",
+  "screen.zhushenspace.profession.warn": "选择后不可更改",
   "message.zhushenspace.weapon.too_heavy": "力量不足，无法使用这件武器",
   "message.zhushenspace.weapon.cant_draw": "力量不足，你拉不开这张弓",
   "message.zhushenspace.weapon.two_handed": "弓必须双手使用",
   "command.zhushenspace.profession.reset": "已重置 %s 的专业",
-  "screen.zhushenspace.profession.choose_n": "选专业 ×%s"
+  "screen.zhushenspace.profession.choose_n": "选专业 ×%s",
+  "screen.zhushenspace.godpanel.tab.profession": "专业",
+  "screen.zhushenspace.profession.header": "专业",
+  "screen.zhushenspace.profession.count": "已获得 %s / %s",
+  "screen.zhushenspace.profession.pending": "可选 ×%s",
+  "screen.zhushenspace.profession.locked": "3 级解锁",
+  "screen.zhushenspace.profession.none_left": "无剩余名额",
+  "screen.zhushenspace.profession.owned": "已掌握",
+  "screen.zhushenspace.profession.pick": "选择",
+  "screen.zhushenspace.profession.penalty": "−9",
+  "screen.zhushenspace.profession.confirm": "确认选择【%s】为专业？",
+  "screen.zhushenspace.profession.rules": "技能达到 3 级和 4 级时各免费获得一个该技能下的专业（通过加点最多共 3 个）。使用没有专业的分类武器受 9 点器械减值。"
 }
