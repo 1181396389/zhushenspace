@@ -1,53 +1,61 @@
 package com.zhushen.space.screen;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.BufferUploader;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.zhushen.space.sound.ModSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.loading.FMLEnvironment;
+import net.minecraft.sounds.SoundEvents;
+import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL30;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 邀请信封界面：
+ * 黑屏 + 白色线框向中心收缩（类 SAO 开机）→ 中心白点 → 显像管开机（横线 → 满屏）→
+ * 复古电脑屏幕覆盖整个屏幕，打字机输出问句 →
+ * 点 NO：故障闪烁后 NO 突然变成 YES；点 YES：以点击处为中心整屏碎裂、碎片坠落 → 主神面板。
+ */
 public class MeaningOfLifeScreen extends Screen {
 
-    // 主对话文本
     private static final String FULL_TEXT = "你想要明白生命的意义吗……你想要真正的活着吗？";
-    private int displayedCharCount = 0;
-    private long lastCharTime = 0;
-    private static final long CHAR_INTERVAL_MS = 35;
+    private static final long CHAR_INTERVAL_MS = 55;
 
-    // 按钮
-    private Button yesButton;
-    private Button noButton;
+    private static final long RINGS_MS = 1000, DOT_MS = 170, CRT_ON_MS = 420;
+    private static final long BOOT_MS = RINGS_MS + DOT_MS + CRT_ON_MS;
+    private static final long CRACK_MS = 260, FALL_MS = 1500;
 
-    // 故障效果相关
-    private boolean noGlitched = false;
-    private long glitchStartTime = 0;
-    private static final long GLITCH_DURATION_MS = 1200;
-    private static final long TRANSITION_DELAY_MS = 400; // No变Yes后延迟
-    private boolean glitchButtonChanged = false;
-    private long glitchButtonChangedTime = 0;
+    private static final int PH = 0xFF3CFF78, PH_DIM = 0xFF12602C, PH_BG0 = 0xFF04140A, PH_BG1 = 0xFF010603;
 
-    // 粒子效果
-    private int blueParticles = 0;
+    private long start = -1;
+    private boolean crtSound;
+    private int chars = 0;
+    private long lastChar = 0;
 
-    // 渐入动画
-    private float fadeInAlpha = 0.0f;
-    private static final float FADE_SPEED = 0.01f;
+    private boolean noGlitch = false, noIsYes = false;
+    private long noGlitchAt;
 
-    // 淡蓝色主题颜色
-    private static final int BOX_BG_COLOR = 0xCC120E1C;
-    private static final int BOX_BORDER_COLOR = 0xFF8C6FE0;
-    private static final int TEXT_COLOR = 0xFFE0D6F6;
-    private static final int ACCENT_COLOR = 0xFFCDBEF5;
+    private long shatterAt = -1;
+    private float impactX, impactY;
+    private RenderTarget snapshot;
+    private boolean captured;
+    private final List<Shard> shards = new ArrayList<>();
 
-    // 穿越漩涡：开场（吸入 → 对话浮现）/ 退场（冲出 → 白光 → 主神面板）
-    private long introStart = -1, exitStart = -1;
-    private static final long INTRO_MS = 1500, EXIT_MS = 1600;
+    private record Shard(float[] xs, float[] ys, float cx, float cy, float vx, float vy, float spin, float delay) {}
 
     public MeaningOfLifeScreen() {
         super(Component.translatable("screen.zhushenspace.meaning_of_life.title"));
@@ -56,325 +64,406 @@ public class MeaningOfLifeScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        if (introStart < 0) {
-            introStart = System.currentTimeMillis();
-            Minecraft.getInstance().getSoundManager().play(
-                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                            net.minecraft.sounds.SoundEvents.PORTAL_TRIGGER, 1.6f, 0.35f));
-        }
-
-        int dialogWidth = Mth.clamp(this.width - 80, 320, 600);
-        int dialogHeight = 180;
-        int dialogX = (this.width - dialogWidth) / 2;
-        int dialogY = (this.height - dialogHeight) / 2;
-
-        int buttonWidth = 100;
-        int buttonHeight = 26;
-        int buttonY = dialogY + dialogHeight - buttonHeight - 20;
-        int yesX = dialogX + dialogWidth / 2 - buttonWidth - 10;
-        int noX = dialogX + dialogWidth / 2 + 10;
-
-        yesButton = new ZsButton(yesX, buttonY, buttonWidth, buttonHeight,
-                Component.translatable("screen.zhushenspace.yes"),
-                this::onYesClick);
-
-        noButton = new ZsButton(noX, buttonY, buttonWidth, buttonHeight,
-                Component.translatable("screen.zhushenspace.no"),
-                this::onNoClick);
-
-        this.addRenderableWidget(yesButton);
-        this.addRenderableWidget(noButton);
-
-        yesButton.active = false;
-        noButton.active = false;
-    }
-
-    private void onYesClick(Button button) {
-        transitionToAllocation();
-    }
-
-    private void onNoClick(Button button) {
-        if (noGlitched) return;
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null) {
-            mc.level.playSound(mc.player, mc.player.blockPosition(),
-                    ModSounds.GLITCH.get(), SoundSource.PLAYERS, 1.5f, 0.7f);
-        }
-
-        noGlitched = true;
-        glitchStartTime = System.currentTimeMillis();
-        noButton.active = false;
-        yesButton.active = false;
-        glitchButtonChanged = false;
-
-        blueParticles = 30;
-    }
-
-    /** 开始穿越：漩涡反转向外冲出，结束后进入主神面板 */
-    private void transitionToAllocation() {
-        if (exitStart >= 0) return;
-        exitStart = System.currentTimeMillis();
-        yesButton.active = false;
-        noButton.active = false;
-        Minecraft mc = Minecraft.getInstance();
-        mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
-                net.minecraft.sounds.SoundEvents.PORTAL_TRAVEL, 1.4f, 0.3f));
-        if (mc.player != null && mc.level != null) {
-            for (int i = 0; i < 60; i++) {
-                double a = Math.random() * Math.PI * 2, r = 0.6 + Math.random();
-                mc.level.addParticle(net.minecraft.core.particles.ParticleTypes.PORTAL,
-                        mc.player.getX() + Math.cos(a) * r, mc.player.getY() + Math.random() * 2, mc.player.getZ() + Math.sin(a) * r,
-                        -Math.cos(a) * 0.6, 0.1, -Math.sin(a) * 0.6);
-            }
+        if (start < 0) {
+            start = now();
+            ui(SoundEvents.BEACON_DEACTIVATE, 1.8f, 0.5f);
         }
     }
 
-    private void finishTransition() {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            Minecraft.getInstance().setScreen(new GodPanelScreen());
-        }
+    private static long now() {
+        return System.currentTimeMillis();
     }
 
-    /**
-     * 穿越漩涡：旋转的同心光环 + 5 条螺旋臂粒子流 + 中心光核。
-     * outward=false 为吸入（开场），true 为向外冲出（退场）；strength 控制整体不透明度。
-     */
-    private void drawVortex(GuiGraphics g, float t, float strength, boolean outward, float zoom) {
-        if (strength <= 0.01f) return;
-        float cx = width / 2f, cy = height / 2f;
-        float maxR = (float) Math.hypot(width, height) * 0.6f * zoom;
-        // 同心光环（向内/向外流动，逐层扭转）
-        for (int k = 0; k < 16; k++) {
-            float u = (k / 16f + t * (outward ? 0.9f : -0.45f)) % 1f;
-            if (u < 0) u += 1;
-            float r = u * u * maxR;
-            int col = lerp(0xFF6A3FD0, 0xFF5FE0FF, u);
-            JjkStyle.ring(g, cx, cy, r, r * 0.62f, t * 1.8f + k * 0.45f, 36 + k * 8,
-                    JjkStyle.alpha(col, strength * (0.25f + 0.6f * u)));
-        }
-        // 螺旋臂
-        for (int arm = 0; arm < 5; arm++) {
-            for (int j = 0; j < 70; j++) {
-                float u = (j / 70f + t * (outward ? 0.8f : 0.5f)) % 1f;
-                float d = outward ? u : 1 - u;               // 0 = 中心，1 = 外缘
-                float r = (float) Math.pow(d, 1.7) * maxR;
-                double a = arm * Math.PI * 2 / 5 + (1 - d) * 7 + t * 3.2;
-                float x = cx + (float) Math.cos(a) * r, y = cy + (float) Math.sin(a) * r * 0.62f;
-                double a2 = a - (outward ? -0.12 : 0.12);
-                float px = cx + (float) Math.cos(a2) * r * 0.97f, py = cy + (float) Math.sin(a2) * r * 0.62f * 0.97f;
-                int col = j % 9 == 0 ? 0xFFFFFFFF : arm % 2 == 0 ? 0xFFB28CFF : 0xFF7FE8FF;
-                float a0 = strength * (0.3f + 0.7f * d);
-                JjkStyle.line(g, px, py, x, y, d > 0.6f ? 2 : 1, JjkStyle.alpha(col, a0));
-            }
-        }
-        // 光核
-        float pulse = 1 + 0.15f * (float) Math.sin(t * 6);
-        JjkStyle.disk(g, cx, cy, 26 * pulse * zoom, 0.62f, JjkStyle.alpha(0xFF6A3FD0, strength * 0.35f));
-        JjkStyle.disk(g, cx, cy, 14 * pulse * zoom, 0.62f, JjkStyle.alpha(0xFFB9A4FF, strength * 0.6f));
-        JjkStyle.disk(g, cx, cy, 6 * pulse * zoom, 0.62f, JjkStyle.alpha(0xFFFFFFFF, strength * 0.9f));
+    private static void ui(net.minecraft.sounds.SoundEvent e, float pitch, float vol) {
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(e, pitch, vol));
     }
 
-    private static int lerp(int a, int b, float k) {
-        int r = (int) (((a >> 16) & 0xFF) + (((b >> 16) & 0xFF) - ((a >> 16) & 0xFF)) * k);
-        int gg = (int) (((a >> 8) & 0xFF) + (((b >> 8) & 0xFF) - ((a >> 8) & 0xFF)) * k);
-        int bl = (int) ((a & 0xFF) + ((b & 0xFF) - (a & 0xFF)) * k);
-        return 0xFF000000 | (r << 16) | (gg << 8) | bl;
+    private static void ui(net.minecraft.core.Holder<net.minecraft.sounds.SoundEvent> e, float pitch, float vol) {
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(e, pitch, vol));
     }
+
+    private boolean ready() {
+        return chars >= FULL_TEXT.length() && shatterAt < 0;
+    }
+
+    // ===================== 布局 =====================
+
+    private int btnW() { return 96; }
+    private int btnH() { return 24; }
+    private int btnY() { return height / 2 + 40; }
+    private int yesX() { return width / 2 - btnW() - 16; }
+    private int noX() { return width / 2 + 16; }
+
+    private static boolean over(double mx, double my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+    // ===================== 逻辑 =====================
 
     @Override
     public void tick() {
         super.tick();
-
-        long currentTime = System.currentTimeMillis();
-        if (exitStart >= 0) {
-            if (currentTime - exitStart >= EXIT_MS) finishTransition();
+        long t = now() - start;
+        if (shatterAt >= 0) {
+            if (now() - shatterAt >= CRACK_MS + FALL_MS) {
+                Minecraft.getInstance().setScreen(new GodPanelScreen());
+            }
             return;
         }
-        // 漩涡开场结束前，对话框不出现
-        if (currentTime - introStart < INTRO_MS * 2 / 3) return;
-        if (fadeInAlpha < 1.0f) {
-            fadeInAlpha = Math.min(1.0f, fadeInAlpha + FADE_SPEED * 4);
+        if (t < RINGS_MS + DOT_MS) return;
+        if (!crtSound) { crtSound = true; ui(SoundEvents.BEACON_POWER_SELECT, 2.0f, 0.35f); }
+        if (t < BOOT_MS + 200) return;
+        if (chars < FULL_TEXT.length() && now() - lastChar >= CHAR_INTERVAL_MS) {
+            chars++;
+            lastChar = now();
+            if (chars % 2 == 0) ui(SoundEvents.NOTE_BLOCK_HAT, 1.8f, 0.12f);
         }
-        if (currentTime - introStart < INTRO_MS) return;
+        if (noGlitch && !noIsYes && now() - noGlitchAt > 480) {
+            noIsYes = true;
+            ui(SoundEvents.NOTE_BLOCK_BIT, 0.6f, 0.5f);
+        }
+    }
 
-        // 打字机效果
-        if (displayedCharCount < FULL_TEXT.length()) {
-            if (currentTime - lastCharTime >= CHAR_INTERVAL_MS) {
-                displayedCharCount++;
-                lastCharTime = currentTime;
+    @Override
+    public boolean mouseClicked(double mx, double my, int button) {
+        if (button != 0 || !ready()) return true;
+        if (over(mx, my, yesX(), btnY(), btnW(), btnH())) {
+            startShatter(yesX() + btnW() / 2f, btnY() + btnH() / 2f);
+            return true;
+        }
+        if (over(mx, my, noX(), btnY(), btnW(), btnH())) {
+            if (noIsYes) {
+                startShatter(noX() + btnW() / 2f, btnY() + btnH() / 2f);
+            } else if (!noGlitch) {
+                noGlitch = true;
+                noGlitchAt = now();
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player != null) ui(ModSounds.GLITCH.get(), 0.7f, 1f);
+            }
+            return true;
+        }
+        return true;
+    }
 
-                if (displayedCharCount >= FULL_TEXT.length()) {
-                    yesButton.active = true;
-                    noButton.active = true;
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ENTER && ready()) {
+            startShatter(yesX() + btnW() / 2f, btnY() + btnH() / 2f);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void startShatter(float x, float y) {
+        if (shatterAt >= 0) return;
+        shatterAt = now();
+        impactX = x;
+        impactY = y;
+        captured = false;
+        buildShards();
+        ui(SoundEvents.GLASS_BREAK, 0.8f, 1f);
+        ui(SoundEvents.GLASS_BREAK, 0.55f, 0.8f);
+    }
+
+    /** 以撞击点为中心的放射 + 同心裂纹：射线 × 环 构成四边形碎片 */
+    private void buildShards() {
+        shards.clear();
+        int rays = 18;
+        float maxR = (float) Math.hypot(width, height) + 40;
+        float[] rings = {0, 18, 46, 90, 150, 230, 330, 460, maxR};
+        int R = rings.length;
+        float[][] px = new float[R][rays], py = new float[R][rays];
+        float[] ang = new float[rays];
+        for (int i = 0; i < rays; i++) ang[i] = (float) ((i + (Math.random() - 0.5) * 0.6) * Math.PI * 2 / rays);
+        for (int j = 0; j < R; j++) {
+            for (int i = 0; i < rays; i++) {
+                float r = j == 0 ? 0 : rings[j] * (float) (0.82 + Math.random() * 0.36);
+                double a = ang[i] + (j == 0 ? 0 : (Math.random() - 0.5) * 0.12);
+                px[j][i] = impactX + (float) Math.cos(a) * r;
+                py[j][i] = impactY + (float) Math.sin(a) * r;
+            }
+        }
+        for (int j = 0; j < R - 1; j++) {
+            for (int i = 0; i < rays; i++) {
+                int i2 = (i + 1) % rays;
+                float[] xs = {px[j][i], px[j][i2], px[j + 1][i2], px[j + 1][i]};
+                float[] ys = {py[j][i], py[j][i2], py[j + 1][i2], py[j + 1][i]};
+                float cx = (xs[0] + xs[1] + xs[2] + xs[3]) / 4, cy = (ys[0] + ys[1] + ys[2] + ys[3]) / 4;
+                float dx = cx - impactX, dy = cy - impactY;
+                float d = Math.max(1, (float) Math.sqrt(dx * dx + dy * dy));
+                float sp = (0.10f + (float) Math.random() * 0.14f) * (1.4f - Math.min(1f, d / 500f));
+                shards.add(new Shard(xs, ys, cx, cy, dx / d * sp, dy / d * sp - 0.05f,
+                        (float) ((Math.random() - 0.5) * 0.006), d * 0.35f + (float) Math.random() * 80));
+            }
+        }
+    }
+
+    // ===================== 绘制 =====================
+
+    @Override
+    public void renderBackground(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+    }
+
+    @Override
+    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        long t = now() - start;
+        if (shatterAt >= 0 && captured) {
+            renderShatter(g);
+            return;
+        }
+        g.fill(0, 0, width, height, 0xFF000000);
+        if (t < RINGS_MS) {
+            renderRings(g, t);
+        } else if (t < RINGS_MS + DOT_MS) {
+            float k = (t - RINGS_MS) / (float) DOT_MS;
+            float r = k < 0.4f ? 2 + k * 10 : 6 * (1 - (k - 0.4f) / 0.6f) + 1;
+            JjkStyle.disk(g, width / 2f, height / 2f, r * 2, 1, JjkStyle.alpha(0xFFFFFFFF, 0.25f));
+            JjkStyle.disk(g, width / 2f, height / 2f, r, 1, 0xFFFFFFFF);
+        } else {
+            float k = (t - RINGS_MS - DOT_MS) / (float) CRT_ON_MS;
+            if (k < 1f) {
+                // 显像管开机：横线展开 → 纵向撑满
+                float hk = ZsAnim.easeOutCubic(Math.min(1f, k / 0.35f));
+                float vk = ZsAnim.easeOutCubic(ZsAnim.clamp01((k - 0.35f) / 0.65f));
+                int hw = Math.round(width / 2f * hk), hh = Math.max(1, Math.round(height / 2f * vk));
+                g.enableScissor(width / 2 - hw, height / 2 - hh, width / 2 + hw, height / 2 + hh);
+                renderCrt(g, mouseX, mouseY);
+                g.disableScissor();
+                g.fill(width / 2 - hw, height / 2 - hh, width / 2 + hw, height / 2 + hh,
+                        JjkStyle.alpha(0xFFE8FFE8, 1 - vk * 0.95f));
+            } else {
+                renderCrt(g, mouseX, mouseY);
+            }
+        }
+        if (shatterAt >= 0 && !captured) {
+            g.flush();
+            capture();
+        }
+    }
+
+    /** 黑屏上白色线框自四周向中心收缩（多层错开）+ 汇向中心的光线 */
+    private void renderRings(GuiGraphics g, long t) {
+        float cx = width / 2f, cy = height / 2f;
+        for (int i = 0; i < 12; i++) {
+            float st = i * 50f;
+            float k = ZsAnim.clamp01((t - st) / 520f);
+            if (k <= 0 || k >= 1) continue;
+            float e = k * k * (3 - 2 * k);
+            int hw = Math.round(cx * (1 - e) * 1.05f), hh = Math.round(cy * (1 - e) * 1.05f);
+            int col = JjkStyle.alpha(0xFFFFFFFF, Math.min(1f, k * 4) * (0.35f + 0.65f * e));
+            int x0 = Math.round(cx) - hw, y0 = Math.round(cy) - hh, x1 = Math.round(cx) + hw, y1 = Math.round(cy) + hh;
+            g.fill(x0, y0, x1, y0 + 1, col);
+            g.fill(x0, y1 - 1, x1, y1, col);
+            g.fill(x0, y0, x0 + 1, y1, col);
+            g.fill(x1 - 1, y0, x1, y1, col);
+        }
+        for (int i = 0; i < 40; i++) {
+            float st = JjkStyle.hash(i, 1) * 600;
+            float k = ZsAnim.clamp01((t - st) / 380f);
+            if (k <= 0 || k >= 1) continue;
+            double a = JjkStyle.hash(i, 2) * Math.PI * 2;
+            float R = (float) Math.hypot(cx, cy);
+            float r0 = R * (1 - k), r1 = Math.max(0, r0 - 30 - JjkStyle.hash(i, 3) * 60);
+            float c = (float) Math.cos(a), s = (float) Math.sin(a);
+            JjkStyle.line(g, cx + c * r0, cy + s * r0, cx + c * r1, cy + s * r1, 1,
+                    JjkStyle.alpha(0xFFFFFFFF, 0.3f + 0.7f * k));
+        }
+        // 最后收成一条横线
+        float k = ZsAnim.clamp01((t - 780) / 220f);
+        if (k > 0) {
+            int hw = Math.round(cx * (1 - k * k));
+            g.fill(Math.round(cx) - hw, Math.round(cy), Math.round(cx) + hw, Math.round(cy) + 1, 0xFFFFFFFF);
+        }
+    }
+
+    /** 复古电脑屏幕：荧光绿、扫描线、滚动亮带、暗角、圆角显像管边缘 */
+    private void renderCrt(GuiGraphics g, int mouseX, int mouseY) {
+        long n = now();
+        var font = Minecraft.getInstance().font;
+        boolean glitch = noGlitch && !noIsYes;
+        float flick = 0.94f + 0.06f * (float) Math.sin(n / 37.0) * (float) Math.sin(n / 91.0);
+        g.fillGradient(0, 0, width, height, PH_BG0, PH_BG1);
+        // 荧光余晖噪点
+        for (int i = 0; i < 90; i++) {
+            int x = (int) (JjkStyle.hash(i, n / 80) * width), y = (int) (JjkStyle.hash(i + 99, n / 80) * height);
+            g.fill(x, y, x + 1, y + 1, 0x1A3CFF78);
+        }
+
+        int shake = glitch ? (int) ((Math.random() - 0.5) * 6) : 0;
+        g.pose().pushPose();
+        g.pose().translate(shake, 0, 0);
+
+        // 顶部状态行
+        String head = "ZHUSHEN-OS  BIOS v0.99   MEM 640K OK   " + (n / 500 % 2 == 0 ? "■" : " ");
+        g.drawString(font, head, 18, 16, JjkStyle.alpha(PH, 0.7f * flick), false);
+        g.fill(18, 28, width - 18, 29, JjkStyle.alpha(PH_DIM, 0.9f));
+        g.drawString(font, "C:\\>INVITE.EXE", 18, 36, JjkStyle.alpha(PH, 0.6f * flick), false);
+
+        // 问句（2 倍字号，居中换行）+ 光标
+        String shown = FULL_TEXT.substring(0, chars);
+        float sc = width > 420 ? 2f : 1.5f;
+        int maxW = (int) ((width - 80) / sc);
+        List<String> lines = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        for (char c : shown.toCharArray()) {
+            if (font.width(cur.toString() + c) > maxW && cur.length() > 0) { lines.add(cur.toString()); cur = new StringBuilder(); }
+            cur.append(c);
+        }
+        lines.add(cur.toString());
+        int fullW = Math.min(maxW, font.width(FULL_TEXT));
+        float tx = width / 2f - fullW * sc / 2f;
+        float ty = height / 2f - 30 - lines.size() * 11 * sc / 2f;
+        for (int li = 0; li < lines.size(); li++) {
+            String l = lines.get(li);
+            g.pose().pushPose();
+            g.pose().translate(tx, ty + li * 11 * sc, 0);
+            g.pose().scale(sc, sc, 1);
+            g.drawString(font, l, 1, 0, JjkStyle.alpha(PH, 0.25f), false);       // 荧光晕
+            g.drawString(font, l, 0, 1, JjkStyle.alpha(PH, 0.25f), false);
+            g.drawString(font, l, 0, 0, JjkStyle.alpha(PH, flick), false);
+            if (li == lines.size() - 1 && (n / 400) % 2 == 0) {
+                g.drawString(font, "█", font.width(l) + 1, 0, JjkStyle.alpha(PH, flick), false);
+            }
+            g.pose().popPose();
+        }
+
+        // 按钮
+        if (chars >= FULL_TEXT.length()) {
+            button(g, font, mouseX, mouseY, yesX(), Component.translatable("screen.zhushenspace.yes").getString(), false);
+            button(g, font, mouseX, mouseY, noX(), Component.translatable(noIsYes ? "screen.zhushenspace.yes"
+                    : "screen.zhushenspace.no").getString(), glitch);
+        }
+        g.pose().popPose();
+
+        // 故障：错位切片 + 色偏
+        if (glitch) {
+            for (int i = 0; i < 6; i++) {
+                int y = (int) (Math.random() * height), h = 2 + (int) (Math.random() * 10);
+                int off = (int) ((Math.random() - 0.5) * 40);
+                g.fill(Math.max(0, off), y, width + Math.min(0, off), y + h, 0x553CFF78);
+                g.fill(0, y + h, width, y + h + 1, 0x88FF3050);
+            }
+        }
+
+        // 扫描线 + 滚动亮带
+        for (int y = 0; y < height; y += 2) g.fill(0, y, width, y + 1, 0x30000000);
+        int band = (int) ((n / 6) % (height + 80)) - 40;
+        g.fillGradient(0, band, width, band + 40, 0x003CFF78, 0x103CFF78);
+        // 暗角
+        int v = Math.min(width, height) / 5;
+        g.fillGradient(0, 0, width, v, 0x99000000, 0x00000000);
+        g.fillGradient(0, height - v, width, height, 0x00000000, 0x99000000);
+        for (int i = 0; i < v; i += 2) {
+            int a = (int) (0x99 * (1 - i / (float) v));
+            g.fill(i, 0, i + 2, height, a << 24);
+            g.fill(width - i - 2, 0, width - i, height, a << 24);
+        }
+        // 显像管圆角
+        int rr = 26;
+        for (int y = 0; y < rr; y++) {
+            int cut = rr - (int) Math.sqrt(rr * rr - (rr - y) * (rr - y));
+            g.fill(0, y, cut, y + 1, 0xFF000000);
+            g.fill(width - cut, y, width, y + 1, 0xFF000000);
+            g.fill(0, height - 1 - y, cut, height - y, 0xFF000000);
+            g.fill(width - cut, height - 1 - y, width, height - y, 0xFF000000);
+        }
+    }
+
+    private void button(GuiGraphics g, net.minecraft.client.gui.Font font, int mx, int my, int x, String label, boolean glitch) {
+        int y = btnY(), w = btnW(), h = btnH();
+        boolean hov = ready() && over(mx, my, x, y, w, h);
+        if (hov) g.fill(x, y, x + w, y + h, PH);
+        g.renderOutline(x, y, w, h, PH);
+        g.renderOutline(x + 2, y + 2, w - 4, h - 4, JjkStyle.alpha(PH, 0.35f));
+        String s = "[ " + label.toUpperCase() + " ]";
+        if (glitch) {
+            char[] cs = s.toCharArray();
+            for (int i = 0; i < cs.length; i++) if (Math.random() < 0.4) cs[i] = "#%&@$?!/\\"
+                    .charAt((int) (Math.random() * 9));
+            s = new String(cs);
+        }
+        int sw = font.width(s);
+        g.drawString(font, s, x + (w - sw) / 2, y + (h - 8) / 2, hov ? PH_BG1 : PH, false);
+    }
+
+    // ===================== 碎屏 =====================
+
+    /** 把当前帧（复古屏幕）拷贝到离屏纹理，作为碎片贴图 */
+    private void capture() {
+        Minecraft mc = Minecraft.getInstance();
+        RenderTarget main = mc.getMainRenderTarget();
+        int w = main.width, h = main.height;
+        if (snapshot == null || snapshot.width != w || snapshot.height != h) {
+            if (snapshot != null) snapshot.destroyBuffers();
+            snapshot = new TextureTarget(w, h, false, Minecraft.ON_OSX);
+        }
+        GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, main.frameBufferId);
+        GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, snapshot.frameBufferId);
+        GlStateManager._glBlitFrameBuffer(0, 0, w, h, 0, 0, w, h, GL30.GL_COLOR_BUFFER_BIT, GL30.GL_NEAREST);
+        main.bindWrite(true);
+        captured = true;
+    }
+
+    private void renderShatter(GuiGraphics g) {
+        long e = now() - shatterAt;
+        g.fill(0, 0, width, height, 0xFF000000);
+        g.flush();
+        Matrix4f m = g.pose().last().pose();
+        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
+        RenderSystem.setShaderTexture(0, snapshot.getColorTextureId());
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        BufferBuilder b = Tesselator.getInstance().begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_TEX_COLOR);
+        float fall = Math.max(0, e - CRACK_MS);
+        for (Shard s : shards) {
+            float tt = Math.max(0, fall - s.delay());
+            float ox = s.vx() * tt, oy = s.vy() * tt + 0.0009f * tt * tt;
+            float rot = s.spin() * tt;
+            float sc = 1 - Math.min(0.35f, tt / 4000f);
+            float br = 1 - Math.min(0.7f, tt / 1400f);
+            float cos = (float) Math.cos(rot), sin = (float) Math.sin(rot);
+            float[] X = new float[4], Y = new float[4];
+            for (int k = 0; k < 4; k++) {
+                float dx = (s.xs()[k] - s.cx()) * sc, dy = (s.ys()[k] - s.cy()) * sc;
+                X[k] = s.cx() + ox + dx * cos - dy * sin;
+                Y[k] = s.cy() + oy + dx * sin + dy * cos;
+            }
+            int[][] tris = {{0, 1, 2}, {0, 2, 3}};
+            for (int[] tri : tris) {
+                for (int k : tri) {
+                    float u = s.xs()[k] / width, v = 1 - s.ys()[k] / height;
+                    b.addVertex(m, X[k], Y[k], 0).setUv(u, v).setColor(br, br, br, 1f);
                 }
             }
         }
+        var mesh = b.build();
+        if (mesh != null) BufferUploader.drawWithShader(mesh);
+        RenderSystem.disableBlend();
 
-        // 故障效果处理（纯 tick 驱动，无 Thread.sleep）
-        if (noGlitched) {
-            long elapsed = currentTime - glitchStartTime;
-
-            // 粒子效果
-            if (blueParticles > 0) {
-                spawnBlueParticles(1);
-                blueParticles--;
+        // 裂纹：自撞击点向外蔓延的白色细线（仅开裂阶段与刚开始坠落时）
+        float crack = ZsAnim.clamp01(e / (float) CRACK_MS);
+        float fade = 1 - ZsAnim.clamp01((e - CRACK_MS) / 300f);
+        if (fade > 0) {
+            float reach = crack * (float) Math.hypot(width, height);
+            for (Shard s : shards) {
+                for (int k = 0; k < 4; k++) {
+                    int k2 = (k + 1) % 4;
+                    float mx = (s.xs()[k] + s.xs()[k2]) / 2 - impactX, my = (s.ys()[k] + s.ys()[k2]) / 2 - impactY;
+                    if (mx * mx + my * my > reach * reach) continue;
+                    JjkStyle.line(g, s.xs()[k], s.ys()[k], s.xs()[k2], s.ys()[k2], 1, JjkStyle.alpha(0xFFFFFFFF, 0.8f * fade));
+                }
             }
-
-            // 第一阶段：闪烁干扰
-            if (elapsed >= GLITCH_DURATION_MS && !glitchButtonChanged) {
-                // 修改按钮文字为 Yes
-                noButton.setMessage(Component.translatable("screen.zhushenspace.yes"));
-                glitchButtonChanged = true;
-                glitchButtonChangedTime = currentTime;
-            }
-
-            // 第二阶段：延迟后自动进入加点界面
-            if (glitchButtonChanged && (currentTime - glitchButtonChangedTime >= TRANSITION_DELAY_MS)) {
-                transitionToAllocation();
-            }
-        }
-    }
-
-    private void spawnBlueParticles(int count) {
-        if (FMLEnvironment.dist != Dist.CLIENT) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-
-        for (int i = 0; i < count; i++) {
-            double x = mc.player.getX() + (Math.random() - 0.5) * 2.0;
-            double y = mc.player.getY() + (Math.random() - 0.5) * 2.0;
-            double z = mc.player.getZ() + (Math.random() - 0.5) * 2.0;
-
-            mc.level.addParticle(
-                    net.minecraft.core.particles.ParticleTypes.DRAGON_BREATH,
-                    x, y, z,
-                    (Math.random() - 0.5) * 0.3,
-                    Math.random() * 0.3 + 0.1,
-                    (Math.random() - 0.5) * 0.3
-            );
+            if (e < 90) g.fill(0, 0, width, height, JjkStyle.alpha(0xFFFFFFFF, 0.5f * (1 - e / 90f)));
         }
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
-        long nowMs = System.currentTimeMillis();
-        float vt = (nowMs - introStart) / 1000f;
-        if (exitStart >= 0) {
-            float k = Math.min(1f, (nowMs - exitStart) / (float) EXIT_MS);
-            graphics.fill(0, 0, width, height, ((int) (230 * Math.min(1f, k * 2)) << 24) | 0x05030C);
-            drawVortex(graphics, vt, 1f, true, 1 + k * k * 2.5f);
-            float white = Math.max(0, (k - 0.65f) / 0.35f);
-            if (white > 0) graphics.fill(0, 0, width, height, JjkStyle.alpha(0xFFFFFFFF, white));
-            return;
+    public void removed() {
+        super.removed();
+        if (snapshot != null) {
+            snapshot.destroyBuffers();
+            snapshot = null;
         }
-        float intro = Math.min(1f, (nowMs - introStart) / (float) INTRO_MS);
-        yesButton.visible = noButton.visible = intro > 0.66f;
-        if (intro < 1f) graphics.fill(0, 0, width, height, ((int) (200 * Math.min(1f, intro * 3)) << 24) | 0x05030C);
-        // 开场强烈吸入，之后作为对话背后的淡漩涡持续旋转
-        drawVortex(graphics, vt, intro < 1f ? 1f - intro * 0.7f : 0.3f, false, intro < 1f ? 1.6f - intro * 0.6f : 1f);
-
-        int dialogWidth = Mth.clamp(this.width - 80, 320, 600);
-        int dialogHeight = 180;
-        int dialogX = (this.width - dialogWidth) / 2;
-        int dialogY = (this.height - dialogHeight) / 2;
-
-        renderDialogBox(graphics, dialogX, dialogY, dialogWidth, dialogHeight);
-
-        String displayedText = FULL_TEXT.substring(0, displayedCharCount);
-        renderDialogText(graphics, displayedText, dialogX, dialogY, dialogWidth);
-
-        if (noGlitched) {
-            renderGlitchOverlay(graphics, dialogX, dialogY, dialogWidth, dialogHeight);
-        }
-
-        super.render(graphics, mouseX, mouseY, partialTick);
-    }
-
-    private void renderDialogBox(GuiGraphics graphics, int x, int y, int width, int height) {
-        int alpha = (int) (fadeInAlpha * 255);
-        int borderColor = (alpha << 24) | (BOX_BORDER_COLOR & 0x00FFFFFF);
-
-        // 星云动态底纹 + 半透明蒙层 + 中央缓慢旋转的法阵（随淡入出现）
-        int tint = (alpha << 24) | 0xFFFFFF;
-        ZsAnim.HERTA_SKY.draw(graphics, x, y, width, height, tint);
-        graphics.fill(x, y, x + width, y + height, ((int) (alpha * 0.8f) << 24) | (BOX_BG_COLOR & 0x00FFFFFF));
-        int sz = height - 20;
-        ZsTheme.sigil(graphics, x + width / 2f, y + 10 + sz / 2f, sz, ((int) (alpha * 0.22f) << 24) | 0x8C9CFF);
-
-        graphics.fill(x, y, x + width, y + 4, borderColor);
-        graphics.fill(x, y + height - 4, x + width, y + height, borderColor);
-        graphics.fill(x, y, x + 4, y + height, borderColor);
-        graphics.fill(x + width - 4, y, x + width, y + height, borderColor);
-
-        int cornerSize = 12;
-        int accentColor = (alpha << 24) | (ACCENT_COLOR & 0x00FFFFFF);
-
-        graphics.fill(x + 4, y + 4, x + 4 + cornerSize, y + 6, accentColor);
-        graphics.fill(x + 4, y + 4, x + 6, y + 4 + cornerSize, accentColor);
-        graphics.fill(x + width - 4 - cornerSize, y + height - 6, x + width - 4, y + height - 4, accentColor);
-        graphics.fill(x + width - 6, y + height - 4 - cornerSize, x + width - 4, y + height - 4, accentColor);
-    }
-
-    private void renderDialogText(GuiGraphics graphics, String text, int dialogX, int dialogY, int dialogWidth) {
-        int textColor = (int) (fadeInAlpha * 255) << 24 | (TEXT_COLOR & 0x00FFFFFF);
-        int textX = dialogX + 24;
-        int textY = dialogY + 40;
-        int maxWidth = dialogWidth - 48;
-
-        Minecraft mc = Minecraft.getInstance();
-        int lineHeight = mc.font.lineHeight;
-
-        String[] chars = text.split("");
-        StringBuilder currentLine = new StringBuilder();
-        int currentY = textY;
-
-        for (String c : chars) {
-            String testLine = currentLine.toString() + c;
-            int width = mc.font.width(testLine);
-
-            if (width > maxWidth && currentLine.length() > 0) {
-                graphics.drawString(mc.font, currentLine.toString(), textX, currentY, textColor, false);
-                currentLine = new StringBuilder(c);
-                currentY += lineHeight + 4;
-            } else {
-                currentLine.append(c);
-            }
-        }
-
-        if (!currentLine.isEmpty()) {
-            graphics.drawString(mc.font, currentLine.toString(), textX, currentY, textColor, false);
-        }
-
-        if (displayedCharCount < FULL_TEXT.length() && System.currentTimeMillis() % 500 < 250) {
-            int cursorX = textX + mc.font.width(currentLine.toString()) + 2;
-            graphics.drawString(mc.font, "▌", cursorX, currentY, textColor, false);
-        }
-    }
-
-    private void renderGlitchOverlay(GuiGraphics graphics, int x, int y, int width, int height) {
-        if (Math.random() > 0.3) {
-            int glitchColor = 0x669B7BEA | ((int) (Math.random() * 100) << 24);
-            int glitchX = x + (int) (Math.random() * width);
-            int glitchY = y + (int) (Math.random() * height);
-            int glitchW = (int) (Math.random() * 30) + 5;
-            int glitchH = 2;
-
-            graphics.fill(glitchX, glitchY, glitchX + glitchW, glitchY + glitchH, glitchColor);
-        }
-
-        for (int i = 0; i < 3; i++) {
-            int lineY = y + (int) (Math.random() * height);
-            int lineXOffset = (int) (Math.random() * 20 - 10);
-            graphics.fill(x + lineXOffset, lineY, x + width + lineXOffset, lineY + 1, 0x559B7BEA);
-        }
-    }
-
-    @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int alpha = (int) (fadeInAlpha * 200);
-        graphics.fill(0, 0, this.width, this.height, (alpha << 24) | 0x051019);
     }
 
     @Override
@@ -385,14 +474,5 @@ public class MeaningOfLifeScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
-    }
-
-    @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ENTER && yesButton != null && yesButton.active && !noGlitched) {
-            onYesClick(yesButton);
-            return true;
-        }
-        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }

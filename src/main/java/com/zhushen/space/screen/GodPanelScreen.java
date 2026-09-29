@@ -48,7 +48,7 @@ import static com.zhushen.space.screen.ZsTheme.*;
  */
 public class GodPanelScreen extends Screen {
 
-    private enum Tab { ATTRIBUTES, SKILLS, PROFESSION, PRESET, SHOP, FEATS }
+    private enum Tab { ATTRIBUTES, SKILLS, PRESET, SHOP, FEATS }
 
 
     private static final int ROW_HEIGHT = 20;
@@ -98,8 +98,8 @@ public class GodPanelScreen extends Screen {
     private int gearX;
     /** 主神大厅按钮（标签行，齿轮左侧） */
     private int hallX;
-    private final int[] tabX = new int[6];
-    private final int[] tabW = {40, 40, 40, 56, 36, 36};
+    private final int[] tabX = new int[5];
+    private final int[] tabW = {44, 44, 62, 40, 40};
 
     /**
      * 从外部入口打开主神面板：未使用过主神邀请函的玩家无法打开（提示并播放拒绝音效）。
@@ -223,7 +223,7 @@ public class GodPanelScreen extends Screen {
         gearX = panelX + panelW - 26;
         hallX = gearX - 36;
         int tx = panelX + 6;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 5; i++) {
             tabX[i] = tx;
             tx += tabW[i] + 4;
         }
@@ -283,16 +283,15 @@ public class GodPanelScreen extends Screen {
             case PRESET -> renderPresetTab(g, mouseX, mouseY);
             case SHOP -> renderShopTab(g, mouseX, mouseY);
             case FEATS -> renderFeatTab(g, mouseX, mouseY);
-            case PROFESSION -> renderProfessionTab(g, mouseX, mouseY);
         }
         g.pose().popPose();
         ZsTheme.endOpen(g);
-        if (tab == Tab.PROFESSION) renderProfConfirm(g, mouseX, mouseY);
+        if (tab == Tab.FEATS) renderProfConfirm(g, mouseX, mouseY);
         else profPick = -1;
     }
 
     private void renderPanel(GuiGraphics g) {
-        if (tab == Tab.SKILLS || tab == Tab.PROFESSION) {
+        if (tab == Tab.SKILLS) {
             // 技能页：整块面板统一为新月同行冷灰外框（不叠星云与法阵）
             XytStyle.chrome(g, panelX, panelY, panelW, panelH);
             return;
@@ -324,18 +323,17 @@ public class GodPanelScreen extends Screen {
         String[] labels = {
                 Component.translatable("screen.zhushenspace.godpanel.tab.attributes").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.skills").getString(),
-                Component.translatable("screen.zhushenspace.godpanel.tab.profession").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.preset").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.shop").getString(),
                 Component.translatable("screen.zhushenspace.godpanel.tab.feats").getString()
         };
-        Component[] tabLabels = new Component[6];
-        for (int i = 0; i < 6; i++) {
+        Component[] tabLabels = new Component[5];
+        for (int i = 0; i < 5; i++) {
             // 有未确认改动的加点页在标签上打 * 提醒
             boolean dirty = (i == 0 && attrList.dirty()) || (i == 1 && skillList.dirty());
             tabLabels[i] = Component.literal(dirty ? labels[i] + "*" : labels[i]);
         }
-        if (tab == Tab.SKILLS || tab == Tab.PROFESSION) {
+        if (tab == Tab.SKILLS) {
             XytStyle.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
         } else if (tab == Tab.ATTRIBUTES) {
             SgStyle.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal());
@@ -351,7 +349,7 @@ public class GodPanelScreen extends Screen {
         Component hallLabel = Component.translatable(inHall
                 ? "screen.zhushenspace.godpanel.leave_hall"
                 : "screen.zhushenspace.godpanel.enter_hall");
-        if (tab == Tab.SKILLS || tab == Tab.PROFESSION) XytStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
+        if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         else if (tab == Tab.ATTRIBUTES) SgStyle.darkButton(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         else if (tab == Tab.PRESET) BladeBar.button(g, font, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
         else renderSmallButton(g, mouseX, mouseY, hallX, panelY + 5, 32, TAB_H, hallLabel);
@@ -362,7 +360,7 @@ public class GodPanelScreen extends Screen {
         }
 
         // 能量池界面设置入口（⚙，标签行最右）
-        if (tab == Tab.SKILLS || tab == Tab.PROFESSION) XytStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
+        if (tab == Tab.SKILLS) XytStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         else if (tab == Tab.ATTRIBUTES) SgStyle.darkButton(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         else if (tab == Tab.PRESET) BladeBar.button(g, font, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
         else renderSmallButton(g, mouseX, mouseY, gearX, panelY + 5, 20, TAB_H, Component.literal("⚙"));
@@ -392,10 +390,7 @@ public class GodPanelScreen extends Screen {
             case SHOP -> g.drawString(font,
                     Component.translatable("screen.zhushenspace.shop.hint"),
                     panelX + 8, panelY + 26, TEXT_SUB, true);
-            case PROFESSION -> { }
-            case FEATS -> g.drawString(font,
-                    Component.translatable("screen.zhushenspace.feats.hint"),
-                    panelX + 8, panelY + 26, 0xFFD8E4F0, true);
+            case FEATS -> { }
         }
 
         // 生命 / 伤势显示已移至战斗模式 HUD（WoundHudRenderer）
@@ -406,8 +401,8 @@ public class GodPanelScreen extends Screen {
                 ClientProgressData.branch(2), ClientProgressData.branch(3),
                 ClientProgressData.branch(4), ClientProgressData.score()).getString();
         g.drawString(font, currency, panelX + 8, panelY + panelH - 12,
-                tab == Tab.SKILLS || tab == Tab.PROFESSION ? XytStyle.ORANGE : tab == Tab.PRESET ? BladeBar.EMBER
-                        : tab == Tab.ATTRIBUTES ? SgStyle.NIXIE : CURRENCY, tab != Tab.SKILLS && tab != Tab.PROFESSION);
+                tab == Tab.SKILLS ? XytStyle.ORANGE : tab == Tab.PRESET ? BladeBar.EMBER
+                        : tab == Tab.ATTRIBUTES ? SgStyle.NIXIE : CURRENCY, tab != Tab.SKILLS);
     }
 
     /** 专长页内容：专长暂未开放（占位） */
@@ -416,13 +411,12 @@ public class GodPanelScreen extends Screen {
     private void renderFeatTab(GuiGraphics g, int mouseX, int mouseY) {
         int[] in = JjkStyle.frameInner(panelX, panelY, panelW, panelH, HEADER_HEIGHT);
         domainGame.setBounds(in[0], in[1], in[2], in[3]);
+        float a = ZsAnim.clamp01((ZsAnim.nowMs() - tabChangedAt - 500) / 400f);
+        if (a > 0.02f) renderProfessionTab(g, mouseX, mouseY, a);
         if (ZsAnim.nowMs() - tabChangedAt > 900) domainGame.render(g, mouseX, mouseY);
         else domainGame.reset();
-        Component c = Component.translatable("screen.zhushenspace.feats.empty");
-        float a = ZsAnim.clamp01((ZsAnim.nowMs() - tabChangedAt - 500) / 400f);
-        if (a <= 0.02f) return;
-        g.drawCenteredString(font, c, panelX + panelW / 2, panelY + panelH / 2, ZsAnim.withAlpha(0xFFE8EEF8, a));
     }
+
 
     /** 可购买按钮外圈呼吸金光，吸引注意 */
     private static void buyGlow(GuiGraphics g, int x, int y, int w, int h) {
@@ -523,31 +517,31 @@ public class GodPanelScreen extends Screen {
         return new int[]{x, y, colW, 19};
     }
 
-    private void renderProfessionTab(GuiGraphics g, int mouseX, int mouseY) {
-        int top = panelY + 20;
-        XytStyle.paper(g, panelX + 3, top, panelW - 6, panelY + panelH - 18 - top);
+    private void renderProfessionTab(GuiGraphics g, int mouseX, int mouseY, float fade) {
         int[] pts = ClientSkillData.points();
         int used = 0;
         for (int gi = 0; gi < 2; gi++) used += Integer.bitCount(ClientSkillData.professionMask(gi));
-        XytStyle.titlePlate(g, font, panelX + 8, panelY + 22, Component.translatable("screen.zhushenspace.profession.header"));
+        g.drawString(font, Component.translatable("screen.zhushenspace.profession.header"), panelX + 10, panelY + 26, ZsAnim.withAlpha(0xFFF2ECE0, fade), true);
         Component cnt = Component.translatable("screen.zhushenspace.profession.count", used,
                 com.zhushen.space.data.WeaponCategory.MAX_PROFESSIONS);
-        g.drawString(font, cnt, panelX + panelW - 8 - font.width(cnt), panelY + 24, XytStyle.INK_SUB, false);
+        g.drawString(font, cnt, panelX + panelW - 8 - font.width(cnt), panelY + 24, 0xFF9AA4B4, false);
         for (int gi = 0; gi < 2; gi++) {
             SkillType sk = gi == 0 ? SkillType.BLADE : SkillType.FIREARMS;
             int lvl = pts != null && sk.ordinal() < pts.length ? pts[sk.ordinal()] : 0;
             int mask = ClientSkillData.professionMask(gi);
             int pending = ClientSkillData.pendingProfessions(gi, lvl);
+            int accentDim = gi == 0 ? JjkStyle.SUKUNA : 0xFF3A8FC0;
+            int accent = gi == 0 ? JjkStyle.SUKUNA_GLOW : JjkStyle.GOJO;
             int[] c0 = profCard(gi, 0);
             int hy = c0[1] - 14;
-            g.drawString(font, Component.translatable(sk.nameKey()).append("  Lv." + lvl), c0[0], hy, XytStyle.INK, false);
+            g.drawString(font, Component.translatable(sk.nameKey()).append("  Lv." + lvl), c0[0], hy, 0xFFE8EEF8, false);
             Component st = pending > 0
                     ? Component.translatable("screen.zhushenspace.profession.pending", pending)
                     : Component.translatable(lvl < com.zhushen.space.data.WeaponCategory.PROFESSION_LEVEL
                         ? "screen.zhushenspace.profession.locked" : "screen.zhushenspace.profession.none_left");
-            int stc = pending > 0 ? (ZsAnim.pulse(900) > 0.5f ? XytStyle.ORANGE : XytStyle.ORANGE_DEEP) : XytStyle.INK_FAINT;
+            int stc = pending > 0 ? (ZsAnim.pulse(900) > 0.5f ? accent : accentDim) : 0xFF5A6070;
             g.drawString(font, st, c0[0] + c0[2] - font.width(st), hy, stc, false);
-            XytStyle.rule(g, c0[0], c0[0] + c0[2], hy + 10);
+            g.fill(c0[0], hy + 10, c0[0] + c0[2], hy + 11, ZsAnim.withAlpha(accent, 0.6f * fade));
             var list = com.zhushen.space.data.WeaponCategory.choices(com.zhushen.space.data.WeaponCategory.ProfGroup.values()[gi]);
             for (int k = 0; k < list.size(); k++) {
                 var cat = list.get(k);
@@ -555,27 +549,28 @@ public class GodPanelScreen extends Screen {
                 boolean owned = (mask & (1 << cat.ordinal())) != 0;
                 boolean can = !owned && pending > 0;
                 boolean hov = can && over(mouseX, mouseY, r[0], r[1], r[2], r[3]) && profPick < 0;
-                XytStyle.row(g, r[0], r[1], r[2], r[3], hov);
+                g.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], ZsAnim.withAlpha(hov ? 0xFF2A2E3A : 0xFF0C0E14, 0.8f * fade));
+                g.renderOutline(r[0], r[1], r[2], r[3], ZsAnim.withAlpha(owned || hov ? accent : 0xFF30343E, fade));
                 if (owned) {
-                    g.fill(r[0], r[1], r[0] + 3, r[1] + r[3], XytStyle.ORANGE);
+                    g.fill(r[0], r[1], r[0] + 3, r[1] + r[3], accent);
                 } else if (can) {
-                    g.fill(r[0], r[1], r[0] + 1, r[1] + r[3], ZsAnim.withAlpha(XytStyle.ORANGE, 0.4f + 0.6f * ZsAnim.pulse(900)));
+                    g.fill(r[0], r[1], r[0] + 1, r[1] + r[3], ZsAnim.withAlpha(accent, 0.4f + 0.6f * ZsAnim.pulse(900)));
                 }
                 g.drawString(font, Component.translatable(cat.nameKey()), r[0] + 7, r[1] + 6,
-                        owned ? XytStyle.INK : can ? XytStyle.INK : XytStyle.INK_FAINT, false);
+                        owned ? 0xFFE8EEF8 : can ? 0xFFE8EEF8 : 0xFF5A6070, false);
                 Component attr = Component.translatable(cat.attribute.nameKey());
                 Component tag = Component.translatable(owned ? "screen.zhushenspace.profession.owned"
                         : can ? "screen.zhushenspace.profession.pick" : "screen.zhushenspace.profession.penalty");
                 int tx = r[0] + r[2] - 5 - font.width(tag);
-                g.drawString(font, tag, tx, r[1] + 6, owned ? XytStyle.ORANGE_DEEP : can ? XytStyle.ORANGE : XytStyle.WARN, false);
-                XytStyle.tiny(g, font, attr.getString(), tx - 6 - font.width(attr) * 0.5f, r[1] + 8, XytStyle.INK_SUB);
+                g.drawString(font, tag, tx, r[1] + 6, owned ? accentDim : can ? accent : 0xFFB04040, false);
+                g.drawString(font, attr, tx - 6 - font.width(attr), r[1] + 6, 0xFF6A7484, false);
             }
         }
         // 规则说明
         List<FormattedCharSequence> lines = font.split(Component.translatable("screen.zhushenspace.profession.rules"), panelW - 20);
-        int ly = panelY + panelH - 20 - lines.size() * 10;
+        int ly = panelY + panelH - 22 - lines.size() * 10;
         for (FormattedCharSequence l : lines) {
-            g.drawString(font, l, panelX + 10, ly, XytStyle.INK_SUB, false);
+            g.drawString(font, l, panelX + 10, ly, 0xFF9AA4B4, false);
             ly += 10;
         }
     }
@@ -612,14 +607,16 @@ public class GodPanelScreen extends Screen {
         g.pose().translate(0, 0, 400);
         g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0x99000000);
         int[] b = profConfirmBox();
-        XytStyle.chrome(g, b[0], b[1], b[2], b[3]);
+        g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0xF0060608);
+        g.renderOutline(b[0], b[1], b[2] / 2, b[3], JjkStyle.GOJO);
+        g.renderOutline(b[0] + b[2] / 2, b[1], b[2] - b[2] / 2, b[3], JjkStyle.SUKUNA);
         g.drawCenteredString(font, Component.translatable("screen.zhushenspace.profession.confirm",
-                Component.translatable(cat.nameKey())), b[0] + b[2] / 2, b[1] + 10, XytStyle.WHITE);
+                Component.translatable(cat.nameKey())), b[0] + b[2] / 2, b[1] + 10, 0xFFF2ECE0);
         g.drawCenteredString(font, Component.translatable("screen.zhushenspace.profession.warn"),
                 b[0] + b[2] / 2, b[1] + 23, 0xFFFF8A70);
         int by = b[1] + b[3] - 20;
-        XytStyle.darkButton(g, font, mouseX, mouseY, b[0] + b[2] / 2 - 56, by, 50, 14, Component.translatable("gui.yes"));
-        XytStyle.darkButton(g, font, mouseX, mouseY, b[0] + b[2] / 2 + 6, by, 50, 14, Component.translatable("gui.cancel"));
+        JjkStyle.button(g, font, mouseX, mouseY, b[0] + b[2] / 2 - 56, by, 50, 14, Component.translatable("gui.yes"), JjkStyle.GOJO, true);
+        JjkStyle.button(g, font, mouseX, mouseY, b[0] + b[2] / 2 + 6, by, 50, 14, Component.translatable("gui.cancel"), JjkStyle.SUKUNA, true);
         g.pose().popPose();
     }
 
@@ -1450,7 +1447,8 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (tab == Tab.FEATS && ZsAnim.nowMs() - tabChangedAt > 900 && domainGame.press(mouseX, mouseY, button)) {
+        if (tab == Tab.FEATS && profPick < 0 && button == 0 && handleProfessionClick(mouseX, mouseY)) return true;
+        if (tab == Tab.FEATS && profPick < 0 && ZsAnim.nowMs() - tabChangedAt > 900 && domainGame.press(mouseX, mouseY, button)) {
             return true;
         }
         if (profPick >= 0) {
@@ -1481,7 +1479,7 @@ public class GodPanelScreen extends Screen {
             }
 
             // 选项卡切换
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 5; i++) {
                 if (over(mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H)) {
                     if (tab != Tab.values()[i]) {
                         tabChangedAt = ZsAnim.nowMs();
@@ -1511,7 +1509,7 @@ public class GodPanelScreen extends Screen {
                 case SHOP -> {
                     if (handleShopClick(mouseX, mouseY)) return true;
                 }
-                case PROFESSION -> {
+                case FEATS -> {
                     if (handleProfessionClick(mouseX, mouseY)) return true;
                 }
                 default -> { }
