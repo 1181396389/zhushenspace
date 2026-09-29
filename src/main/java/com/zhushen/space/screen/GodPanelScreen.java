@@ -282,7 +282,7 @@ public class GodPanelScreen extends Screen {
             case SKILLS -> renderPointTab(g, mouseX, mouseY, skillList);
             case PRESET -> renderPresetTab(g, mouseX, mouseY);
             case SHOP -> renderShopTab(g, mouseX, mouseY);
-            case FEATS -> renderFeatTab(g);
+            case FEATS -> renderFeatTab(g, mouseX, mouseY);
         }
         g.pose().popPose();
         ZsTheme.endOpen(g);
@@ -304,6 +304,7 @@ public class GodPanelScreen extends Screen {
         if (tab == Tab.FEATS) {
             // 专长页：两种领域结界自中缝向两侧展开的外框
             JjkStyle.chrome(g, panelX, panelY, panelW, panelH, tabChangedAt, HEADER_HEIGHT);
+            JjkStyle.frame(g, panelX, panelY, panelW, panelH, tabChangedAt, HEADER_HEIGHT);
             return;
         }
         if (tab == Tab.PRESET) {
@@ -408,7 +409,13 @@ public class GodPanelScreen extends Screen {
     }
 
     /** 专长页内容：专长暂未开放（占位） */
-    private void renderFeatTab(GuiGraphics g) {
+    private final JjkDomainGame domainGame = new JjkDomainGame();
+
+    private void renderFeatTab(GuiGraphics g, int mouseX, int mouseY) {
+        int[] in = JjkStyle.frameInner(panelX, panelY, panelW, panelH, HEADER_HEIGHT);
+        domainGame.setBounds(in[0], in[1], in[2], in[3]);
+        if (ZsAnim.nowMs() - tabChangedAt > 900) domainGame.render(g, mouseX, mouseY);
+        else domainGame.reset();
         Component c = Component.translatable("screen.zhushenspace.feats.empty");
         float a = ZsAnim.clamp01((ZsAnim.nowMs() - tabChangedAt - 500) / 400f);
         if (a <= 0.02f) return;
@@ -1417,6 +1424,9 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (tab == Tab.FEATS && ZsAnim.nowMs() - tabChangedAt > 900 && domainGame.press(mouseX, mouseY, button)) {
+            return true;
+        }
         if (profChooser >= 0) {
             if (button == 0) return handleProfChooserClick(mouseX, mouseY);
             profChooser = -1;
@@ -1546,6 +1556,7 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        domainGame.release(mouseX, mouseY, button);
         if (button == 0 && dragging >= 0) {
             boolean placed = false;
             for (int bar = 0; bar < slots.length && !placed; bar++) {
