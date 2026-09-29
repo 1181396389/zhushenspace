@@ -133,6 +133,50 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
+                // ===== 建卡 XP =====
+                .then(Commands.literal("build")
+                        .then(Commands.literal("reset")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                                            com.zhushen.space.common.BuildServer.reset(p);
+                                            ctx.getSource().sendSuccess(() -> Component.translatable(
+                                                    "command.zhushenspace.build.reset", p.getDisplayName()), true);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("xp")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("amount", com.mojang.brigadier.arguments.IntegerArgumentType.integer(-1000, 1000))
+                                                .executes(ctx -> {
+                                                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                                                    int n = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "amount");
+                                                    com.zhushen.space.common.BuildServer.addXp(p, n);
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable(
+                                                            "command.zhushenspace.build.xp", p.getDisplayName(), n), true);
+                                                    return 1;
+                                                }))))
+                        .then(Commands.literal("info")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                                            var b = p.getData(com.zhushen.space.data.ModAttachments.PLAYER_BUILD);
+                                            ctx.getSource().sendSuccess(() -> Component.translatable(
+                                                    "command.zhushenspace.build.info", p.getDisplayName(), b.totalXp,
+                                                    b.created, b.pendingItems, b.pendingExchange), false);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("clear_pending")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                                            var b = p.getData(com.zhushen.space.data.ModAttachments.PLAYER_BUILD);
+                                            b.pendingItems = 0;
+                                            b.pendingExchange = false;
+                                            com.zhushen.space.common.BuildServer.sync(p);
+                                            ctx.getSource().sendSuccess(() -> Component.translatable(
+                                                    "command.zhushenspace.build.cleared", p.getDisplayName()), true);
+                                            return 1;
+                                        }))))
                 // ===== 专业 =====
                 .then(Commands.literal("profession")
                         .then(Commands.literal("reset")

@@ -155,7 +155,7 @@ public final class XytStyle {
      * 满级时额外显示橙色「MAX」。返回右端 x。
      */
     public static int gauge(GuiGraphics g, Font font, int x, int y, int max, int saved, int cur, long key) {
-        int segW = 9, segH = 5, gap = 2;
+        int segW = max > 8 ? 4 : 9, segH = 5, gap = max > 8 ? 1 : 2;
         float blink = 0.55f + 0.45f * ZsAnim.pulse(900);
         // 实心部分宽度平滑增长（加点时有「填充」动画）
         float fill = ZsAnim.tween(key, saved, 14);

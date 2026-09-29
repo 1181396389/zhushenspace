@@ -18,6 +18,10 @@ public class ModAttachments {
             ATTACHMENTS.register("player_skills",
                     () -> AttachmentType.serializable(PlayerSkillData::new).copyOnDeath().build());
 
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerBuildData>> PLAYER_BUILD =
+            ATTACHMENTS.register("player_build",
+                    () -> AttachmentType.serializable(PlayerBuildData::new).copyOnDeath().build());
+
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerEnergyData>> PLAYER_ENERGY =
             ATTACHMENTS.register("player_energy",
                     () -> AttachmentType.serializable(PlayerEnergyData::new).copyOnDeath().build());

@@ -34,7 +34,7 @@ public enum SkillType {
     FIREARMS("firearms");
 
     public static final int COUNT = values().length;
-    public static final int MAX_POINTS = 5;
+    public static final int MAX_POINTS = BuildRules.SKILL_CAP;
     /** 新玩家初始技能点数（未使用邀请函时为 0） */
     public static final int DEFAULT_TOTAL_SKILL_POINTS = 0;
     /** 每封主神邀请函提供的技能点数 */

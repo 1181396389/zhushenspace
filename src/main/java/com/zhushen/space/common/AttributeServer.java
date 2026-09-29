@@ -16,6 +16,7 @@ public class AttributeServer {
 
     /** 提交加点方案（含校验：范围 0~5、总消耗不超过总点数） */
     public static void commitAllocation(ServerPlayer player, int[] target) {
+        if (true) return; // 已由建卡 XP 系统（BuildServer.commit）取代
         if (!AttributeType.isValid(target)) return;
         PlayerAttributeData data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         if (AttributeType.totalCost(target) > data.totalPoints()) return;
@@ -39,14 +40,10 @@ public class AttributeServer {
         PlayerAttributeData data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         if (data.envelopeUsed()) return;
         data.markEnvelopeUsed();
-        data.addTotalPoints(amount);
-
-        // 同一封邀请函同时发放技能点数
         PlayerSkillData skills = player.getData(ModAttachments.PLAYER_SKILLS);
-        if (!skills.envelopeUsed()) {
-            skills.markEnvelopeUsed();
-            skills.addTotalPoints(SkillType.ENVELOPE_SKILL_POINTS);
-        }
+        if (!skills.envelopeUsed()) skills.markEnvelopeUsed();
+        // 建卡：发放 70 XP（属性 / 技能 / 专长共享）
+        BuildServer.grantEnvelope(player);
 
         sync(player);
         SkillServer.sync(player);
@@ -62,6 +59,8 @@ public class AttributeServer {
 
     /** 应用属性加成并同步（登录/重生/换维度时调用） */
     public static void applyAndSync(ServerPlayer player) {
+        BuildServer.migrate(player);
+        BuildServer.sync(player);
         AttributeApplier.apply(player);
         EnergyManager.syncLegendaryPools(player); // 传奇加成接入能量池（决心/沉着满5点）
         sync(player);

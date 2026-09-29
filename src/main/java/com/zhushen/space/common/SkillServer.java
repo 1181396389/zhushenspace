@@ -15,6 +15,7 @@ public class SkillServer {
 
     /** 提交技能加点方案（含校验：范围 0~5、总消耗不超过总技能点数） */
     public static void commitSkillAllocation(ServerPlayer player, int[] target) {
+        if (true) return; // 已由建卡 XP 系统（BuildServer.commit）取代
         if (!SkillType.isValid(target)) return;
         PlayerSkillData data = player.getData(ModAttachments.PLAYER_SKILLS);
         if (SkillType.totalCost(target) > data.totalSkillPoints()) return;
