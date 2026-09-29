@@ -42,6 +42,8 @@ public class ClientUiConfig {
         public int activeBar = 0;
         /** 拔剑演出时是否浮现宝具名（誓约胜利之剑 / 乖离剑） */
         public boolean showSwordNames = true;
+        /** 专长页术式小游戏开关 */
+        public boolean jjkGame = true;
         /** 战斗模式肢体 HUD：是否显示 */
         public boolean limbHudEnabled = true;
         /** 肢体 HUD 风格：0 = LV.999 像素终端，1 = Q 版大黑塔桌宠提醒 */

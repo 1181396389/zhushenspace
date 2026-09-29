@@ -418,5 +418,7 @@
   "screen.zhushenspace.profession.pick": "Pick",
   "screen.zhushenspace.profession.penalty": "−9",
   "screen.zhushenspace.profession.confirm": "Take %s as a profession?",
-  "screen.zhushenspace.profession.rules": "Gain a free profession of a skill at level 3 and again at 4 (max 3 from points). Weapons of a category without the profession take a 9-point penalty."
+  "screen.zhushenspace.profession.rules": "Gain a free profession of a skill at level 3 and again at 4 (max 3 from points). Weapons of a category without the profession take a 9-point penalty.",
+  "screen.zhushenspace.feats.game_on": "Technique drill: ON",
+  "screen.zhushenspace.feats.game_off": "Technique drill: OFF"
 }

@@ -286,8 +286,8 @@ public class GodPanelScreen extends Screen {
         }
         g.pose().popPose();
         ZsTheme.endOpen(g);
-        if (tab == Tab.FEATS) renderProfConfirm(g, mouseX, mouseY);
-        else profPick = -1;
+        if (tab == Tab.SKILLS) renderProfChooser(g, mouseX, mouseY);
+        else profChooser = -1;
     }
 
     private void renderPanel(GuiGraphics g) {
@@ -408,14 +408,30 @@ public class GodPanelScreen extends Screen {
     /** 专长页内容：专长暂未开放（占位） */
     private final JjkDomainGame domainGame = new JjkDomainGame();
 
+    private int[] gameToggleRect() {
+        Component l = gameToggleLabel();
+        int w = font.width(l) + 10;
+        return new int[]{panelX + panelW - 10 - w, panelY + panelH - 17, w, 11};
+    }
+
+    private Component gameToggleLabel() {
+        return Component.translatable(com.zhushen.space.client.ClientUiConfig.get().jjkGame
+                ? "screen.zhushenspace.feats.game_on" : "screen.zhushenspace.feats.game_off");
+    }
+
     private void renderFeatTab(GuiGraphics g, int mouseX, int mouseY) {
         int[] in = JjkStyle.frameInner(panelX, panelY, panelW, panelH, HEADER_HEIGHT);
-        domainGame.setBounds(in[0], in[1], in[2], in[3]);
-        float a = ZsAnim.clamp01((ZsAnim.nowMs() - tabChangedAt - 500) / 400f);
-        if (a > 0.02f) renderProfessionTab(g, mouseX, mouseY, a);
-        if (ZsAnim.nowMs() - tabChangedAt > 900) domainGame.render(g, mouseX, mouseY);
+        domainGame.setBounds(in[0], in[1], in[2] - 0, in[3] - 6);
+        boolean on = com.zhushen.space.client.ClientUiConfig.get().jjkGame;
+        if (on && ZsAnim.nowMs() - tabChangedAt > 900) domainGame.render(g, mouseX, mouseY);
         else domainGame.reset();
+        if (ZsAnim.nowMs() - tabChangedAt > 700) {
+            int[] r = gameToggleRect();
+            JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3], gameToggleLabel(),
+                    on ? JjkStyle.GOJO : 0xFF606060, true);
+        }
     }
+
 
 
     /** 可购买按钮外圈呼吸金光，吸引注意 */
@@ -505,133 +521,75 @@ public class GodPanelScreen extends Screen {
         }
     }
 
-    // ===== 专业页（技能之后）：白刃 / 枪械两栏，技能 3、4 各免费获得一个专业，加点最多共 3 个 =====
+    /** 专业选择入口（技能行内）：[0] 白刃，[1] 枪械；x = -1 表示不可见 */
+    private final int[] profChipX = {-1, -1}, profChipY = new int[2], profChipW = new int[2];
+    /** 正在选择的专业组（-1 = 未打开选择框） */
+    private int profChooser = -1;
+    private final int[] profPending = new int[2];
 
-    /** 待确认的专业（WeaponCategory 序号，-1 = 无） */
-    private int profPick = -1;
+    private static final int PROF_BTN_W = 70, PROF_BTN_H = 16;
 
-    private int[] profCard(int group, int k) {
-        int colW = (panelW - 24) / 2;
-        int x = panelX + 8 + group * (colW + 8);
-        int y = panelY + HEADER_HEIGHT + 30 + k * 22;
-        return new int[]{x, y, colW, 19};
-    }
-
-    private void renderProfessionTab(GuiGraphics g, int mouseX, int mouseY, float fade) {
-        int[] pts = ClientSkillData.points();
-        int used = 0;
-        for (int gi = 0; gi < 2; gi++) used += Integer.bitCount(ClientSkillData.professionMask(gi));
-        g.drawString(font, Component.translatable("screen.zhushenspace.profession.header"), panelX + 10, panelY + 26, ZsAnim.withAlpha(0xFFF2ECE0, fade), true);
-        Component cnt = Component.translatable("screen.zhushenspace.profession.count", used,
-                com.zhushen.space.data.WeaponCategory.MAX_PROFESSIONS);
-        g.drawString(font, cnt, panelX + panelW - 8 - font.width(cnt), panelY + 24, 0xFF9AA4B4, false);
-        for (int gi = 0; gi < 2; gi++) {
-            SkillType sk = gi == 0 ? SkillType.BLADE : SkillType.FIREARMS;
-            int lvl = pts != null && sk.ordinal() < pts.length ? pts[sk.ordinal()] : 0;
-            int mask = ClientSkillData.professionMask(gi);
-            int pending = ClientSkillData.pendingProfessions(gi, lvl);
-            int accentDim = gi == 0 ? JjkStyle.SUKUNA : 0xFF3A8FC0;
-            int accent = gi == 0 ? JjkStyle.SUKUNA_GLOW : JjkStyle.GOJO;
-            int[] c0 = profCard(gi, 0);
-            int hy = c0[1] - 14;
-            g.drawString(font, Component.translatable(sk.nameKey()).append("  Lv." + lvl), c0[0], hy, 0xFFE8EEF8, false);
-            Component st = pending > 0
-                    ? Component.translatable("screen.zhushenspace.profession.pending", pending)
-                    : Component.translatable(lvl < com.zhushen.space.data.WeaponCategory.PROFESSION_LEVEL
-                        ? "screen.zhushenspace.profession.locked" : "screen.zhushenspace.profession.none_left");
-            int stc = pending > 0 ? (ZsAnim.pulse(900) > 0.5f ? accent : accentDim) : 0xFF5A6070;
-            g.drawString(font, st, c0[0] + c0[2] - font.width(st), hy, stc, false);
-            g.fill(c0[0], hy + 10, c0[0] + c0[2], hy + 11, ZsAnim.withAlpha(accent, 0.6f * fade));
-            var list = com.zhushen.space.data.WeaponCategory.choices(com.zhushen.space.data.WeaponCategory.ProfGroup.values()[gi]);
-            for (int k = 0; k < list.size(); k++) {
-                var cat = list.get(k);
-                int[] r = profCard(gi, k);
-                boolean owned = (mask & (1 << cat.ordinal())) != 0;
-                boolean can = !owned && pending > 0;
-                boolean hov = can && over(mouseX, mouseY, r[0], r[1], r[2], r[3]) && profPick < 0;
-                g.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], ZsAnim.withAlpha(hov ? 0xFF2A2E3A : 0xFF0C0E14, 0.8f * fade));
-                g.renderOutline(r[0], r[1], r[2], r[3], ZsAnim.withAlpha(owned || hov ? accent : 0xFF30343E, fade));
-                if (owned) {
-                    g.fill(r[0], r[1], r[0] + 3, r[1] + r[3], accent);
-                } else if (can) {
-                    g.fill(r[0], r[1], r[0] + 1, r[1] + r[3], ZsAnim.withAlpha(accent, 0.4f + 0.6f * ZsAnim.pulse(900)));
-                }
-                g.drawString(font, Component.translatable(cat.nameKey()), r[0] + 7, r[1] + 6,
-                        owned ? 0xFFE8EEF8 : can ? 0xFFE8EEF8 : 0xFF5A6070, false);
-                Component attr = Component.translatable(cat.attribute.nameKey());
-                Component tag = Component.translatable(owned ? "screen.zhushenspace.profession.owned"
-                        : can ? "screen.zhushenspace.profession.pick" : "screen.zhushenspace.profession.penalty");
-                int tx = r[0] + r[2] - 5 - font.width(tag);
-                g.drawString(font, tag, tx, r[1] + 6, owned ? accentDim : can ? accent : 0xFFB04040, false);
-                g.drawString(font, attr, tx - 6 - font.width(attr), r[1] + 6, 0xFF6A7484, false);
-            }
-        }
-        // 规则说明
-        List<FormattedCharSequence> lines = font.split(Component.translatable("screen.zhushenspace.profession.rules"), panelW - 20);
-        int ly = panelY + panelH - 22 - lines.size() * 10;
-        for (FormattedCharSequence l : lines) {
-            g.drawString(font, l, panelX + 10, ly, 0xFF9AA4B4, false);
-            ly += 10;
-        }
-    }
-
-    private boolean handleProfessionClick(double mouseX, double mouseY) {
-        int[] pts = ClientSkillData.points();
-        for (int gi = 0; gi < 2; gi++) {
-            SkillType sk = gi == 0 ? SkillType.BLADE : SkillType.FIREARMS;
-            int lvl = pts != null && sk.ordinal() < pts.length ? pts[sk.ordinal()] : 0;
-            if (ClientSkillData.pendingProfessions(gi, lvl) <= 0) continue;
-            var list = com.zhushen.space.data.WeaponCategory.choices(com.zhushen.space.data.WeaponCategory.ProfGroup.values()[gi]);
-            for (int k = 0; k < list.size(); k++) {
-                int[] r = profCard(gi, k);
-                if ((ClientSkillData.professionMask(gi) & (1 << list.get(k).ordinal())) == 0
-                        && over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
-                    profPick = list.get(k).ordinal();
-                    playClick(1.1f);
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private int[] profConfirmBox() {
-        int w = 190, h = 64;
+    private int[] profBox() {
+        int n = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]).size();
+        int rows = (n + 1) / 2;
+        int w = PROF_BTN_W * 2 + 18, h = 44 + rows * (PROF_BTN_H + 4) + 22;
         return new int[]{panelX + (panelW - w) / 2, panelY + (panelH - h) / 2, w, h};
     }
 
-    private void renderProfConfirm(GuiGraphics g, int mouseX, int mouseY) {
-        if (profPick < 0) return;
-        var cat = com.zhushen.space.data.WeaponCategory.values()[profPick];
+    /** 专业选择框：列出该组分类，点击即选定（不可更改） */
+    private void renderProfChooser(GuiGraphics g, int mouseX, int mouseY) {
+        if (profChooser < 0) return;
         g.pose().pushPose();
         g.pose().translate(0, 0, 400);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0x99000000);
-        int[] b = profConfirmBox();
-        g.fill(b[0], b[1], b[0] + b[2], b[1] + b[3], 0xF0060608);
-        g.renderOutline(b[0], b[1], b[2] / 2, b[3], JjkStyle.GOJO);
-        g.renderOutline(b[0] + b[2] / 2, b[1], b[2] - b[2] / 2, b[3], JjkStyle.SUKUNA);
-        g.drawCenteredString(font, Component.translatable("screen.zhushenspace.profession.confirm",
-                Component.translatable(cat.nameKey())), b[0] + b[2] / 2, b[1] + 10, 0xFFF2ECE0);
+        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xAA000000);
+        int[] b = profBox();
+        XytStyle.chrome(g, b[0], b[1], b[2], b[3]);
+        Component title = Component.translatable(profChooser == 0
+                ? "screen.zhushenspace.profession.title_blade" : "screen.zhushenspace.profession.title_gun");
+        g.drawCenteredString(font, title, b[0] + b[2] / 2, b[1] + 8, XytStyle.INK);
         g.drawCenteredString(font, Component.translatable("screen.zhushenspace.profession.warn"),
-                b[0] + b[2] / 2, b[1] + 23, 0xFFFF8A70);
-        int by = b[1] + b[3] - 20;
-        JjkStyle.button(g, font, mouseX, mouseY, b[0] + b[2] / 2 - 56, by, 50, 14, Component.translatable("gui.yes"), JjkStyle.GOJO, true);
-        JjkStyle.button(g, font, mouseX, mouseY, b[0] + b[2] / 2 + 6, by, 50, 14, Component.translatable("gui.cancel"), JjkStyle.SUKUNA, true);
+                b[0] + b[2] / 2, b[1] + 20, XytStyle.WARN);
+        var list = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
+        for (int k = 0; k < list.size(); k++) {
+            int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
+            boolean owned = (ClientSkillData.professionMask(profChooser) & (1 << list.get(k).ordinal())) != 0;
+            if (owned) {
+                g.fill(bx, by, bx + PROF_BTN_W, by + PROF_BTN_H, 0x55000000);
+                g.drawCenteredString(font, Component.translatable(list.get(k).nameKey()).append(" ✔"),
+                        bx + PROF_BTN_W / 2, by + 4, 0xFF808080);
+            } else {
+                XytStyle.darkButton(g, font, mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H,
+                        Component.translatable(list.get(k).nameKey()));
+            }
+        }
+        int cy = b[1] + b[3] - 20;
+        XytStyle.darkButton(g, font, mouseX, mouseY, b[0] + b[2] / 2 - 25, cy, 50, 14,
+                Component.translatable("gui.cancel"));
         g.pose().popPose();
     }
 
-    private boolean handleProfConfirmClick(double mouseX, double mouseY) {
-        int[] b = profConfirmBox();
-        int by = b[1] + b[3] - 20;
-        if (over(mouseX, mouseY, b[0] + b[2] / 2 - 56, by, 50, 14)) {
-            var cat = com.zhushen.space.data.WeaponCategory.values()[profPick];
-            PacketDistributor.sendToServer(new com.zhushen.space.network.ChooseProfessionPayload(
-                    cat.profGroup().ordinal(), cat.ordinal()));
-            playClick(1.3f);
-        } else {
+    private boolean handleProfChooserClick(double mouseX, double mouseY) {
+        int[] b = profBox();
+        var list = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
+        for (int k = 0; k < list.size(); k++) {
+            int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
+            if (over(mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H)
+                    && (ClientSkillData.professionMask(profChooser) & (1 << list.get(k).ordinal())) == 0) {
+                PacketDistributor.sendToServer(new com.zhushen.space.network.ChooseProfessionPayload(
+                        profChooser, list.get(k).ordinal()));
+                playClick(1.3f);
+                profChooser = -1;
+                return true;
+            }
+        }
+        int cy = b[1] + b[3] - 20;
+        if (over(mouseX, mouseY, b[0] + b[2] / 2 - 25, cy, 50, 14) || !over(mouseX, mouseY, b[0], b[1], b[2], b[3])) {
+            profChooser = -1;
             playClick(0.8f);
         }
-        profPick = -1;
         return true;
     }
 
@@ -657,6 +615,37 @@ public class GodPanelScreen extends Screen {
             lvColor = cur != saved ? XytStyle.ORANGE : XytStyle.INK;
         }
         g.drawString(font, lv, end + 3, ty, lvColor, false);
+
+        // 专业：技能达到 3、4 时各免费获得一个（加点最多共 3 个），选择后不可更改
+        int grp = i == SkillType.BLADE.ordinal() ? 0 : i == SkillType.FIREARMS.ordinal() ? 1 : -1;
+        if (grp >= 0) {
+            profChipX[grp] = -1;
+            int mask = ClientSkillData.professionMask(grp);
+            int pending = ClientSkillData.pendingProfessions(grp, saved);
+            profPending[grp] = pending;
+            int px = end + 3 + font.width(lv) + 6, py = ry + (h - 11) / 2;
+            for (var c : com.zhushen.space.data.WeaponCategory.values()) {
+                if ((mask & (1 << c.ordinal())) == 0) continue;
+                Component name = Component.translatable(c.nameKey());
+                int pw = font.width(name) + 8;
+                g.fill(px, py, px + pw, py + 11, 0x33000000);
+                g.renderOutline(px, py, pw, 11, XytStyle.INK_SUB);
+                g.drawString(font, name, px + 4, py + 2, XytStyle.INK, false);
+                px += pw + 3;
+            }
+            if (pending > 0) {
+                Component label = Component.translatable("screen.zhushenspace.profession.choose_n", pending);
+                int pw = font.width(label) + 8;
+                boolean hov = over(mouseX, mouseY, px, py, pw, 11);
+                int bg = ZsAnim.pulse(900) > 0.5f ? XytStyle.ORANGE : 0xFFB05A20;
+                g.fill(px, py, px + pw, py + 11, ZsAnim.withAlpha(bg, 0.85f));
+                g.renderOutline(px, py, pw, 11, hov ? 0xFFFFFFFF : XytStyle.INK_SUB);
+                g.drawString(font, label, px + 4, py + 2, 0xFFFFFFFF, false);
+                profChipX[grp] = px;
+                profChipY[grp] = py;
+                profChipW[grp] = pw;
+            }
+        }
 
         int by = ry + (ROW_HEIGHT - PM_BTN) / 2;
         int step = list.step(i);
@@ -1447,14 +1436,36 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (tab == Tab.FEATS && profPick < 0 && button == 0 && handleProfessionClick(mouseX, mouseY)) return true;
-        if (tab == Tab.FEATS && profPick < 0 && ZsAnim.nowMs() - tabChangedAt > 900 && domainGame.press(mouseX, mouseY, button)) {
+        if (tab == Tab.FEATS && button == 0) {
+            int[] r = gameToggleRect();
+            if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
+                var cfg = com.zhushen.space.client.ClientUiConfig.get();
+                cfg.jjkGame = !cfg.jjkGame;
+                com.zhushen.space.client.ClientUiConfig.save();
+                domainGame.reset();
+                playClick(cfg.jjkGame ? 1.2f : 0.9f);
+                return true;
+            }
+        }
+        if (tab == Tab.FEATS && com.zhushen.space.client.ClientUiConfig.get().jjkGame
+                && ZsAnim.nowMs() - tabChangedAt > 900 && domainGame.press(mouseX, mouseY, button)) {
             return true;
         }
-        if (profPick >= 0) {
-            if (button == 0) return handleProfConfirmClick(mouseX, mouseY);
-            profPick = -1;
+        if (profChooser >= 0) {
+            if (button == 0) return handleProfChooserClick(mouseX, mouseY);
+            profChooser = -1;
             return true;
+        }
+        if (button == 0 && tab == Tab.SKILLS) {
+            for (int gi = 0; gi < 2; gi++) {
+                if (profChipX[gi] >= 0 && profPending[gi] > 0
+                        && over(mouseX, mouseY, profChipX[gi], profChipY[gi], profChipW[gi], 11)
+                        && mouseY >= listTop && mouseY < listBottom) {
+                    profChooser = gi;
+                    playClick(1.1f);
+                    return true;
+                }
+            }
         }
         if (button == 0) {
             // 底部货币栏：点击打开货币界面（拖拽拼合/拆解）
@@ -1508,9 +1519,6 @@ public class GodPanelScreen extends Screen {
                 }
                 case SHOP -> {
                     if (handleShopClick(mouseX, mouseY)) return true;
-                }
-                case FEATS -> {
-                    if (handleProfessionClick(mouseX, mouseY)) return true;
                 }
                 default -> { }
             }

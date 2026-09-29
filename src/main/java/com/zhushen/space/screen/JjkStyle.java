@@ -96,64 +96,12 @@ public final class JjkStyle {
      * 每 4 秒一道展开波沿边框从中缝奔向两侧。背景只有抽象的领域质感，不出现具体角色元素。
      */
     public static void chrome(GuiGraphics g, int x, int y, int w, int h, long since0, int headerH) {
-        long now = ZsAnim.nowMs();
-        float k = ZsAnim.easeOutCubic((now - since0) / 700f);
-        float t = now / 1000f;
-        int mid = x + w / 2;
-        int half = w / 2;
-        int ex = Math.round(half * k);
-
-        g.fill(x, y, x + w, y + h, 0xF0050508);
-        // —— 背景：左深空 / 右猩红，自中线展开 ——
-        if (ex > 0) {
-            g.fillGradient(mid - ex, y, mid, y + h, 0xF0060A1C, 0xF0020308);
-            g.fillGradient(mid, y, mid + ex, y + h, 0xF0240610, 0xF00A0204);
-            g.enableScissor(mid - ex, y + 1, mid, y + h - 1);
-            // 信息流：细长光痕向外奔流
-            for (int i = 0; i < 34; i++) {
-                float ph = (t * (0.15f + hash(i, 1) * 0.25f) + hash(i, 2)) % 1f;
-                int ly = y + 4 + (int) (hash(i, 3) * (h - 8));
-                int lx = mid - (int) (ph * half);
-                int len = 6 + (int) (hash(i, 4) * 18 * ph);
-                g.fill(lx - len, ly, lx, ly + 1, alpha(i % 4 == 0 ? GOJO : 0xFFFFFFFF, 0.08f + 0.22f * ph));
-            }
-            for (int i = 0; i < 40; i++) {
-                float tw = (float) Math.abs(Math.sin(t * (1 + hash(i, 5) * 2) + i));
-                int px = mid - 2 - (int) (hash(i, 6) * (half - 4)), py = y + 2 + (int) (hash(i, 7) * (h - 4));
-                g.fill(px, py, px + 1, py + 1, alpha(0xFFD8F4FF, 0.15f + 0.45f * tw));
-            }
-            g.disableScissor();
-            g.enableScissor(mid, y + 1, mid + ex, y + h - 1);
-            // 斩痕：淡淡的斜向刻痕闪现消散
-            for (int i = 0; i < 7; i++) {
-                long cyc = (now + i * 211) / 900;
-                float ph = ((now + i * 211) % 900) / 900f;
-                float sx = mid + 6 + hash(i, cyc) * (half - 12), sy = y + 6 + hash(i + 40, cyc) * (h - 12);
-                float ang = 0.5f + (hash(i + 80, cyc) - 0.5f) * 1.2f, len = 14 + hash(i + 9, cyc) * 26;
-                float gr = Math.min(1f, ph * 5f), a = (1 - ph) * 0.45f;
-                float x2 = sx + (float) Math.cos(ang) * len * gr, y2 = sy + (float) Math.sin(ang) * len * gr;
-                line(g, sx, sy, x2, y2, 3, alpha(SUKUNA, a * 0.5f));
-                line(g, sx, sy, x2, y2, 1, alpha(0xFFFFFFFF, a));
-            }
-            // 余烬
-            for (int i = 0; i < 18; i++) {
-                float ph = (t * (0.2f + hash(i, 31) * 0.3f) + hash(i, 32)) % 1f;
-                int px = mid + 3 + (int) (hash(i, 33) * (half - 6)), py = y + h - 2 - (int) (ph * (h - 4));
-                g.fill(px, py, px + 1, py + 2, alpha(SUKUNA_GLOW, 0.5f * (1 - ph)));
-            }
-            g.disableScissor();
-            // 展开前沿：一道亮线推向两侧
-            if (k < 1f) {
-                g.fill(mid - ex - 1, y, mid - ex + 1, y + h, alpha(0xFFFFFFFF, 1 - k));
-                g.fill(mid - ex + 1, y, mid - ex + 4, y + h, alpha(GOJO, (1 - k) * 0.6f));
-                g.fill(mid + ex - 1, y, mid + ex + 1, y + h, alpha(0xFFFFFFFF, 1 - k));
-                g.fill(mid + ex - 4, y, mid + ex - 1, y + h, alpha(SUKUNA, (1 - k) * 0.6f));
-            }
-        }
+        float open = ZsAnim.easeOutCubic(ZsAnim.clamp01((ZsAnim.nowMs() - since0) / 700f));
+        g.fill(x + 2, y + 2, x + w + 2, y + h + 2, 0x66000000);
+        JjkDomain.backdrop(g, x, y, w, h, open);
         // 标签行下压暗，保证文字可读
-        g.fillGradient(x + 1, y + 1, x + w - 1, y + headerH, 0x88000000, 0x00000000);
-
-        frame(g, x, y, w, h, since0);
+        g.fillGradient(x + 1, y + 1, x + w - 1, y + headerH - 16, 0xAA000000, 0x00000000);
+        JjkDomain.frame3d(g, x, y, w, h, open);
     }
 
     /** 外框内缩：小游戏区域 = 标签行以下、货币栏以上，距外框 FRAME_IN */

@@ -418,5 +418,7 @@
   "screen.zhushenspace.profession.pick": "选择",
   "screen.zhushenspace.profession.penalty": "−9",
   "screen.zhushenspace.profession.confirm": "确认选择【%s】为专业？",
-  "screen.zhushenspace.profession.rules": "技能达到 3 级和 4 级时各免费获得一个该技能下的专业（通过加点最多共 3 个）。使用没有专业的分类武器受 9 点器械减值。"
+  "screen.zhushenspace.profession.rules": "技能达到 3 级和 4 级时各免费获得一个该技能下的专业（通过加点最多共 3 个）。使用没有专业的分类武器受 9 点器械减值。",
+  "screen.zhushenspace.feats.game_on": "术式演练：开",
+  "screen.zhushenspace.feats.game_off": "术式演练：关"
 }
