@@ -31,7 +31,9 @@ public class AttributeApplier {
 
     public static void apply(Player player) {
         PlayerAttributeData data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
-        int[] p = data.points();
+        int[] p = data.points().clone();
+        int[] fb = FeatEffects.attrBonus(player);
+        for (int i = 0; i < p.length; i++) p[i] = Math.max(0, p[i] + fb[i]);
         int leg = data.legendaryPoints();
 
         // ===== 力量 =====
@@ -79,6 +81,8 @@ public class AttributeApplier {
                 Math.min(COMPOSURE_SPEED_CAP,
                         legBonus(p[AttributeType.COMPOSURE.ordinal()], leg, COMPOSURE_SPEED_PER_LEGENDARY)),
                 AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
+
+        FeatEffects.applyModifiers(player);
     }
 
     /** 沉着传奇：每点传奇点数的移动速度加成（乘算） */

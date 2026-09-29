@@ -552,8 +552,14 @@ public class GodPanelScreen extends Screen {
                 : Component.translatable(SkillType.values()[sk].nameKey()).getString();
     }
 
+    private boolean featPrereqOk(FeatType f) {
+        int[] al = new int[AttributeType.COUNT];
+        for (int i = 0; i < al.length; i++) al[i] = com.zhushen.space.data.BuildRules.attrLevel(attrList.cur[i]);
+        return f.prereqMet(al, skillList.cur);
+    }
+
     private int featTopLevel(int k) {
-        int m = featCur[k];
+        int m = featCur[k] & FeatType.LEVEL_BITS;
         return m == 0 ? 0 : 31 - Integer.numberOfLeadingZeros(m);
     }
 
@@ -573,6 +579,7 @@ public class GodPanelScreen extends Screen {
     private int featChoiceCount(FeatType f) {
         int k = f.ordinal();
         if (f == FeatType.SPECIAL_IDENTITY) return ((featCur[k] & 2) != 0 ? 1 : 0) + ((featCur[k] & 8) != 0 ? 2 : 0);
+        if (f == FeatType.BARBARIAN) return (featCur[k] & FeatType.LEVEL_BITS) != 0 ? 1 : 0;
         return 0;
     }
 
@@ -704,7 +711,8 @@ public class GodPanelScreen extends Screen {
         g.drawString(font, cat, dx + dw - 5 - font.width(cat), y, accent, false);
         Component pre = Component.translatable("build.zhushenspace.prereq",
                 Component.translatable(f.prereqKey()));
-        g.drawString(font, font.plainSubstrByWidth(pre.getString(), dw - 10), dx + 5, y + 11, 0xFF8A94A4, false);
+        boolean preOk = featPrereqOk(f);
+        g.drawString(font, font.plainSubstrByWidth(pre.getString(), dw - 10), dx + 5, y + 11, preOk ? 0xFF8A94A4 : 0xFFFF6A6A, false);
         int[] lay = featDetailLayout(f);
         for (int l = f.minLevel; l <= f.maxLevel; l++) {
             int[] r = featPipRect(f, l, lay);
@@ -731,6 +739,14 @@ public class GodPanelScreen extends Screen {
                 JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
                         Component.translatable("build.zhushenspace.si3", skillLabel(si3bCur)), accent, featEditable(f));
             }
+        }
+        if (f == FeatType.BARBARIAN && (featCur[k] & FeatType.LEVEL_BITS) != 0) {
+            int[] r = featChoiceRect(0, lay);
+            int c = FeatType.choice(featCur[k]);
+            JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                    Component.translatable("build.zhushenspace.barbarian_attr",
+                            Component.translatable(AttributeType.values()[Math.max(0, c)].nameKey())),
+                    accent, featEditable(f) && featSaved[k] == 0);
         }
         // 说明（悬停等级优先，否则当前最高等级，否则最低等级），可滚动
         int showL = featHoverLevel >= 0 ? featHoverLevel : Math.max(f.minLevel, featTopLevel(k));
@@ -786,6 +802,7 @@ public class GodPanelScreen extends Screen {
             }
             if (!f.validMask(m)) { ZsTheme.click(0.5f); return; }
         }
+        if (f == FeatType.BARBARIAN) m = (m & FeatType.LEVEL_BITS) == 0 ? 0 : FeatType.withChoice(m, Math.max(0, FeatType.choice(m)));
         featCur[k] = m;
         if (f == FeatType.SPECIAL_IDENTITY) {
             if ((m & 2) == 0) si1Cur = -1;
@@ -848,6 +865,15 @@ public class GodPanelScreen extends Screen {
                     toggleFeatLevel(f, l);
                     return true;
                 }
+            }
+        }
+        if (f == FeatType.BARBARIAN && featEditable(f) && featSaved[k] == 0 && (featCur[k] & FeatType.LEVEL_BITS) != 0 && (button == 0 || button == 1)) {
+            int[] r = featChoiceRect(0, lay);
+            if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) {
+                int c = (Math.max(0, FeatType.choice(featCur[k])) + (button == 0 ? 1 : 2)) % 3;
+                featCur[k] = FeatType.withChoice(featCur[k], c);
+                ZsTheme.click(1.0f);
+                return true;
             }
         }
         if (f == FeatType.SPECIAL_IDENTITY && featEditable(f) && (button == 0 || button == 1)) {

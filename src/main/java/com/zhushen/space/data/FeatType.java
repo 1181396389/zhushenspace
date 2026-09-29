@@ -13,7 +13,52 @@ public enum FeatType {
     SPECIAL_IDENTITY("special_identity", Category.CREATION, 1, 3),
     SUPERNATURAL_IDENTITY("supernatural_identity", Category.CREATION, 5, 5),
     /** 先天男娘（0 级，0 XP）。前提：男性。性别判定见 common/GenderRules */
-    BORN_FEMBOY("born_femboy", Category.NORMAL, 0, 0);
+    BORN_FEMBOY("born_femboy", Category.NORMAL, 0, 0),
+    WASTELANDER("wastelander", Category.NORMAL, 3, 3),
+    MONSTROUS_STRENGTH("monstrous_strength", Category.NORMAL, 3, 3),
+    BARBARIAN("barbarian", Category.NORMAL, 3, 3),
+    FUTURE_HUMAN("future_human", Category.NORMAL, 3, 3),
+    GIANT_BODY("giant_body", Category.NORMAL, 4, 4),
+    SIXTH_SENSE("sixth_sense", Category.NORMAL, 3, 3),
+    PSIONIC_TALENT("psionic_talent", Category.NORMAL, 3, 3),
+    YOKAI_BLOOD("yokai_blood", Category.NORMAL, 3, 3),
+    REINCARNATED_BUDDHA("reincarnated_buddha", Category.NORMAL, 3, 3),
+    MAGIC_CONSTITUTION("magic_constitution", Category.NORMAL, 3, 3),
+    INNATE_DAO_BODY("innate_dao_body", Category.NORMAL, 3, 3),
+    PSYCHIC_CONSTITUTION("psychic_constitution", Category.NORMAL, 3, 3),
+    MARTIAL_PRODIGY("martial_prodigy", Category.NORMAL, 3, 3),
+    CHAKRA_CONSTITUTION("chakra_constitution", Category.NORMAL, 3, 3);
+
+    /** 掩码低 16 位 = 等级；高 16 位 = 附带选择（如蛮族的属性，存 值+1） */
+    public static final int LEVEL_BITS = 0xFFFF;
+
+    public static int choice(int mask) { return (mask >>> 16) - 1; }
+
+    public static int withChoice(int mask, int choice) { return (mask & LEVEL_BITS) | ((choice + 1) << 16); }
+
+    /** 前提是否满足（attr = 属性整数值，skills = 技能等级） */
+    public boolean prereqMet(int[] a, int[] sk) {
+        int STR = a[AttributeType.STRENGTH.ordinal()], AGI = a[AttributeType.AGILITY.ordinal()],
+                END = a[AttributeType.ENDURANCE.ordinal()], INT = a[AttributeType.INTELLIGENCE.ordinal()],
+                PER = a[AttributeType.PERCEPTION.ordinal()], RES = a[AttributeType.RESOLVE.ordinal()],
+                CHA = a[AttributeType.CHARM.ordinal()], COM = a[AttributeType.COMPOSURE.ordinal()];
+        int OCC = sk[SkillType.OCCULTISM.ordinal()];
+        int melee = Math.max(sk[SkillType.BRAWL.ordinal()], sk[SkillType.BLADE.ordinal()]);
+        return switch (this) {
+            case WASTELANDER -> END >= 3;
+            case BARBARIAN -> STR >= 3 || AGI >= 3 || END >= 3;
+            case FUTURE_HUMAN -> INT >= 3;
+            case SIXTH_SENSE -> PER >= 3 && RES >= 3 && COM >= 3;
+            case PSIONIC_TALENT, PSYCHIC_CONSTITUTION -> RES >= 3 && COM >= 3;
+            case YOKAI_BLOOD -> CHA >= 3 && END >= 3;
+            case REINCARNATED_BUDDHA -> RES >= 3 && CHA >= 3; // 「没有精神类缺陷」待缺陷系统
+            case MAGIC_CONSTITUTION -> INT >= 3 && OCC >= 3;
+            case INNATE_DAO_BODY -> CHA >= 3 && OCC >= 3;
+            case MARTIAL_PRODIGY -> END >= 3 && melee >= 3;
+            case CHAKRA_CONSTITUTION -> PER >= 3 && OCC >= 3;
+            default -> true; // 先天男娘（男性）、巨大身材（不可选侏儒身材）待性别 / 缺陷系统
+        };
+    }
 
     public enum Category {
         NORMAL(3), REINCARNATION(6), CREATION(3);
@@ -59,12 +104,13 @@ public enum FeatType {
 
     /** 等级掩码（bit l = 拥有第 l 级）是否合法 */
     public boolean validMask(int mask) {
-        for (int l = 0; l < 31; l++) {
+        mask &= LEVEL_BITS;
+        for (int l = 0; l < 16; l++) {
             if ((mask & (1 << l)) != 0 && (l < minLevel || l > maxLevel)) return false;
         }
         if (creationOnly() || mask == 0) return true;
         // 普通 / 轮回：必须自最低级起连续
-        int top = 31 - Integer.numberOfLeadingZeros(mask);
+        int top = 31 - Integer.numberOfLeadingZeros(mask & LEVEL_BITS);
         for (int l = minLevel; l <= top; l++) if ((mask & (1 << l)) == 0) return false;
         return true;
     }

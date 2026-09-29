@@ -42,6 +42,15 @@ public final class BuildCheck {
             int m = featMask[f.ordinal()], sm = savedFeat[f.ordinal()];
             if (!f.validMask(m) || (m & sm) != sm) r.err("build.zhushenspace.err.invalid");
             if (created && f.creationOnly() && m != sm) r.err("build.zhushenspace.err.creation_feat");
+            if ((m & FeatType.LEVEL_BITS) != (sm & FeatType.LEVEL_BITS)) {
+                int[] al = new int[AttributeType.COUNT];
+                for (int i = 0; i < al.length; i++) al[i] = BuildRules.attrLevel(attrXp[i]);
+                if (!f.prereqMet(al, skills)) r.err("build.zhushenspace.err.prereq");
+            }
+            if (f == FeatType.BARBARIAN && (m & FeatType.LEVEL_BITS) != 0) {
+                int c = FeatType.choice(m);
+                if (c < 0 || c > 2) r.err("build.zhushenspace.err.barbarian");
+            }
         }
         if (created) {
             if (si1 != savedSi1 || si3a != savedSi3a || si3b != savedSi3b) r.err("build.zhushenspace.err.creation_feat");
