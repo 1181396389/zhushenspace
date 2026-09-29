@@ -41,37 +41,7 @@ public final class JjkDomain {
         int rx0 = Math.max(sx, mid - ex), rx1 = Math.min(x + w, mid + ex);
         if (rx1 > rx0) {
             g.enableScissor(rx0, y, rx1, y + h);
-            int seaY = y + (int) (h * 0.74f);
-            g.fillGradient(sx, y, x + w, seaY, 0xFF140206, 0xFF5A0A12);
-            // 天幕中的暗红云层
-            for (int i = 0; i < 6; i++) {
-                int cy = y + 10 + i * (int) (h * 0.09f);
-                int off = (int) ((t * 6 * (1 + i * 0.3f)) % 60);
-                for (int k = -1; k < w / 60 + 2; k++) {
-                    int cx = sx + k * 60 + off - 30;
-                    g.fill(cx, cy, cx + 38, cy + 1, 0x22FF4050);
-                }
-            }
-            // 神社：位于右半中央
-            float shx = (sx + x + w) / 2f + 6, base = seaY;
-            shrine(g, shx, base, Math.min(h * 0.55f, (x + w - sx) * 0.55f), t);
-            // 骨山：神社两侧堆叠的头骨
-            skulls(g, shx - (x + w - sx) * 0.34f, base, 11, t, 3);
-            skulls(g, shx + (x + w - sx) * 0.34f, base, 11, t, 17);
-            // 血海
-            g.fillGradient(sx, seaY, x + w, y + h, 0xFF4A0008, 0xFF1A0003);
-            for (int i = 0; i < 14; i++) {
-                int ry = seaY + 2 + i * 3;
-                if (ry >= y + h) break;
-                float ph = t * (0.6f + i * 0.05f) + i;
-                for (int k = 0; k < 8; k++) {
-                    int rx = sx + (int) (((hash(i, k) * (x + w - sx)) + ph * 14) % (x + w - sx));
-                    int len = 6 + (int) (hash(i + 30, k) * 14);
-                    g.fill(rx, ry, rx + len, ry + 1, alpha(0xFFFF4A5A, 0.12f + 0.1f * (float) Math.sin(ph + k)));
-                }
-            }
-            // 倒影
-            g.fill(sx, seaY, x + w, seaY + 1, 0x66FF3040);
+            malevolentShrine(g, sx, y, x + w, h, t);
             // 斩击闪现（领域内无差别斩）
             long now = ZsAnim.nowMs();
             for (int i = 0; i < 5; i++) {
@@ -220,6 +190,171 @@ public final class JjkDomain {
         // 暗角
         g.fillGradient(x, y, x1, y + h / 5, 0x88000000, 0x00000000);
         g.fillGradient(x, y + h - h / 5, x1, y + h, 0x00000000, 0x88000000);
+    }
+
+    // ============ 伏魔御厨子（动画版）：血色涡云天幕 + 神龛 + 黑水镜面倒影 + 青色水光 ============
+    private static float MY = Float.NaN; // 镜像轴（NaN = 不镜像）
+
+    private static float my(float yy) { return Float.isNaN(MY) ? yy : 2 * MY - yy; }
+
+    private static void mrect(GuiGraphics g, float x0, float y0, float x1, float y1, int col) {
+        float a = my(y0), b = my(y1);
+        rect(g, x0, Math.min(a, b), x1, Math.max(a, b), col);
+    }
+
+    private static void mline(GuiGraphics g, float x0, float y0, float x1, float y1, float w, int col) {
+        line(g, x0, my(y0), x1, my(y1), w, col);
+    }
+
+    private static void mtri(GuiGraphics g, float ax, float ay, float bx, float by, float cx, float cy, int col) {
+        tri(g, ax, my(ay), bx, my(by), cx, my(cy), col);
+    }
+
+    private static void malevolentShrine(GuiGraphics g, int x0, int y, int x1, int h, float t) {
+        int w = x1 - x0;
+        int waterY = y + (int) (h * 0.52f);
+        // 天幕：纯黑 → 暗红
+        g.fillGradient(x0, y, x1, waterY, 0xFF030001, 0xFF1A0205);
+        // 血色涡云：多条正弦流带，缓慢翻涌
+        for (int band = 0; band < 7; band++) {
+            float by = y + h * (0.05f + band * 0.065f);
+            float amp = 4 + band * 1.5f, fq = 0.03f + hash(band, 401) * 0.03f, sp = 0.4f + hash(band, 402) * 0.6f;
+            for (int px = x0; px < x1; px += 1) {
+                float yy = by + (float) Math.sin(px * fq + t * sp + band) * amp
+                        + (float) Math.sin(px * fq * 2.7f - t * sp * 1.3f) * amp * 0.4f;
+                float den = (float) (0.5 + 0.5 * Math.sin(px * 0.05 + t * 0.7 + band * 2));
+                int th = 1 + (int) (den * 3);
+                g.fill(px, (int) yy, px + 1, (int) yy + th, alpha(band % 2 == 0 ? 0xFFB0121E : 0xFF6A0810, 0.18f + 0.3f * den));
+            }
+        }
+        // 涡旋：两团旋转的血云
+        for (int v = 0; v < 2; v++) {
+            float vx = x0 + w * (v == 0 ? 0.2f : 0.82f), vy = y + h * 0.14f;
+            for (int j = 0; j < 140; j++) {
+                float d = j / 140f;
+                double a = d * 10 + t * (v == 0 ? 0.6 : -0.6);
+                float r = d * w * 0.16f;
+                int px = (int) (vx + Math.cos(a) * r), py = (int) (vy + Math.sin(a) * r * 0.4f);
+                g.fill(px, py, px + 2, py + 1, alpha(0xFFD0202E, 0.35f * (1 - d)));
+            }
+        }
+        float cx = x0 + w / 2f + 4;
+        float size = Math.min(h * 0.46f, w * 0.62f);
+        // 神龛（正像）
+        MY = Float.NaN;
+        shrine2(g, cx, waterY - 2, size, t, 1f);
+        // —— 黑水 ——
+        g.fillGradient(x0, waterY, x1, y + h, 0xFF02080C, 0xFF03141A);
+        // 青色水光斑块（水底反光，缓慢流动）
+        for (int i = 0; i < 90; i++) {
+            float fx = (hash(i, 411) * w + t * (4 + hash(i, 412) * 6)) % w;
+            float fy = waterY + 4 + hash(i, 413) * (y + h - waterY - 4);
+            float pw = 6 + hash(i, 414) * 18;
+            float lum = (float) (0.5 + 0.5 * Math.sin(t * (1 + hash(i, 415) * 2) + i));
+            g.fill((int) (x0 + fx), (int) fy, (int) (x0 + fx + pw), (int) fy + 1 + (int) (hash(i, 416) * 2),
+                    alpha(i % 4 == 0 ? 0xFF7FF0FF : 0xFF1FA6B8, 0.12f + 0.3f * lum));
+        }
+        // 倒影（镜像神龛，压暗）
+        MY = waterY;
+        shrine2(g, cx, waterY - 2, size, t, 0.55f);
+        MY = Float.NaN;
+        // 波纹：横向错位暗条扫过倒影
+        for (int r = waterY + 2; r < y + h; r += 3) {
+            float ph = (float) Math.sin(r * 0.4 + t * 2.2);
+            int off = (int) (ph * 6);
+            g.fill(x0 + Math.max(0, off), r, x1 + Math.min(0, off), r + 1, alpha(0xFF02080C, 0.35f + 0.2f * ph));
+        }
+        // 青蓝光柱（水面两侧，闪烁）
+        for (int k = 0; k < 4; k++) {
+            float px = x0 + w * (k < 2 ? 0.1f + k * 0.12f : 0.78f + (k - 2) * 0.12f);
+            float fl = 0.55f + 0.45f * (float) Math.sin(t * (1.5 + k * 0.7) + k * 2);
+            int pw = 4 + k % 2 * 3;
+            g.fillGradient((int) px, waterY - (int) (h * 0.06f), (int) px + pw, y + h, alpha(0xFF3FC8FF, 0.0f), alpha(0xFF3FC8FF, 0.55f * fl));
+            g.fill((int) px + pw / 2, waterY, (int) px + pw / 2 + 1, y + h, alpha(0xFFBFF4FF, 0.6f * fl));
+        }
+        // 水平线：红雾交界
+        g.fillGradient(x0, waterY - 6, x1, waterY, 0x00000000, 0x55A0101C);
+        g.fill(x0, waterY, x1, waterY + 1, 0x88FF4A3A);
+    }
+
+    /** 神龛：赤红立柱、橙焰檐口、正面青光巨口、顶上两对巨大弯角 */
+    private static void shrine2(GuiGraphics g, float cx, float base, float size, float t, float lit) {
+        float s = size / 100f;
+        float glow = 0.75f + 0.25f * (float) Math.sin(t * 2.3);
+        int pillar = ZsAnim.lerpColor(0xFF200404, 0xFFFF4A1E, lit * glow);
+        int dark = 0xFF0A0203, roofC = ZsAnim.lerpColor(0xFF120404, 0xFF3A0C0C, lit);
+        int eave = ZsAnim.lerpColor(0xFF301008, 0xFFFF8A3A, lit * glow);
+        int bone = ZsAnim.lerpColor(0xFF203038, 0xFFBFE6F0, lit);
+        int teal = ZsAnim.lerpColor(0xFF06303A, 0xFF4FE0F0, lit * glow);
+        // 台基
+        mrect(g, cx - 30 * s, base - 5 * s, cx + 30 * s, base, roofC);
+        mrect(g, cx - 32 * s, base - 1.5f * s, cx + 32 * s, base, eave);
+        // 殿身
+        mrect(g, cx - 22 * s, base - 42 * s, cx + 22 * s, base - 5 * s, dark);
+        // 巨口：上下獠牙 + 青光喉
+        float open = 7 + 3 * (float) Math.sin(t * 1.1f);
+        float mcy = base - 24 * s;
+        mrect(g, cx - 15 * s, mcy - open * s, cx + 15 * s, mcy + open * s, ZsAnim.lerpColor(dark, teal, 0.35f));
+        mrect(g, cx - 3 * s, mcy - open * s * 0.7f, cx + 3 * s, mcy + open * s * 0.7f, ZsAnim.lerpColor(dark, 0xFFFFFFFF, 0.5f * lit));
+        for (int i = 0; i < 7; i++) {
+            float tx = cx - 14 * s + i * 4 * s;
+            mtri(g, tx, mcy - open * s, tx + 3.6f * s, mcy - open * s, tx + 1.8f * s, mcy - (open - 4.5f) * s, bone);
+            mtri(g, tx, mcy + open * s, tx + 3.6f * s, mcy + open * s, tx + 1.8f * s, mcy + (open - 4.5f) * s, bone);
+        }
+        // 赤柱（两对）
+        for (int i : new int[]{-1, 1}) {
+            float px = cx + i * 19 * s;
+            mrect(g, px - 2.2f * s, base - 42 * s, px + 2.2f * s, base - 5 * s, pillar);
+            mrect(g, px - 0.6f * s, base - 42 * s, px + 0.6f * s, base - 5 * s, alpha(0xFFFFE0A0, 0.6f * lit * glow));
+            // 柱侧弯角（肋骨状）
+            for (int r = 0; r < 3; r++) {
+                float ry = base - (34 - r * 9) * s;
+                float ppx = px + i * 2 * s, ppy = ry;
+                for (int q = 1; q <= 5; q++) {
+                    float nx = px + i * (2 + q * 1.8f) * s, ny = ry - (float) Math.sin(q / 5f * Math.PI) * 4 * s + q * 0.6f * s;
+                    mline(g, ppx, ppy, nx, ny, Math.max(1, 1.6f * s), bone);
+                    ppx = nx; ppy = ny;
+                }
+            }
+        }
+        // 屋顶（两层，橙色檐口发光）
+        float ry = base - 42 * s;
+        for (int k = 0; k < 2; k++) {
+            float hw = (40 - k * 12) * s, th = 6 * s;
+            for (int r = 0; r < Math.max(2, Math.round(th)); r++) {
+                float ww = hw * (1 - 0.3f * r / th);
+                mrect(g, cx - ww, ry - r - 1, cx + ww, ry - r, roofC);
+            }
+            mrect(g, cx - hw - 3 * s, ry - 1.5f * s, cx + hw + 3 * s, ry, eave);
+            mline(g, cx - hw - 3 * s, ry - 1, cx - hw - 7 * s, ry - 5 * s, Math.max(1, s * 1.2f), eave);
+            mline(g, cx + hw + 3 * s, ry - 1, cx + hw + 7 * s, ry - 5 * s, Math.max(1, s * 1.2f), eave);
+            // 檐下红花饰
+            for (int i : new int[]{-1, 1}) {
+                float fx = cx + i * hw * 0.7f, fy = ry + 2 * s;
+                disk(g, fx, my(fy), 2.2f * s, 1, alpha(0xFFFF3A2A, 0.8f * lit + 0.2f));
+            }
+            ry -= th;
+            if (k == 0) { mrect(g, cx - 18 * s, ry - 6 * s, cx + 18 * s, ry, dark); ry -= 6 * s; }
+        }
+        // 顶饰：青色宝珠
+        disk(g, cx, my(ry - 3 * s), 2.5f * s, 1, teal);
+        // 顶上巨角：两对向外上方弯曲
+        for (int pair = 0; pair < 2; pair++) {
+            float spread = 12 + pair * 10, rise = 20 + pair * 6;
+            for (int i : new int[]{-1, 1}) {
+                float px = cx + i * 4 * s, py = ry - 2 * s;
+                for (int q = 1; q <= 10; q++) {
+                    float u = q / 10f;
+                    float nx = cx + i * (4 + spread * (float) Math.sin(u * Math.PI * 0.6)) * s;
+                    float ny = ry - 2 * s - rise * u * s + (float) Math.pow(u, 3) * 8 * s;
+                    float wdt = Math.max(1, (3.2f - u * 2.6f) * s * 0.9f);
+                    mline(g, px, py, nx, ny, wdt, bone);
+                    px = nx; py = ny;
+                }
+            }
+        }
+        // 神龛辉光
+        if (lit > 0.9f) disk(g, cx, my(mcy), 9 * s, 1, alpha(0xFF4FE0F0, 0.08f + 0.08f * glow));
     }
 
     private static void shrine(GuiGraphics g, float cx, float base, float size, float t) {
