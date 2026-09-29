@@ -112,6 +112,18 @@ public class PlayerHealthData implements INBTSerializable<CompoundTag> {
      *
      * @return 实际移除的伤势点数
      */
+    /** 只移除指定等级的伤势，返回实际移除数 */
+    public int healSeverity(Severity sev, int amount) {
+        if (amount <= 0) return 0;
+        int take;
+        switch (sev) {
+            case B -> { take = Math.min(b, amount); b -= take; }
+            case L -> { take = Math.min(l, amount); l -= take; }
+            default -> { take = Math.min(a, amount); a -= take; }
+        }
+        return take;
+    }
+
     public int heal(int amount) {
         if (amount <= 0) return 0;
         int rem = amount;

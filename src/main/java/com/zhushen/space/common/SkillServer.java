@@ -41,7 +41,9 @@ public class SkillServer {
             int s = checked[i];
             if (s >= 0) {
                 SkillAbility ability = SkillAbility.values()[s];
-                if (ability.isNeiliAbility()) {
+                if (ability.isArtAbility()) {
+                    if (!ArtManager.owns(player, ability)) checked[i] = -1;
+                } else if (ability.isNeiliAbility()) {
                     // 内力系：需拥有内力池
                     if (player.getData(ModAttachments.PLAYER_ENERGY)
                             .getPool(EnergyManager.POOL_NEILI) == null) {

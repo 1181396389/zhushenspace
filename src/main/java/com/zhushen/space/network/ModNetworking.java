@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("11"); // 协议版本：建卡 XP
+        PayloadRegistrar registrar = event.registrar("12"); // 协议版本：技艺
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -39,6 +39,15 @@ public class ModNetworking {
 
         registrar.playToClient(SyncEnvelopePayload.TYPE, SyncEnvelopePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientEnvelopeData.update(payload.used())));
+
+        // ===== 技艺 =====
+        registrar.playToClient(SyncArtsPayload.TYPE, SyncArtsPayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientArtData.update(
+                        p.owned(), p.opt(), p.cur(), p.res(), p.holdback(), p.amp(), p.xp())));
+        registrar.playToServer(ArtActionPayload.TYPE, ArtActionPayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer sp) com.zhushen.space.common.ArtManager.handle(sp, p);
+                }));
 
         // ===== 建卡 XP =====
         registrar.playToClient(SyncBuildPayload.TYPE, SyncBuildPayload.STREAM_CODEC,

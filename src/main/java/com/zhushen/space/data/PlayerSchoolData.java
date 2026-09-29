@@ -21,7 +21,7 @@ public class PlayerSchoolData implements INBTSerializable<CompoundTag> {
 
     static {
         // 位掩码为 int：技能数超过 31 会静默溢出，届时需改为 long / BitSet
-        if (SkillAbility.COUNT > 31) {
+        for (SkillAbility a : SkillAbility.values()) if (a.isSchoolAbility() && a.ordinal() > 30) {
             throw new IllegalStateException("SkillAbility 数量超过 31，PlayerSchoolData.skillBits 需要扩容");
         }
     }
@@ -41,13 +41,14 @@ public class PlayerSchoolData implements INBTSerializable<CompoundTag> {
     /** 指定流派的指定能力是否已购买（bit = SkillAbility 序号） */
     public boolean isSkillPurchased(int schoolOrdinal, int abilityId) {
         if (schoolOrdinal < 0 || schoolOrdinal >= SchoolType.COUNT) return false;
+        if (abilityId < 0 || abilityId > 30) return false;
         return (skillBits[schoolOrdinal] & (1 << abilityId)) != 0;
     }
 
     /** 置位已购买技能 */
     public void purchaseSkill(int schoolOrdinal, int abilityId) {
         if (schoolOrdinal < 0 || schoolOrdinal >= SchoolType.COUNT) return;
-        if (abilityId < 0 || abilityId >= SkillAbility.COUNT) return;
+        if (abilityId < 0 || abilityId > 30) return;
         skillBits[schoolOrdinal] |= (1 << abilityId);
     }
 

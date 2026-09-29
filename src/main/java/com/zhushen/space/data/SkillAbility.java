@@ -65,7 +65,27 @@ public enum SkillAbility {
     /** 太极化劲：待势 5 秒，期间受到使用能量池的近战攻击时反击肉搏，命中后可连锁揽雀尾/云手/海底针，成功则封印其能量池 1 分钟（结算耗 5 内力、冷却 20 秒） */
     TAI_CHI_DISSOLVE(null, 0, 100, "tai_chi", "tc_dissolve"),
     /** 擒抱（基础动作）：抓住触及范围内的目标；擒抱中再次使用 = 夺取移动权，潜行使用 = 挣脱。1 回合 = 3 秒 */
-    GRAPPLE(SkillType.BRAWL, 0, 60, null, "grapple");
+    GRAPPLE(SkillType.BRAWL, 0, 60, null, "grapple"),
+    // ===== 技艺（商城购买，冷却 1 轮 = 3 秒）=====
+    SPIRIT_SLASH(null, 0, 60, "art", "art_spirit_slash"),
+    SPIRIT_HEAL(null, 0, 60, "art", "art_spirit_heal"),
+    MIND_BLAST(null, 0, 60, "art", "art_mind_blast"),
+    MIND_SHOCK(null, 0, 60, "art", "art_mind_shock"),
+    HADOKEN(null, 0, 60, "art", "art_hadoken"),
+    BREATH_METHOD(null, 0, 60, "art", "art_breath_method"),
+    YAKSHA_FLIGHT(null, 0, 60, "art", "art_yaksha_flight"),
+    MAGIC_BURST(null, 0, 60, "art", "art_magic_burst"),
+    MINOR_WARD(null, 0, 60, "art", "art_minor_ward"),
+    FIVE_ELEMENTS(null, 0, 60, "art", "art_five_elements"),
+    EIGHT_FORMATION(null, 0, 60, "art", "art_eight_formation"),
+    IGNORE_ME(null, 0, 60, "art", "art_ignore_me"),
+    BIO_LIGHTNING(null, 0, 60, "art", "art_bio_lightning"),
+    NETHER_VIGOR(null, 0, 60, "art", "art_nether_vigor"),
+    WIND_SLASH(null, 0, 60, "art", "art_wind_slash"),
+    BASIC_PALM(null, 0, 60, "art", "art_basic_palm"),
+    REVIVE(null, 0, 60, "art", "art_revive"),
+    PHOENIX_FIRE(null, 0, 60, "art", "art_phoenix_fire"),
+    GREAT_FIREBALL(null, 0, 60, "art", "art_great_fireball");
 
     public static final String GATE_NEILI = "neili";
     public static final String GATE_TAI_CHI = "tai_chi";
@@ -141,6 +161,11 @@ public enum SkillAbility {
         return GATE_TAI_CHI.equals(gate);
     }
 
+    /** 技艺（商城按能量池分类购买） */
+    public boolean isArtAbility() {
+        return "art".equals(gate);
+    }
+
     public String gate() {
         return gate;
     }
@@ -195,7 +220,9 @@ public enum SkillAbility {
                                               boolean taiChiUnlocked) {
         List<SkillAbility> result = new ArrayList<>();
         for (SkillAbility ability : values()) {
-            if (ability.isNeiliAbility()) {
+            if (ability.isArtAbility()) {
+                continue; // 技艺：由已购记录单独列出
+            } else if (ability.isNeiliAbility()) {
                 if (hasNeiliPool) result.add(ability);
             } else if (ability.isSchoolAbility()) {
                 if (taiChiUnlocked) result.add(ability);

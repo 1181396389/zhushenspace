@@ -280,7 +280,11 @@ public final class DamageRules {
         else FLAT.computeIfAbsent(target.getUUID(), k -> new HashMap<>()).put(source.getUUID(), until);
     }
 
+    /** 免疫措手不及（如息法·中息） */
+    public static java.util.function.Predicate<LivingEntity> FLAT_IMMUNE = e -> false;
+
     public static boolean isFlatFooted(LivingEntity target, Entity attacker) {
+        if (FLAT_IMMUNE.test(target)) return false;
         long now = target.level().getGameTime();
         Long all = FLAT_ALL.get(target.getUUID());
         if (all != null && all > now) return true;

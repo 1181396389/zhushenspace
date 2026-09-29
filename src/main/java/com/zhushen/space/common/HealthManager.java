@@ -64,6 +64,14 @@ public class HealthManager {
         normalize(player);
     }
 
+    /** 技艺治疗后：归位生命值 + 同步 + 苏醒检查 */
+    public static void afterHeal(ServerPlayer player, int limbHeal) {
+        if (limbHeal > 0) LimbManager.heal(player, limbHeal);
+        normalize(player);
+        sync(player);
+        checkWake(player, player.getData(ModAttachments.PLAYER_HEALTH));
+    }
+
     /** 将生命值归位为「完好生命值」（昏迷保 0.5，全身恶性满载则处决） */
     private static void normalize(ServerPlayer player) {
         PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);

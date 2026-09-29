@@ -10,6 +10,10 @@ import com.zhushen.space.data.AttributeType;
 import com.zhushen.space.data.PlayerCurrencyData;
 import com.zhushen.space.data.SchoolType;
 import com.zhushen.space.data.SkillAbility;
+import com.zhushen.space.data.ArtSkill;
+import com.zhushen.space.client.ClientArtData;
+import com.zhushen.space.common.FeatEffects;
+import com.zhushen.space.network.ArtActionPayload;
 import com.zhushen.space.data.SkillType;
 import com.zhushen.space.data.BuildRules;
 import com.zhushen.space.data.BuildCheck;
@@ -1496,6 +1500,9 @@ public class GodPanelScreen extends Screen {
         for (SkillAbility ability : SkillAbility.unlocked(ClientSkillData.points(), hasPool, false)) {
             items.add(new ChipItem(ability, true, false));
         }
+        for (ArtSkill art : ArtSkill.values()) {
+            if (ClientArtData.owns(art)) items.add(new ChipItem(art.ability, ClientEnergyData.hasPool(art.pool.id), false));
+        }
         if (ClientProgressData.taiChiUnlocked()) {
             items.add(new ChipItem(null, false, false));
             if (taiChiFolderOpen) {
@@ -1669,10 +1676,15 @@ public class GodPanelScreen extends Screen {
 
     private void renderShopTab(GuiGraphics g, int mouseX, int mouseY) {
         renderCosmos(g);
+        if (detailArt >= 0) {
+            renderArtDetail(g, mouseX, mouseY);
+            return;
+        }
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             renderSchoolDetail(g, mouseX, mouseY);
             return;
         }
+        renderArtGrid(g, mouseX, mouseY);
         for (int i = 0; i < SchoolType.COUNT; i++) {
             SchoolType school = SchoolType.values()[i];
             int cy = shopCardY(i);
@@ -1872,8 +1884,238 @@ public class GodPanelScreen extends Screen {
         return null;
     }
 
+    // ===== 技艺（按能量池分类） =====
+
+    private int detailArt = -1;
+
+    private int artGridTop() { return shopCardY(SchoolType.COUNT) + 2; }
+
+    private static final int ART_TILE_H = 30;
+
+    private int[] artTile(int i) {
+        int cols = 3, gap = 4;
+        int w = (panelW - 10 - gap * (cols - 1)) / cols;
+        int x = panelX + 5 + (i % cols) * (w + gap);
+        int y = artGridTop() + 14 + (i / cols) * (ART_TILE_H + gap);
+        return new int[]{x, y, w};
+    }
+
+    private void renderArtGrid(GuiGraphics g, int mouseX, int mouseY) {
+        g.drawString(font, Component.translatable("screen.zhushenspace.art.title"), panelX + 8, artGridTop() + 2, ACCENT, true);
+        for (int i = 0; i < ArtSkill.CATEGORIES.length; i++) {
+            FeatEffects.Pool pool = ArtSkill.CATEGORIES[i];
+            int[] t = artTile(i);
+            boolean has = ClientEnergyData.hasPool(pool.id);
+            boolean hover = over(mouseX, mouseY, t[0], t[1], t[2], ART_TILE_H);
+            ZsTheme.card(g, t[0], t[1], t[2], ART_TILE_H, hover);
+            List<ArtSkill> list = ArtSkill.inCategory(pool);
+            int own = 0;
+            for (ArtSkill s : list) if (ClientArtData.owns(s)) own++;
+            g.drawString(font, Component.translatable("art.zhushenspace.cat." + pool.id), t[0] + 6, t[1] + 5,
+                    has ? TEXT_MAIN : 0xFF6A6280, true);
+            g.drawString(font, own + "/" + list.size(), t[0] + 6, t[1] + 17, has ? GOLD : 0xFF6A6280, true);
+            if (!has) {
+                String lock = Component.translatable("screen.zhushenspace.art.no_pool_short").getString();
+                g.drawString(font, lock, t[0] + t[2] - font.width(lock) - 5, t[1] + 17, 0xFFFF8A80, true);
+            }
+        }
+    }
+
+    /** 详情页条目：row = 技艺行；chips = 选项 / 研发芯片行 */
+    private record ArtChip(String label, int action, int value, int state) {}  // state 0 可购 1 已有 2 当前 3 锁定
+    private record ArtLine(ArtSkill art, List<ArtChip> chips) {}
+
+    private static final int ART_CHIP_H = 14;
+
+    private List<ArtLine> artLines(FeatEffects.Pool pool) {
+        List<ArtLine> lines = new ArrayList<>();
+        int maxW = panelW - 40;
+        for (ArtSkill s : ArtSkill.inCategory(pool)) {
+            lines.add(new ArtLine(s, null));
+            if (!ClientArtData.owns(s)) continue;
+            List<ArtChip> all = new ArrayList<>();
+            boolean anyOpt = false;
+            for (int i = 0; i < s.options.length; i++) if (ClientArtData.hasOption(s, i)) anyOpt = true;
+            for (int i = 0; i < s.options.length; i++) {
+                String name = Component.translatable(s.optionKey(i)).getString();
+                boolean have = ClientArtData.hasOption(s, i);
+                int state;
+                String label = name;
+                if (have) state = ClientArtData.current(s) == i ? 2 : 1;
+                else if (!anyOpt) { state = 0; label = name + " ✦"; }
+                else if (s.extraCost < 0) state = 3;
+                else { state = 0; label = name + " " + s.extraCost + "XP"; }
+                all.add(new ArtChip(label, 1, i, state));
+            }
+            for (int i = 0; i < s.researches.length; i++) {
+                ArtSkill.Research r = s.researches[i];
+                String name = Component.translatable(s.researchKey(i)).getString();
+                boolean have = ClientArtData.hasResearch(s, i);
+                int state = have ? 1 : (r.minCaster() > 1 ? 3 : 0);
+                String label = have ? name : name + (r.minCaster() > 1
+                        ? " [" + Component.translatable("screen.zhushenspace.art.caster", "DCBAS".charAt(Math.min(4, r.minCaster() - 1))).getString() + "]"
+                        : " " + r.xp() + "XP");
+                all.add(new ArtChip("⚗" + label, 2, i, state));
+            }
+            List<ArtChip> cur = new ArrayList<>();
+            int w = 0;
+            for (ArtChip c : all) {
+                int cw = font.width(c.label()) + 8;
+                if (!cur.isEmpty() && w + cw > maxW) { lines.add(new ArtLine(s, cur)); cur = new ArrayList<>(); w = 0; }
+                cur.add(c);
+                w += cw + 3;
+            }
+            if (!cur.isEmpty()) lines.add(new ArtLine(s, cur));
+        }
+        return lines;
+    }
+
+    private int artLineH(ArtLine l) { return l.chips() == null ? SHOP_ROW_H : ART_CHIP_H; }
+
+    private int artDetailListY() { return listTop + 2 + 14 + 12; }
+
+    private void renderArtDetail(GuiGraphics g, int mouseX, int mouseY) {
+        FeatEffects.Pool pool = ArtSkill.CATEGORIES[detailArt];
+        int y = listTop + 2;
+        renderSmallButton(g, mouseX, mouseY, panelX + 5, y, 30, 12, Component.translatable("screen.zhushenspace.shop.back"));
+        g.drawString(font, Component.translatable("art.zhushenspace.cat." + pool.id), panelX + 42, y + 2, TEXT_MAIN, true);
+        String xp = Component.translatable("screen.zhushenspace.art.xp", ClientArtData.xp()).getString();
+        g.drawString(font, xp, panelX + panelW - font.width(xp) - 8, y + 2, GOLD, true);
+        y += 14;
+        boolean has = ClientEnergyData.hasPool(pool.id);
+        g.drawString(font, Component.translatable(has ? "screen.zhushenspace.art.pool_ok" : "screen.zhushenspace.art.pool_missing"),
+                panelX + 8, y, has ? 0xFF4DE0C0 : 0xFFFF8A80, true);
+        y = artDetailListY();
+
+        List<ArtLine> lines = artLines(pool);
+        int contentH = 0;
+        for (ArtLine l : lines) contentH += artLineH(l);
+        int viewH = listBottom - y;
+        int maxScroll = Math.max(0, contentH - viewH);
+        detailScroll = Mth.clamp(detailScroll, 0, maxScroll);
+        g.enableScissor(panelX + 1, y, panelX + panelW - 1, listBottom);
+        List<FormattedCharSequence> tip = null;
+        int ry = y - detailScroll;
+        for (ArtLine l : lines) {
+            int h = artLineH(l);
+            if (ry + h >= y && ry < listBottom) {
+                if (l.chips() == null) {
+                    List<FormattedCharSequence> t = renderArtRow(g, mouseX, mouseY, l.art(), ry, has);
+                    if (t != null) tip = t;
+                } else {
+                    int cx = panelX + 30;
+                    for (ArtChip c : l.chips()) {
+                        int cw = font.width(c.label()) + 8;
+                        boolean hv = over(mouseX, mouseY, cx, ry + 1, cw, ART_CHIP_H - 2);
+                        int bg = switch (c.state()) { case 2 -> 0xCC6B4E16; case 1 -> 0xAA3A2F58; case 3 -> 0x66201C2C; default -> hv ? 0xCC4A3A7A : 0xAA2A2244; };
+                        int border = switch (c.state()) { case 2 -> GOLD; case 1 -> 0xFF8E7CC3; case 3 -> 0xFF4A4458; default -> ACCENT; };
+                        g.fill(cx, ry + 1, cx + cw, ry + ART_CHIP_H - 1, bg);
+                        g.renderOutline(cx, ry + 1, cw, ART_CHIP_H - 2, border);
+                        g.drawString(font, c.label(), cx + 4, ry + 3, c.state() == 3 ? 0xFF6A6280 : TEXT_MAIN, false);
+                        cx += cw + 3;
+                    }
+                }
+            }
+            ry += h;
+        }
+        g.disableScissor();
+        if (maxScroll > 0 && viewH > 0) ZsTheme.scrollbar(g, panelX + panelW - 5, y, listBottom, contentH, detailScroll, maxScroll);
+        if (tip != null) g.renderTooltip(font, tip, mouseX, mouseY);
+    }
+
+    private List<FormattedCharSequence> renderArtRow(GuiGraphics g, int mouseX, int mouseY, ArtSkill s, int ry, boolean hasPool) {
+        int cx = panelX + 5, cw = panelW - 10;
+        boolean hover = over(mouseX, mouseY, cx, ry, cw, SHOP_ROW_H - 1);
+        ZsTheme.row(g, cx, ry, cw, SHOP_ROW_H - 1, hover, true);
+        Component name = Component.translatable(s.ability.nameKey());
+        g.blit(s.ability.iconTexture(), cx + 4, ry + 4, 16, 16, 0f, 0f, 32, 32, 32, 32);
+        g.drawString(font, name, cx + 24, ry + 8, TEXT_MAIN, true);
+        String costTag = Component.translatable("screen.zhushenspace.art.energy", s.cost).getString();
+        g.drawString(font, costTag, cx + 24 + font.width(name) + 6, ry + 8, 0xFF7FA6C0, true);
+        boolean owned = ClientArtData.owns(s);
+        boolean affordable = hasPool && (s.branchTier < 0 || ClientProgressData.branch(s.branchTier) >= s.branchCost)
+                && ClientProgressData.score() >= s.scoreCost;
+        boolean overBuy = false;
+        String price = s.branchTier < 0
+                ? Component.translatable("screen.zhushenspace.art.price_score", s.scoreCost).getString()
+                : Component.translatable("screen.zhushenspace.shop.move_cost_short",
+                PlayerCurrencyData.tierLetter(s.branchTier), s.branchCost, s.scoreCost).getString();
+        if (owned) {
+            String o = Component.translatable("screen.zhushenspace.shop.skill_owned").getString();
+            g.drawString(font, o, cx + cw - font.width(o) - 6, ry + 8, GOLD, true);
+        } else {
+            g.drawString(font, price, cx + cw - 48 - font.width(price) - 4, ry + 8, affordable ? TEXT_SUB : 0xFFFF8A80, true);
+            if (affordable) buyGlow(g, cx + cw - 44, ry + 6, 40, 12);
+            renderSmallButton(g, mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12, Component.translatable("screen.zhushenspace.shop.buy"));
+            overBuy = over(mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12);
+        }
+        if (hover && !overBuy) {
+            List<FormattedCharSequence> lines = new ArrayList<>();
+            lines.add(name.getVisualOrderText());
+            lines.add(Component.literal(price + "  ·  " + costTag).withStyle(ChatFormatting.GRAY).getVisualOrderText());
+            lines.addAll(font.split(Component.translatable(s.ability.descKey()), SHOP_TIP_WIDTH));
+            return lines;
+        }
+        return null;
+    }
+
+    private boolean handleArtClick(double mouseX, double mouseY) {
+        if (detailArt < 0) {
+            for (int i = 0; i < ArtSkill.CATEGORIES.length; i++) {
+                int[] t = artTile(i);
+                if (over(mouseX, mouseY, t[0], t[1], t[2], ART_TILE_H)) {
+                    detailArt = i;
+                    detailScroll = 0;
+                    playClick(1.1f);
+                    return true;
+                }
+            }
+            return false;
+        }
+        int y = listTop + 2;
+        if (over(mouseX, mouseY, panelX + 5, y, 30, 12)) {
+            detailArt = -1;
+            detailScroll = 0;
+            playClick(1.0f);
+            return true;
+        }
+        y = artDetailListY();
+        if (mouseY < y || mouseY >= listBottom) return false;
+        int ry = y - detailScroll;
+        for (ArtLine l : artLines(ArtSkill.CATEGORIES[detailArt])) {
+            int h = artLineH(l);
+            if (mouseY >= ry && mouseY < ry + h) {
+                if (l.chips() == null) {
+                    int cx = panelX + 5, cw = panelW - 10;
+                    if (!ClientArtData.owns(l.art()) && over(mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12)) {
+                        PacketDistributor.sendToServer(new ArtActionPayload(0, l.art().ordinal(), 0));
+                        playClick(1.0f);
+                        return true;
+                    }
+                } else {
+                    int cx = panelX + 30;
+                    for (ArtChip c : l.chips()) {
+                        int cw = font.width(c.label()) + 8;
+                        if (c.state() != 3 && c.state() != 2 && over(mouseX, mouseY, cx, ry + 1, cw, ART_CHIP_H - 2)
+                                && !(c.action() == 2 && c.state() == 1)) {
+                            PacketDistributor.sendToServer(new ArtActionPayload(c.action(), l.art().ordinal(), c.value()));
+                            playClick(1.2f);
+                            return true;
+                        }
+                        cx += cw + 3;
+                    }
+                }
+                return false;
+            }
+            ry += h;
+        }
+        return false;
+    }
+
     /** 商城页点击 */
     private boolean handleShopClick(double mouseX, double mouseY) {
+        if (detailArt >= 0) return handleArtClick(mouseX, mouseY);
+        if (detailSchool < 0 && handleArtClick(mouseX, mouseY)) return true;
         // 详情页
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             SchoolType school = SchoolType.values()[detailSchool];
@@ -2013,6 +2255,7 @@ public class GodPanelScreen extends Screen {
                     dragFromSlot = -1;
                     dragFromBar = -1;
                     detailSchool = -1;
+                    detailArt = -1;
                     detailScroll = 0;
                     chipScroll = 0;
                     return true;
@@ -2138,7 +2381,7 @@ public class GodPanelScreen extends Screen {
             chipScroll = Math.max(0, chipScroll + dir);
             return true;
         }
-        if (tab == Tab.SHOP && detailSchool >= 0) {
+        if (tab == Tab.SHOP && (detailSchool >= 0 || detailArt >= 0)) {
             // 详情页像素级滚动（固定行高，向下滚动查看后续内容，上限在渲染时 clamp）
             detailScroll = Math.max(0, detailScroll + dir * 16);
             return true;
@@ -2242,6 +2485,7 @@ public class GodPanelScreen extends Screen {
     private void back() {
         if (discardConfirm) { discardConfirm = false; playClick(0.8f); return; }
         if (profChooser >= 0) { profChooser = -1; playClick(0.8f); return; }
+        if (tab == Tab.SHOP && detailArt >= 0) { detailArt = -1; detailScroll = 0; playClick(0.8f); return; }
         if (tab == Tab.SHOP && detailSchool >= 0) { detailSchool = -1; playClick(0.8f); return; }
         if (dragging >= 0) { dragging = -1; return; }
         if (buildDirty()) { discardConfirm = true; playClick(0.6f); return; }

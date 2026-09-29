@@ -184,6 +184,9 @@ public class SkillManager {
         if (now < st.cooldownEndMs[abilityId]) return; // 冷却检查先行，避免先扣内力再退出
         if (ability.owner() != null) {
             if (data.get(ability.owner().ordinal()) < ability.requiredLevel()) return;
+        } else if (ability.isArtAbility()) {
+            // 技艺：施放失败（条件不足 / 能量不足 / 无目标）不进入冷却
+            if (!ArtManager.cast(player, ability)) return;
         } else if (ability.isNeiliAbility()) {
             // 内力系：需拥有内力池（获得内力池时自动解锁）
             if (player.getData(ModAttachments.PLAYER_ENERGY)

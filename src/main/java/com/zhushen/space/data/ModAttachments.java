@@ -44,6 +44,10 @@ public class ModAttachments {
             ATTACHMENTS.register("player_limbs",
                     () -> AttachmentType.serializable(PlayerLimbData::new).build());
 
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerArtData>> PLAYER_ARTS =
+            ATTACHMENTS.register("player_arts",
+                    () -> AttachmentType.serializable(PlayerArtData::new).copyOnDeath().build());
+
     /** 大厅返回点：持久化，服务器重启后仍能返回进入大厅前的位置 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<HallReturnData>> HALL_RETURN =
             ATTACHMENTS.register("hall_return",

@@ -43,6 +43,12 @@ public class ClientSetup {
             GLFW.GLFW_KEY_B,
             "key.categories.zhushenspace");
 
+    /** 技艺轮盘（默认 Z，按住显示） */
+    public static final KeyMapping ART_WHEEL = new KeyMapping(
+            "key.zhushenspace.art_wheel",
+            GLFW.GLFW_KEY_Z,
+            "key.categories.zhushenspace");
+
     @SubscribeEvent
     public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
         ClientMeditation.init(event);
@@ -54,5 +60,6 @@ public class ClientSetup {
         event.register(SWITCH_SKILL_BAR);
         event.register(WILLPOWER);
         event.register(WILLPOWER_GUARD);
+        event.register(ART_WHEEL);
     }
 }

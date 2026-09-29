@@ -136,7 +136,7 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
                 }
                 SkillAbility ability = SkillAbility.values()[s];
                 // 内力系/流派系能力不依赖技能点（使用时另行校验内力池与流派解锁）
-                if (ability.isNeiliAbility() || ability.isSchoolAbility()) continue;
+                if (ability.isNeiliAbility() || ability.isSchoolAbility() || ability.isArtAbility()) continue;
                 if (points[ability.owner().ordinal()] < ability.requiredLevel()) {
                     bars[b][i] = -1;
                 }
