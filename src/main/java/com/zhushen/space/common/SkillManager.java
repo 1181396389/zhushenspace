@@ -227,6 +227,9 @@ public class SkillManager {
                 st.brawlBlockEnd = now + BUFF_DURATION_MS;
             }
             case TRIP -> st.tripPendingEnd = now + TRIP_WINDOW_MS;
+            case GRAPPLE -> {
+                if (!GrappleManager.activate(player)) return;
+            }
             case CHARGE_ATTACK -> {
                 st.chargeActive = true;
                 st.chargeExpire = now + CHARGE_WINDOW_MS;

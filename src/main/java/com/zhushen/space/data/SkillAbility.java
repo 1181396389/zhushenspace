@@ -63,7 +63,9 @@ public enum SkillAbility {
     /** 缠丝劲（被动）：内力池不空时，缴械/擒抱/摔绊对抗获得 +8 加值 */
     COILING_SILK(null, 0, 0, "tai_chi", "tc_coilingsilk"),
     /** 太极化劲：待势 5 秒，期间受到使用能量池的近战攻击时反击肉搏，命中后可连锁揽雀尾/云手/海底针，成功则封印其能量池 1 分钟（结算耗 5 内力、冷却 20 秒） */
-    TAI_CHI_DISSOLVE(null, 0, 100, "tai_chi", "tc_dissolve");
+    TAI_CHI_DISSOLVE(null, 0, 100, "tai_chi", "tc_dissolve"),
+    /** 擒抱（基础动作）：抓住触及范围内的目标；擒抱中再次使用 = 夺取移动权，潜行使用 = 挣脱。1 回合 = 3 秒 */
+    GRAPPLE(SkillType.BRAWL, 0, 60, null, "grapple");
 
     public static final String GATE_NEILI = "neili";
     public static final String GATE_TAI_CHI = "tai_chi";

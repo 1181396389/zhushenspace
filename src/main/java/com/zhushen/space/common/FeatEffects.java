@@ -109,7 +109,15 @@ public final class FeatEffects {
         set(p, Attributes.WATER_MOVEMENT_EFFICIENCY, "feat_barbarian_water", barb ? 1 : 0, AttributeModifier.Operation.ADD_VALUE);
         // 巨大身材：身高约 3 米（1.8 → 3.0）；天生防御 +1、闪避防御 -1（护甲净变化 0，另由敏捷 -1 体现）
         set(p, Attributes.SCALE, "feat_giant_scale", has(p, FeatType.GIANT_BODY) ? 3.0 / 1.8 - 1 : 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
+        // 巨大身材：天生防御 +1（闪避防御 -1 待闪避防御系统，见 dodgeDefenseBonus）
+        set(p, Attributes.ARMOR, "feat_giant_natural", has(p, FeatType.GIANT_BODY) ? 1 : 0, AttributeModifier.Operation.ADD_VALUE);
         updateBarbarianSpeed(p);
+    }
+
+    /** 闪避防御加值（巨大身材：体积每比 5 高 2 → -1；闪避防御可以为负）。待闪避防御系统接入 */
+    public static int dodgeDefenseBonus(Player p) {
+        int v = volume(p) - 5;
+        return v >= 0 ? -(v / 2) : -v;
     }
 
     /** 蛮族：未穿重甲时基础移速 +4 米（1 米 = 基础移速的 10%） */
