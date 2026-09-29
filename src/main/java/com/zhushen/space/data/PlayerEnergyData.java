@@ -126,7 +126,7 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
     public void applyMainPoolBonus(double bonus) {
         Pool largest = null;
         for (Map.Entry<String, Pool> e : pools.entrySet()) {
-            if (WILLPOWER_ID.equals(e.getKey())) continue;
+            if (WILLPOWER_ID.equals(e.getKey()) || "sage".equals(e.getKey())) continue; // 仙术查克拉不受上限增减
             if (largest == null || e.getValue().base > largest.base) largest = e.getValue();
         }
         for (Map.Entry<String, Pool> e : pools.entrySet()) {

@@ -4,6 +4,7 @@ import com.zhushen.space.client.ClientArtData;
 import com.zhushen.space.client.ClientSetup;
 import com.zhushen.space.client.ClientWillpower;
 import com.zhushen.space.data.ArtSkill;
+import com.zhushen.space.common.PoolEffects;
 import com.zhushen.space.network.ArtActionPayload;
 import com.zhushen.space.network.WillpowerActionPayload;
 import net.minecraft.client.gui.GuiGraphics;
@@ -43,6 +44,17 @@ public class ArtWheelScreen extends Screen {
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.guard"),
                 () -> tr(ClientWillpower.armedGuard() ? "screen.zhushenspace.wheel.armed" : "screen.zhushenspace.wheel.ready"),
                 () -> true, b -> PacketDistributor.sendToServer(new WillpowerActionPayload(1)), null));
+        // ===== 能量池基础用法 =====
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.boost"),
+                () -> tr(ClientArtData.flag(PoolEffects.F_BOOST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.off"),
+                () -> anyPool(), b -> art(10, 0, 0), null));
+        ENTRIES.add(poolEntry("screen.zhushenspace.wheel.sense", "magic", PoolEffects.F_SENSE, 11));
+        ENTRIES.add(poolEntry("screen.zhushenspace.wheel.spider", "chakra", PoolEffects.F_SPIDER, 12));
+        ENTRIES.add(poolEntry("screen.zhushenspace.wheel.water", "chakra", PoolEffects.F_WATER, 13));
+        ENTRIES.add(poolEntry("screen.zhushenspace.wheel.sight", "dao", PoolEffects.F_SIGHT, 14));
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.rest"),
+                () -> tr(ClientArtData.flag(PoolEffects.F_REST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),
+                () -> anyPool(), b -> art(15, 0, 0), null));
         // 留手：点击开关，滚轮 ±5%
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.holdback"),
                 () -> ClientArtData.holdback() < 0 ? tr("screen.zhushenspace.wheel.off") : ClientArtData.holdback() + "%",
@@ -57,6 +69,18 @@ public class ArtWheelScreen extends Screen {
         ENTRIES.add(new Entry(() -> tr(ef.ability.nameKey()),
                 () -> tr(ef.optionKey(Math.min(ef.options.length - 1, ClientArtData.current(ef)))),
                 () -> ClientArtData.owns(ef), b -> art(5, ef.ordinal(), b == 1 ? -1 : 1), d -> art(5, ef.ordinal(), d)));
+    }
+
+    private static boolean anyPool() {
+        for (var p : com.zhushen.space.client.ClientEnergyData.pools())
+            if (!p.id().equals("neili") && !p.id().equals("willpower")) return true;
+        return false;
+    }
+
+    private static Entry poolEntry(String key, String pool, int flag, int action) {
+        return new Entry(() -> tr(key),
+                () -> tr(ClientArtData.flag(flag) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.cost1"),
+                () -> com.zhushen.space.client.ClientEnergyData.hasPool(pool), b -> art(action, 0, 0), null);
     }
 
     private static void art(int action, int art, int value) {

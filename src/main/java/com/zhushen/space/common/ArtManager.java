@@ -85,7 +85,8 @@ public final class ArtManager {
     public static void sync(ServerPlayer p) {
         PlayerArtData d = data(p);
         PacketDistributor.sendToPlayer(p, new SyncArtsPayload(d.owned, d.optionBits.clone(), d.current.clone(),
-                d.researchBits.clone(), d.holdback, d.amplify, p.getData(ModAttachments.PLAYER_CURRENCY).xp()));
+                d.researchBits.clone(), d.holdback, d.amplify, p.getData(ModAttachments.PLAYER_CURRENCY).xp(),
+                PoolEffects.flags(p)));
     }
 
     @SubscribeEvent
@@ -182,6 +183,7 @@ public final class ArtManager {
     }
 
     public static void handle(ServerPlayer p, ArtActionPayload pl) {
+        if (pl.action() >= 10) { PoolEffects.action(p, pl.action()); return; }
         PlayerArtData d = data(p);
         if (pl.action() == 3) { d.holdback = pl.value() < 0 ? -1 : Math.max(1, Math.min(100, pl.value())); sync(p); return; }
         if (pl.action() == 4) { d.amplify = pl.value() != 0; sync(p); return; }
@@ -302,14 +304,19 @@ public final class ArtManager {
     }
 
     static int willSave(LivingEntity t) {
-        if (t instanceof ServerPlayer sp) return Math.round(mindValue(sp) * DamageVariance.roll(sp.getRandom()));
+        if (t instanceof ServerPlayer sp) {
+            if (mindImmune(sp)) return 999;
+            return Math.round((mindValue(sp) + PoolEffects.buddhaSave(sp) + PoolEffects.checkBonus(sp, AttributeType.RESOLVE, AttributeType.COMPOSURE))
+                    * DamageVariance.roll(sp.getRandom()));
+        }
         return 0; // 非玩家生物：意志数据待接入
     }
 
     static int reflexSave(LivingEntity t, Entity attacker) {
         if (!DamageRules.canReflex(t, attacker)) return 0;
         if (t instanceof ServerPlayer sp)
-            return Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS)) * DamageVariance.roll(sp.getRandom()));
+            return Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS) + PoolEffects.checkBonus(sp, AttributeType.AGILITY))
+                    * DamageVariance.roll(sp.getRandom()));
         var st = GrappleManager.stats(t);
         return st == null ? 0 : Math.round((st.agi() + st.athletics()) * DamageVariance.roll(t.getRandom()));
     }
@@ -364,7 +371,7 @@ public final class ArtManager {
     }
 
     static boolean pay(ServerPlayer p, ArtSkill s, double cost) {
-        if (cost <= 0) return true;
+        if (cost <= 0 || s.pool == FeatEffects.Pool.SPIRIT) return true;
         if (!EnergyManager.consume(p, s.pool.id, cost)) { deny(p, "msg.zhushenspace.art.lack_energy"); return false; }
         return true;
     }
@@ -387,8 +394,11 @@ public final class ArtManager {
     }
 
     /** 标准攻击：(判定 + mod − 防御) × 波动 + 附加成功，截断上限，再留手 */
+    /** 本次施放的能量加值（施放开始时结算一次） */
+    private static int castBoost;
+
     static float attackRoll(ServerPlayer p, int check, int mod, float def, int cap, int bonus) {
-        float raw = (check + mod - def) * roll(p) + bonus;
+        float raw = (check + mod + castBoost - def) * roll(p) + bonus;
         float v = Math.max(0, Math.min(cap, raw));
         return holdback(p, v);
     }
@@ -510,8 +520,15 @@ public final class ArtManager {
         String err = prereq(p, s);
         if (err != null) { deny(p, err); return false; }
         if (s.mode == ArtSkill.Mode.PICK && data(p).optionBits[s.ordinal()] == 0) { deny(p, "msg.zhushenspace.art.pick_first"); return false; }
-        if (energy(p, s) < s.cost) { deny(p, "msg.zhushenspace.art.lack_energy"); return false; }
-        if (isSpell(s) && !gesture(p)) return false;
+        if (s.pool == FeatEffects.Pool.SPIRIT) {
+            // 灵力：启动检定 + 灵感疲劳（消耗/3），不直接扣能量
+            if (isSpell(s) && !gesture(p)) return false;
+            if (!PoolEffects.spiritActivate(p, s.cost)) return s.cost > 0;
+        } else {
+            if (energy(p, s) < s.cost) { deny(p, "msg.zhushenspace.art.lack_energy"); return false; }
+            if (isSpell(s) && !gesture(p)) return false;
+        }
+        castBoost = boostFor(p, s);
         boolean ok = switch (s) {
             case SPIRIT_SLASH -> spiritSlash(p, s);
             case SPIRIT_HEAL -> spiritHeal(p, s);
@@ -533,8 +550,25 @@ public final class ArtManager {
             case PHOENIX_FIRE -> phoenixFire(p, s);
             case GREAT_FIREBALL -> greatFireball(p, s);
         };
-        if (ok && isSpell(s)) announce(p, s);
+        castBoost = 0;
+        if (ok && isSpell(s)) { announce(p, s); PoolEffects.onSpellCast(p, s); }
         return ok;
+    }
+
+    /** 能量加值：道术优先用道力 +3DP；其余按判定属性取适用能量池 +1DP */
+    static int boostFor(ServerPlayer p, ArtSkill s) {
+        if (s.pool == FeatEffects.Pool.DAO) {
+            int dao = PoolEffects.daoBonus(p);
+            if (dao > 0) return dao;
+        }
+        return switch (s) {
+            case SPIRIT_SLASH, MIND_BLAST, BIO_LIGHTNING -> PoolEffects.checkBonus(p, AttributeType.RESOLVE, AttributeType.COMPOSURE);
+            case HADOKEN, WIND_SLASH -> PoolEffects.checkBonus(p, AttributeType.STRENGTH);
+            case MAGIC_BURST -> PoolEffects.checkBonus(p, FeatEffects.has(p, s.pool.feat) ? AttributeType.CHARM : AttributeType.INTELLIGENCE);
+            case FIVE_ELEMENTS, EIGHT_FORMATION -> PoolEffects.checkBonus(p, AttributeType.CHARM);
+            case PHOENIX_FIRE, GREAT_FIREBALL -> PoolEffects.checkBonus(p, AttributeType.PERCEPTION);
+            default -> 0;
+        };
     }
 
     static boolean selfBuff(ServerPlayer p, ArtSkill s, int ticks, ParticleOptions part) {
@@ -787,7 +821,7 @@ public final class ArtManager {
         LivingEntity t = target(p, 20);
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
         if (!pay(p, s, s.cost)) return false;
-        int power = 3;
+        int power = 3 + PoolEffects.sageBoost(p, 2);
         if (amplify(p)) {
             int max = legendary(p, AttributeType.PERCEPTION), n = 0;
             while (n < max && EnergyManager.consume(p, s.pool.id, 1)) n++;
@@ -804,8 +838,8 @@ public final class ArtManager {
     /** 豪火球之术：前方 20 米锥形，威力 4，火焰；每个目标反射豁免 −6DP（−18） */
     static boolean greatFireball(ServerPlayer p, ArtSkill s) {
         if (!pay(p, s, s.cost)) return false;
-        int cap = spellCap(p, s.pool, 4, 0);
-        float dmg = holdback(p, Math.max(0, Math.min(cap, spellCheck(p, s.pool) * roll(p))));
+        int cap = spellCap(p, s.pool, 4 + PoolEffects.sageBoost(p, 4), 0);
+        float dmg = holdback(p, Math.max(0, Math.min(cap, (spellCheck(p, s.pool) + castBoost) * roll(p))));
         Vec3 eye = p.getEyePosition(), look = p.getViewVector(1f);
         ServerLevel sl = p.serverLevel();
         for (int i = 1; i <= 20; i++) {

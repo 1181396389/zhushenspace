@@ -16,6 +16,8 @@ public class PlayerArtData implements INBTSerializable<CompoundTag> {
     public int holdback = -1;
     /** 增幅：默认关闭；潜行施放 = 用满 */
     public boolean amplify;
+    /** 能量加值：检定时自动花能量 +1DP */
+    public boolean boost;
 
     public boolean owns(ArtSkill s) { return (owned & (1L << s.ordinal())) != 0; }
 
@@ -37,6 +39,7 @@ public class PlayerArtData implements INBTSerializable<CompoundTag> {
         t.putIntArray("res", researchBits);
         t.putInt("holdback", holdback);
         t.putBoolean("amp", amplify);
+        t.putBoolean("boost", boost);
         return t;
     }
 
@@ -48,6 +51,7 @@ public class PlayerArtData implements INBTSerializable<CompoundTag> {
         copy(t.getIntArray("res"), researchBits);
         holdback = t.contains("holdback") ? t.getInt("holdback") : -1;
         amplify = t.getBoolean("amp");
+        boost = t.getBoolean("boost");
     }
 
     private static void copy(int[] src, int[] dst) {

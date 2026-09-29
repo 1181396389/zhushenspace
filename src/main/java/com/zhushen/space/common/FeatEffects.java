@@ -43,8 +43,8 @@ public final class FeatEffects {
         MIND(FeatType.PSIONIC_TALENT, "mind", AttributeType.RESOLVE, AttributeType.COMPOSURE),
         YOKAI(FeatType.YOKAI_BLOOD, "yokai", AttributeType.CHARM, AttributeType.ENDURANCE),
         BUDDHA(FeatType.REINCARNATED_BUDDHA, "buddha", AttributeType.RESOLVE, AttributeType.CHARM),
-        MAGIC(FeatType.MAGIC_CONSTITUTION, "magic", AttributeType.INTELLIGENCE, AttributeType.RESOLVE),
-        DAO(FeatType.INNATE_DAO_BODY, "dao", AttributeType.CHARM, AttributeType.RESOLVE),
+        MAGIC(FeatType.MAGIC_CONSTITUTION, "magic", AttributeType.INTELLIGENCE, AttributeType.PERCEPTION),
+        DAO(FeatType.INNATE_DAO_BODY, "dao", AttributeType.PERCEPTION, AttributeType.CHARM),
         PSYCHIC(FeatType.PSYCHIC_CONSTITUTION, "psychic", AttributeType.RESOLVE, AttributeType.COMPOSURE),
         NEILI(FeatType.MARTIAL_PRODIGY, "neili", AttributeType.ENDURANCE, AttributeType.PERCEPTION),
         CHAKRA(FeatType.CHAKRA_CONSTITUTION, "chakra", AttributeType.PERCEPTION, AttributeType.ENDURANCE);

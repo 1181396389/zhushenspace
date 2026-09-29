@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("12"); // 协议版本：技艺
+        PayloadRegistrar registrar = event.registrar("13"); // 协议版本：技艺
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -43,7 +43,9 @@ public class ModNetworking {
         // ===== 技艺 =====
         registrar.playToClient(SyncArtsPayload.TYPE, SyncArtsPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientArtData.update(
-                        p.owned(), p.opt(), p.cur(), p.res(), p.holdback(), p.amp(), p.xp())));
+                        p.owned(), p.opt(), p.cur(), p.res(), p.holdback(), p.amp(), p.xp(), p.flags())));
+        registrar.playToClient(com.zhushen.space.network.MagicSensePayload.TYPE, com.zhushen.space.network.MagicSensePayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientPoolFx.sense(p.ids(), p.ticks())));
         registrar.playToServer(ArtActionPayload.TYPE, ArtActionPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer sp) com.zhushen.space.common.ArtManager.handle(sp, p);

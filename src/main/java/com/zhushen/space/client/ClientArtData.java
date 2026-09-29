@@ -9,7 +9,11 @@ public class ClientArtData {
     private static int holdback = -1, xp;
     private static boolean amp;
 
-    public static void update(long o, int[] op, int[] c, int[] r, int hb, boolean a, int x) {
+    private static int flags;
+    public static boolean flag(int f) { return (flags & f) != 0; }
+
+    public static void update(long o, int[] op, int[] c, int[] r, int hb, boolean a, int x, int fl) {
+        flags = fl;
         owned = o; opt = op; cur = c; res = r; holdback = hb; amp = a; xp = x;
     }
 

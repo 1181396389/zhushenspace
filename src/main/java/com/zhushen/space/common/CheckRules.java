@@ -70,8 +70,15 @@ public final class CheckRules {
     /** 非攻击检定 */
     public static Result check(ServerPlayer p, Kind k, Expression sub, int mod) {
         int cap = cap(p, k, sub);
+        mod += boost(p, k);
         float raw = (cap + mod) * DamageVariance.roll(p.getRandom());
         return new Result(Math.max(0, Math.min(cap, raw)), cap, raw);
+    }
+
+    /** 能量加值（心灵：决心 / 沉着；回声：风度） */
+    private static int boost(ServerPlayer p, Kind k) {
+        return k == Kind.MIND ? PoolEffects.checkBonus(p, AttributeType.RESOLVE, AttributeType.COMPOSURE)
+                : PoolEffects.checkBonus(p, AttributeType.CHARM);
     }
 
     public static Result mind(ServerPlayer p, int mod) { return check(p, Kind.MIND, null, mod); }
@@ -81,6 +88,7 @@ public final class CheckRules {
     /** 攻击检定：− 目标防御，伤害上限 = 检定上限 */
     public static Result attack(ServerPlayer p, Kind k, Expression sub, LivingEntity target, int mod) {
         int cap = cap(p, k, sub);
+        mod += boost(p, k);
         float def = CombatFormula.defense(target, p.damageSources().playerAttack(p));
         float raw = (cap + mod - def) * DamageVariance.roll(p.getRandom());
         return new Result(Math.max(0, Math.min(cap, raw)), cap, raw);

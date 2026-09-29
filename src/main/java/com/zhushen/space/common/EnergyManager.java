@@ -121,11 +121,25 @@ public class EnergyManager {
             if (has) {
                 double cap = pool.capacity(p);
                 if (POOL_NEILI.equals(pool.id)) cap = Math.max(cap, p[AttributeType.ENDURANCE.ordinal()] + p[AttributeType.PERCEPTION.ordinal()]);
+                int legRC = Math.max(0, p[AttributeType.RESOLVE.ordinal()] - 4) + Math.max(0, p[AttributeType.COMPOSURE.ordinal()] - 4);
+                if (pool == FeatEffects.Pool.SPIRIT) cap += 3 * legRC;   // 灵力：每点传奇决心 / 沉着 +3
+                if (pool == FeatEffects.Pool.MIND) cap += 5 * legRC;     // 精神力：每点传奇决心 / 沉着 +5
+                if (pool == FeatEffects.Pool.CHAKRA) {
+                    // 仙术查克拉：上限永久 = 查克拉基础上限，分开计算；每 1 点仙术查克拉使查克拉上限 −1
+                    boolean freshSage = data.getPool(PoolEffects.SAGE) == null;
+                    data.setBaseCapacity(PoolEffects.SAGE, cap);
+                    var sage = data.getPool(PoolEffects.SAGE);
+                    if (freshSage) sage.current = 0;
+                    sage.max = cap;
+                    sage.current = Math.min(sage.current, cap);
+                    cap = Math.max(0, cap - sage.current);
+                }
                 boolean fresh = data.getPool(pool.id) == null;
                 data.setBaseCapacity(pool.id, cap);
                 if (fresh) data.getPool(pool.id).current = cap;
             } else if (!POOL_NEILI.equals(pool.id) && data.getPool(pool.id) != null) {
                 data.removePool(pool.id);
+                if (pool == FeatEffects.Pool.CHAKRA) data.removePool(PoolEffects.SAGE);
             }
         }
     }
@@ -287,7 +301,9 @@ public class EnergyManager {
             PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
             boolean featRestored = false;
             for (FeatEffects.Pool fp : FeatEffects.Pool.values()) {
-                if (!POOL_NEILI.equals(fp.id) && data.getPool(fp.id) != null && data.restore(fp.id, Double.MAX_VALUE) > 0) featRestored = true;
+                if (POOL_NEILI.equals(fp.id) || data.getPool(fp.id) == null) continue;
+                if (PoolEffects.longRest(player, fp.id)) { featRestored = true; continue; }
+                if (data.restore(fp.id, Double.MAX_VALUE) > 0) featRestored = true;
             }
             if (featRestored) sync(player);
             if (data.getPool(POOL_NEILI) != null && data.restore(POOL_NEILI, Double.MAX_VALUE) > 0) {
