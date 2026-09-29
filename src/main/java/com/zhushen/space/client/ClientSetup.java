@@ -34,13 +34,13 @@ public class ClientSetup {
     /** 意志力（默认 G）：昏迷时强撑 / 否则预备意志加持（下一次检定 +9） */
     public static final KeyMapping WILLPOWER = new KeyMapping(
             "key.zhushenspace.willpower",
-            GLFW.GLFW_KEY_G,
+            com.mojang.blaze3d.platform.InputConstants.UNKNOWN.getValue(), // 默认不占键：改由动作轮盘使用
             "key.categories.zhushenspace");
 
     /** 意志守御（默认 B）：预备下一次受击 +9 护甲 / +9 韧性 */
     public static final KeyMapping WILLPOWER_GUARD = new KeyMapping(
             "key.zhushenspace.willpower_guard",
-            GLFW.GLFW_KEY_B,
+            com.mojang.blaze3d.platform.InputConstants.UNKNOWN.getValue(),
             "key.categories.zhushenspace");
 
     /** 技艺轮盘（默认 Z，按住显示） */

@@ -673,12 +673,16 @@
   "screen.zhushenspace.art.caster": "施法%s",
   "screen.zhushenspace.art.energy": "耗能 %s",
   "screen.zhushenspace.art.price_score": "%s 积分",
-  "screen.zhushenspace.wheel": "技艺轮盘",
+  "screen.zhushenspace.wheel": "动作轮盘",
   "screen.zhushenspace.wheel.holdback": "留手",
   "screen.zhushenspace.wheel.amplify": "增幅",
   "screen.zhushenspace.wheel.off": "关",
   "screen.zhushenspace.wheel.full": "用满",
   "screen.zhushenspace.wheel.none": "未习得",
-  "screen.zhushenspace.wheel.hint": "滚轮调整",
-  "key.zhushenspace.art_wheel": "技艺轮盘"
+  "screen.zhushenspace.wheel.hint": "点击 / 滚轮",
+  "key.zhushenspace.art_wheel": "动作轮盘",
+  "screen.zhushenspace.wheel.will": "意志加持",
+  "screen.zhushenspace.wheel.guard": "意志守御",
+  "screen.zhushenspace.wheel.armed": "已预备",
+  "screen.zhushenspace.wheel.ready": "点击"
 }

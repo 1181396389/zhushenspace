@@ -673,12 +673,16 @@
   "screen.zhushenspace.art.caster": "Caster %s",
   "screen.zhushenspace.art.energy": "Cost %s",
   "screen.zhushenspace.art.price_score": "%s pts",
-  "screen.zhushenspace.wheel": "Arts Wheel",
+  "screen.zhushenspace.wheel": "Action Wheel",
   "screen.zhushenspace.wheel.holdback": "Hold Back",
   "screen.zhushenspace.wheel.amplify": "Amplify",
   "screen.zhushenspace.wheel.off": "Off",
   "screen.zhushenspace.wheel.full": "Max",
   "screen.zhushenspace.wheel.none": "—",
-  "screen.zhushenspace.wheel.hint": "Scroll",
-  "key.zhushenspace.art_wheel": "Arts Wheel"
+  "screen.zhushenspace.wheel.hint": "Click/Scroll",
+  "key.zhushenspace.art_wheel": "Action Wheel",
+  "screen.zhushenspace.wheel.will": "Willpower",
+  "screen.zhushenspace.wheel.guard": "Will Guard",
+  "screen.zhushenspace.wheel.armed": "Armed",
+  "screen.zhushenspace.wheel.ready": "Click"
 }

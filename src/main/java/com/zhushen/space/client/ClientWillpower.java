@@ -36,6 +36,9 @@ public final class ClientWillpower {
     }
 
     /** 强撑中（含抉择窗口）：客户端不施加昏迷硬控 */
+    public static boolean armedCheck() { return armedCheck; }
+    public static boolean armedGuard() { return armedGuard; }
+
     public static boolean holdingOn() {
         long now = System.currentTimeMillis();
         return now < sustainEndMs || now < graceEndMs;
@@ -45,6 +48,7 @@ public final class ClientWillpower {
     public static void onKey(InputEvent.Key event) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.screen != null || event.getAction() != GLFW.GLFW_PRESS) return;
+        if (event.getKey() < 0) return;
         if (event.getKey() == ClientSetup.WILLPOWER.getKey().getValue()) {
             PacketDistributor.sendToServer(new WillpowerActionPayload(0));
         } else if (event.getKey() == ClientSetup.WILLPOWER_GUARD.getKey().getValue()) {

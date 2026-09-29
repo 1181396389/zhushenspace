@@ -1262,11 +1262,11 @@ public class GodPanelScreen extends Screen {
         boolean cr = ClientBuildData.created;
         int x = panelX + 8;
         x = statusPart(g, x, y, Component.translatable("build.zhushenspace.attr", c.attr,
-                cr ? "" : BuildRules.ATTR_MIN + "~" + BuildRules.ATTR_MAX), !cr && (c.attr < BuildRules.ATTR_MIN || c.attr > BuildRules.ATTR_MAX));
+                cr ? "" : " (" + BuildRules.ATTR_MIN + "~" + BuildRules.ATTR_MAX + ")"), !cr && (c.attr < BuildRules.ATTR_MIN || c.attr > BuildRules.ATTR_MAX));
         x = statusPart(g, x, y, Component.translatable("build.zhushenspace.skill", c.skillPool,
-                cr ? "" : BuildRules.SKILL_MIN + "~" + BuildRules.SKILL_MAX), !cr && (c.skillPool < BuildRules.SKILL_MIN || c.skillPool > BuildRules.SKILL_MAX));
+                cr ? "" : " (" + BuildRules.SKILL_MIN + "~" + BuildRules.SKILL_MAX + ")"), !cr && (c.skillPool < BuildRules.SKILL_MIN || c.skillPool > BuildRules.SKILL_MAX));
         x = statusPart(g, x, y, Component.translatable("build.zhushenspace.feat", c.feat,
-                cr ? "" : "≥" + BuildRules.FEAT_MIN), !cr && c.feat < BuildRules.FEAT_MIN);
+                cr ? "" : " (≥" + BuildRules.FEAT_MIN + ")"), !cr && c.feat < BuildRules.FEAT_MIN);
         statusPart(g, x, y, Component.translatable("build.zhushenspace.free", c.free, ClientBuildData.totalXp), c.free < 0);
     }
 
@@ -1524,6 +1524,7 @@ public class GodPanelScreen extends Screen {
         int row = 0, col = 0;
         for (ChipItem item : buildChipItems()) {
             if (item.ability() == null) {
+                if (col > 0) { row++; col = 0; } // 文件夹独占一行：前一行未满时先换行
                 list.add(new ChipPos(item, panelX + 8, chipY(row, chipTop)));
                 row++;
                 col = 0;
@@ -1543,6 +1544,7 @@ public class GodPanelScreen extends Screen {
         int rows = 0, col = 0;
         for (ChipItem item : buildChipItems()) {
             if (item.ability() == null) {
+                if (col > 0) rows++;
                 rows++;
                 col = 0;
             } else if (++col == 2) {
@@ -1955,7 +1957,7 @@ public class GodPanelScreen extends Screen {
                 String label = have ? name : name + (r.minCaster() > 1
                         ? " [" + Component.translatable("screen.zhushenspace.art.caster", "DCBAS".charAt(Math.min(4, r.minCaster() - 1))).getString() + "]"
                         : " " + r.xp() + "XP");
-                all.add(new ArtChip("⚗" + label, 2, i, state));
+                all.add(new ArtChip((have ? "✔ " : "+ ") + label, 2, i, state));
             }
             List<ArtChip> cur = new ArrayList<>();
             int w = 0;
