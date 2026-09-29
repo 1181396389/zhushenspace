@@ -27,7 +27,7 @@ public class GodPanelTabButton extends AbstractButton {
 
     @Override
     public void onPress() {
-        Minecraft.getInstance().setScreen(new GodPanelScreen());
+        GodPanelScreen.tryOpen();
     }
 
     @Override

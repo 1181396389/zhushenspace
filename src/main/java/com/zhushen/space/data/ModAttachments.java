@@ -40,6 +40,11 @@ public class ModAttachments {
             ATTACHMENTS.register("player_limbs",
                     () -> AttachmentType.serializable(PlayerLimbData::new).build());
 
+    /** 专长（咒术回战主题）：死亡保留 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerFeatData>> PLAYER_FEATS =
+            ATTACHMENTS.register("player_feats",
+                    () -> AttachmentType.serializable(PlayerFeatData::new).copyOnDeath().build());
+
     /** 大厅返回点：持久化，服务器重启后仍能返回进入大厅前的位置 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<HallReturnData>> HALL_RETURN =
             ATTACHMENTS.register("hall_return",

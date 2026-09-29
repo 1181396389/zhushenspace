@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("8"); // 协议版本：新增肢体血量与断肢
+        PayloadRegistrar registrar = event.registrar("9"); // 协议版本：新增专长
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -34,6 +34,17 @@ public class ModNetworking {
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer serverPlayer) {
                         AttributeServer.commitAllocation(serverPlayer, payload.points());
+                    }
+                }));
+
+        // ===== 专长 =====
+        registrar.playToClient(SyncFeatsPayload.TYPE, SyncFeatsPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientFeatData.update(
+                        payload.totalPoints(), payload.owned(), payload.envelopeUsed())));
+        registrar.playToServer(CommitFeatsPayload.TYPE, CommitFeatsPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer serverPlayer) {
+                        com.zhushen.space.common.FeatServer.commit(serverPlayer, payload.owned());
                     }
                 }));
 

@@ -51,8 +51,8 @@ public class GodPanelScreen extends Screen {
     private enum Tab { ATTRIBUTES, SKILLS, PRESET, SHOP }
 
 
-    private static final int ROW_HEIGHT = 18;
-    private static final int HEADER_HEIGHT = 40;
+    private static final int ROW_HEIGHT = 20;
+    private static final int HEADER_HEIGHT = 44;
     private static final int TOOLTIP_WIDTH = 175;
     private static final int TAB_H = 14;
     /** 战斗预设巨剑栏缩放（240×30 → 264×33），技能槽 22px */
@@ -100,6 +100,24 @@ public class GodPanelScreen extends Screen {
     private int hallX;
     private final int[] tabX = new int[4];
     private final int[] tabW = {44, 44, 62, 40};
+
+    /**
+     * 从外部入口打开主神面板：未使用过主神邀请函的玩家无法打开（提示并播放拒绝音效）。
+     * 邀请函剧情界面（MeaningOfLifeScreen）直接 new，不经此校验。
+     */
+    public static boolean tryOpen() {
+        Minecraft mc = Minecraft.getInstance();
+        if (!com.zhushen.space.client.ClientFeatData.envelopeUsed()) {
+            if (mc.player != null) {
+                mc.player.displayClientMessage(Component.translatable("screen.zhushenspace.godpanel.locked"), true);
+                mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.VILLAGER_NO, 1.0f, 0.6f));
+            }
+            return false;
+        }
+        mc.setScreen(new GodPanelScreen());
+        return true;
+    }
 
     public GodPanelScreen() {
         super(Component.translatable("screen.zhushenspace.godpanel.title"));
@@ -191,7 +209,7 @@ public class GodPanelScreen extends Screen {
             openedAt = tabChangedAt = ZsAnim.nowMs();
             SgStyle.rollIn();
         }
-        panelW = Math.min(270, this.width - 40);
+        panelW = Math.min(340, this.width - 40);
         // 列表区高度：容纳属性列表，或技能列表 + 底部获得/流派提示（取较大者；屏幕不够时滚动）
         int listH = Math.max(AttributeType.COUNT * ROW_HEIGHT + 4, SkillType.COUNT * ROW_HEIGHT + 22);
         panelH = Math.min(this.height - 20, HEADER_HEIGHT + listH + 28);
@@ -209,8 +227,13 @@ public class GodPanelScreen extends Screen {
             tabX[i] = tx;
             tx += tabW[i] + 4;
         }
+        featX = tabX[3] + tabW[3] + 8;
         clampScroll();
     }
+
+    /** 专长入口（咒术回战风格，标签行） */
+    private int featX;
+    private static final int FEAT_W = 44;
 
     private int rowY(PointList list, int index) {
         return listTop + index * ROW_HEIGHT - list.scroll;
@@ -313,6 +336,11 @@ public class GodPanelScreen extends Screen {
         } else {
             ZsTheme.tabs(g, font, mouseX, mouseY, tabX, tabW, panelY + 5, TAB_H, tabLabels, tab.ordinal(), 1);
         }
+
+        // 专长入口：领域对撞小按钮（打开咒术回战风格专长界面）
+        JjkStyle.entryButton(g, font, mouseX, mouseY, featX, panelY + 5, FEAT_W, TAB_H,
+                Component.translatable("screen.zhushenspace.godpanel.tab.feats"),
+                com.zhushen.space.client.ClientFeatData.free(com.zhushen.space.client.ClientFeatData.owned()) > 0);
 
         // 主神空间大厅（标签行，齿轮左侧）：进入大厅 / 返回主世界
         boolean inHall = minecraft != null && minecraft.player != null
@@ -1282,6 +1310,13 @@ public class GodPanelScreen extends Screen {
             // 底部货币栏：点击打开货币界面（拖拽拼合/拆解）
             if (over(mouseX, mouseY, panelX + 4, panelY + panelH - 16, panelW - 8, 14)) {
                 Minecraft.getInstance().setScreen(new CurrencyScreen());
+                return true;
+            }
+
+            // 专长界面
+            if (over(mouseX, mouseY, featX, panelY + 5, FEAT_W, TAB_H)) {
+                playClick(1.2f);
+                Minecraft.getInstance().setScreen(new FeatScreen(this));
                 return true;
             }
 

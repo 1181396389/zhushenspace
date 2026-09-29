@@ -78,5 +78,6 @@ public final class ClientLimbEvents {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientLimbData.clear();
+        ClientFeatData.clear();
     }
 }

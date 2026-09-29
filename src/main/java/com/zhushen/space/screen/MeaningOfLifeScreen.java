@@ -45,6 +45,10 @@ public class MeaningOfLifeScreen extends Screen {
     private static final int TEXT_COLOR = 0xFFE0D6F6;
     private static final int ACCENT_COLOR = 0xFFCDBEF5;
 
+    // 穿越漩涡：开场（吸入 → 对话浮现）/ 退场（冲出 → 白光 → 主神面板）
+    private long introStart = -1, exitStart = -1;
+    private static final long INTRO_MS = 1500, EXIT_MS = 1600;
+
     public MeaningOfLifeScreen() {
         super(Component.translatable("screen.zhushenspace.meaning_of_life.title"));
     }
@@ -52,6 +56,12 @@ public class MeaningOfLifeScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        if (introStart < 0) {
+            introStart = System.currentTimeMillis();
+            Minecraft.getInstance().getSoundManager().play(
+                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                            net.minecraft.sounds.SoundEvents.PORTAL_TRIGGER, 1.6f, 0.35f));
+        }
 
         int dialogWidth = Mth.clamp(this.width - 80, 320, 600);
         int dialogHeight = 180;
@@ -101,22 +111,92 @@ public class MeaningOfLifeScreen extends Screen {
         blueParticles = 30;
     }
 
+    /** 开始穿越：漩涡反转向外冲出，结束后进入主神面板 */
     private void transitionToAllocation() {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
-            Minecraft mc = Minecraft.getInstance();
-            mc.setScreen(new GodPanelScreen());
+        if (exitStart >= 0) return;
+        exitStart = System.currentTimeMillis();
+        yesButton.active = false;
+        noButton.active = false;
+        Minecraft mc = Minecraft.getInstance();
+        mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                net.minecraft.sounds.SoundEvents.PORTAL_TRAVEL, 1.4f, 0.3f));
+        if (mc.player != null && mc.level != null) {
+            for (int i = 0; i < 60; i++) {
+                double a = Math.random() * Math.PI * 2, r = 0.6 + Math.random();
+                mc.level.addParticle(net.minecraft.core.particles.ParticleTypes.PORTAL,
+                        mc.player.getX() + Math.cos(a) * r, mc.player.getY() + Math.random() * 2, mc.player.getZ() + Math.sin(a) * r,
+                        -Math.cos(a) * 0.6, 0.1, -Math.sin(a) * 0.6);
+            }
         }
+    }
+
+    private void finishTransition() {
+        if (FMLEnvironment.dist == Dist.CLIENT) {
+            Minecraft.getInstance().setScreen(new GodPanelScreen());
+        }
+    }
+
+    /**
+     * 穿越漩涡：旋转的同心光环 + 5 条螺旋臂粒子流 + 中心光核。
+     * outward=false 为吸入（开场），true 为向外冲出（退场）；strength 控制整体不透明度。
+     */
+    private void drawVortex(GuiGraphics g, float t, float strength, boolean outward, float zoom) {
+        if (strength <= 0.01f) return;
+        float cx = width / 2f, cy = height / 2f;
+        float maxR = (float) Math.hypot(width, height) * 0.6f * zoom;
+        // 同心光环（向内/向外流动，逐层扭转）
+        for (int k = 0; k < 16; k++) {
+            float u = (k / 16f + t * (outward ? 0.9f : -0.45f)) % 1f;
+            if (u < 0) u += 1;
+            float r = u * u * maxR;
+            int col = lerp(0xFF6A3FD0, 0xFF5FE0FF, u);
+            JjkStyle.ring(g, cx, cy, r, r * 0.62f, t * 1.8f + k * 0.45f, 36 + k * 8,
+                    JjkStyle.alpha(col, strength * (0.25f + 0.6f * u)));
+        }
+        // 螺旋臂
+        for (int arm = 0; arm < 5; arm++) {
+            for (int j = 0; j < 70; j++) {
+                float u = (j / 70f + t * (outward ? 0.8f : 0.5f)) % 1f;
+                float d = outward ? u : 1 - u;               // 0 = 中心，1 = 外缘
+                float r = (float) Math.pow(d, 1.7) * maxR;
+                double a = arm * Math.PI * 2 / 5 + (1 - d) * 7 + t * 3.2;
+                float x = cx + (float) Math.cos(a) * r, y = cy + (float) Math.sin(a) * r * 0.62f;
+                double a2 = a - (outward ? -0.12 : 0.12);
+                float px = cx + (float) Math.cos(a2) * r * 0.97f, py = cy + (float) Math.sin(a2) * r * 0.62f * 0.97f;
+                int col = j % 9 == 0 ? 0xFFFFFFFF : arm % 2 == 0 ? 0xFFB28CFF : 0xFF7FE8FF;
+                float a0 = strength * (0.3f + 0.7f * d);
+                JjkStyle.line(g, px, py, x, y, d > 0.6f ? 2 : 1, JjkStyle.alpha(col, a0));
+            }
+        }
+        // 光核
+        float pulse = 1 + 0.15f * (float) Math.sin(t * 6);
+        JjkStyle.disk(g, cx, cy, 26 * pulse * zoom, 0.62f, JjkStyle.alpha(0xFF6A3FD0, strength * 0.35f));
+        JjkStyle.disk(g, cx, cy, 14 * pulse * zoom, 0.62f, JjkStyle.alpha(0xFFB9A4FF, strength * 0.6f));
+        JjkStyle.disk(g, cx, cy, 6 * pulse * zoom, 0.62f, JjkStyle.alpha(0xFFFFFFFF, strength * 0.9f));
+    }
+
+    private static int lerp(int a, int b, float k) {
+        int r = (int) (((a >> 16) & 0xFF) + (((b >> 16) & 0xFF) - ((a >> 16) & 0xFF)) * k);
+        int gg = (int) (((a >> 8) & 0xFF) + (((b >> 8) & 0xFF) - ((a >> 8) & 0xFF)) * k);
+        int bl = (int) ((a & 0xFF) + ((b & 0xFF) - (a & 0xFF)) * k);
+        return 0xFF000000 | (r << 16) | (gg << 8) | bl;
     }
 
     @Override
     public void tick() {
         super.tick();
 
-        if (fadeInAlpha < 1.0f) {
-            fadeInAlpha = Math.min(1.0f, fadeInAlpha + FADE_SPEED);
-        }
-
         long currentTime = System.currentTimeMillis();
+        if (exitStart >= 0) {
+            if (currentTime - exitStart >= EXIT_MS) finishTransition();
+            return;
+        }
+        // 漩涡开场结束前，对话框不出现
+        if (currentTime - introStart < INTRO_MS * 2 / 3) return;
+        if (fadeInAlpha < 1.0f) {
+            fadeInAlpha = Math.min(1.0f, fadeInAlpha + FADE_SPEED * 4);
+        }
+        if (currentTime - introStart < INTRO_MS) return;
 
         // 打字机效果
         if (displayedCharCount < FULL_TEXT.length()) {
@@ -179,6 +259,21 @@ public class MeaningOfLifeScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics, mouseX, mouseY, partialTick);
+        long nowMs = System.currentTimeMillis();
+        float vt = (nowMs - introStart) / 1000f;
+        if (exitStart >= 0) {
+            float k = Math.min(1f, (nowMs - exitStart) / (float) EXIT_MS);
+            graphics.fill(0, 0, width, height, ((int) (230 * Math.min(1f, k * 2)) << 24) | 0x05030C);
+            drawVortex(graphics, vt, 1f, true, 1 + k * k * 2.5f);
+            float white = Math.max(0, (k - 0.65f) / 0.35f);
+            if (white > 0) graphics.fill(0, 0, width, height, JjkStyle.alpha(0xFFFFFFFF, white));
+            return;
+        }
+        float intro = Math.min(1f, (nowMs - introStart) / (float) INTRO_MS);
+        yesButton.visible = noButton.visible = intro > 0.66f;
+        if (intro < 1f) graphics.fill(0, 0, width, height, ((int) (200 * Math.min(1f, intro * 3)) << 24) | 0x05030C);
+        // 开场强烈吸入，之后作为对话背后的淡漩涡持续旋转
+        drawVortex(graphics, vt, intro < 1f ? 1f - intro * 0.7f : 0.3f, false, intro < 1f ? 1.6f - intro * 0.6f : 1f);
 
         int dialogWidth = Mth.clamp(this.width - 80, 320, 600);
         int dialogHeight = 180;
