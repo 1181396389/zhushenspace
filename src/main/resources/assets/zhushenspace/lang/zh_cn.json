@@ -556,5 +556,10 @@
   "energy.zhushenspace.dao": "道力",
   "energy.zhushenspace.psychic": "灵能",
   "energy.zhushenspace.neili": "内力",
-  "energy.zhushenspace.chakra": "查克拉"
+  "energy.zhushenspace.chakra": "查克拉",
+  "expression.zhushenspace.sing": "唱歌",
+  "expression.zhushenspace.perform_music": "演奏",
+  "expression.zhushenspace.dance": "舞蹈",
+  "expression.zhushenspace.acting": "肢体表演",
+  "expression.zhushenspace.speech": "演讲"
 }

@@ -556,5 +556,10 @@
   "energy.zhushenspace.dao": "Dao",
   "energy.zhushenspace.psychic": "Psychic",
   "energy.zhushenspace.neili": "Neili",
-  "energy.zhushenspace.chakra": "Chakra"
+  "energy.zhushenspace.chakra": "Chakra",
+  "expression.zhushenspace.sing": "Singing",
+  "expression.zhushenspace.perform_music": "Instrument",
+  "expression.zhushenspace.dance": "Dance",
+  "expression.zhushenspace.acting": "Acting",
+  "expression.zhushenspace.speech": "Oratory"
 }

@@ -166,6 +166,7 @@ public final class CombatFormula {
         LivingEntity victim = event.getEntity();
         if (p == victim || event.getAmount() <= 0f) return;
         if (WillpowerManager.isBonusStrike(p)) return;
+        if (DamageRules.hasPending(victim)) return; // 模组能力伤害（心灵 / 回声检定等）自行结算
         if (GunDamage.isGun(src)) {
             // 枪械公式已在 TACZ Pre 事件中结算（含目标防御）；这里只取消原版护甲的重复减伤
             zeroArmor(event);

@@ -131,6 +131,8 @@ public final class DamageRules {
         return EnumSet.of(DamageKind.BLUNT);
     }
 
+    public static boolean hasPending(LivingEntity e) { return PENDING.containsKey(e.getUUID()); }
+
     public static boolean isFall(DamageSource s) { return s.is(DamageTypes.FALL) || s.is(DamageTypes.FLY_INTO_WALL); }
 
     public static boolean isFallingObject(DamageSource s) {
@@ -188,6 +190,8 @@ public final class DamageRules {
         }
 
         boolean attack = src.getEntity() != null;
+        // 模组能力伤害：检定中已扣除目标防御，不再计算原版护甲
+        if (spec != null) e.addReductionModifier(DamageContainer.Reduction.ARMOR, (c, r) -> 0f);
         boolean anyItems = ks.stream().anyMatch(DamageKind::ignoresItems);
         boolean allEnergyLike = ks.stream().noneMatch(DamageKind::physical);
         // 精神 / 毒素：无视物品带来的伤害降低（护甲、附魔）
