@@ -1,0 +1,18 @@
+{
+  "name": "技艺一览",
+  "icon": "minecraft:written_book",
+  "category": "zhushenspace:shop",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "一览（上）",
+      "text": "$(bold)灵力$()：灵斩、灵力治疗$(br)$(bold)精神力$()：精神冲击、精神震荡$(br)$(bold)灵能$()：心灵系-无视我、生化系-生物闪电$(br)$(bold)妖力$()：黄泉活力、风斩$(br)$(bold)佛法$()：息法、夜叉空行"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "一览（下）",
+      "text": "$(bold)魔法$()：魔能爆、初级防护$(br)$(bold)道术$()：五行道法、八阵图$(br)$(bold)内力$()：波动拳、基础掌法、起死回生$(br)$(bold)查克拉$()：火遁·凤仙火之术、火遁·豪火球之术$(br2)详细效果在商城中悬停查看。"
+    }
+  ]
+}

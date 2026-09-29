@@ -1,0 +1,6 @@
+{
+  "name": "战斗与伤势",
+  "description": "判定、伤害类型、伤势与肢体。",
+  "icon": "minecraft:shield",
+  "sortnum": 2
+}

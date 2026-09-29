@@ -1,0 +1,18 @@
+{
+  "name": "伤势",
+  "icon": "minecraft:red_dye",
+  "category": "zhushenspace:combat",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "B / L / A",
+      "text": "伤害分三级：$(li)$(bold)B 冲击$()$(li)$(bold)L 严重$()$(li)$(bold)A 恶性$()$(br2)伤势填满生命后会逐级恶化。严重伤满载则$(bold)昏迷$()，治愈全部严重伤才会苏醒；恶性伤填满才会$(bold)死亡$()。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "肢体",
+      "text": "身体分为头、躯干、双臂、双腿，护甲按部位计算。$(li)头部血量清空：昏迷$(li)手臂断裂：该手无法交互物品$(li)双腿断裂：倒地，体积缩为一格$(br)断肢暂由管理员指令恢复。"
+    }
+  ]
+}

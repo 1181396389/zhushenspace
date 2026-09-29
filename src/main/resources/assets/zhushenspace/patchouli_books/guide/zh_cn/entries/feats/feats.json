@@ -1,0 +1,13 @@
+{
+  "name": "专长",
+  "icon": "minecraft:nether_star",
+  "category": "zhushenspace:feats",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "专长",
+      "text": "专长在建卡时用 XP 购买，分为建卡专长、普通专长与轮回专长。$(br2)第六感、精神力天赋、妖怪血脉、转世活佛、魔法体质、先天道体、灵能体质、武学奇才、查克拉体质各自赋予一个$(bold)能量池$()。"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "能量池·西方",
+  "icon": "minecraft:lapis_lazuli",
+  "category": "zhushenspace:feats",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "魔力",
+      "text": "$(bold)池 = 智力 + 感知$()$(li)能量加值：心智系检定花 1 点 +1DP$(li)$(bold)魔力感知$()：花 1 点，1 分钟内半径 感知 米的魔法波动（魔力池生物、正在生效的法术）会发光，附近施法会提示$(br)长休回满；冥想：智力+感知 检定。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "灵能",
+      "text": "$(bold)池 = 决心 + 沉着$()$(li)能量加值：任何检定花 1 点 +1DP$(br)长休后进行一次心灵检定，恢复成功数。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "精神力",
+      "text": "$(bold)池 = 决心 + 沉着，每点传奇决心 / 沉着 +5$()$(li)能量加值：决心 / 沉着检定 +1DP$(br)长休回满；冥想：决心+沉着 检定。"
+    }
+  ]
+}

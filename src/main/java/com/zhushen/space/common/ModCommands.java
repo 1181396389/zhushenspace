@@ -133,6 +133,11 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
+                // ===== 教程书（帕秋莉手册） =====
+                .then(Commands.literal("guide")
+                        .executes(ctx -> com.zhushen.space.common.GuideBook.give(ctx.getSource().getPlayerOrException()) ? 1 : 0)
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(ctx -> com.zhushen.space.common.GuideBook.give(EntityArgument.getPlayer(ctx, "player")) ? 1 : 0)))
                 // ===== 重置加点与全部购买 =====
                 .then(Commands.literal("resetall")
                         .then(Commands.argument("player", EntityArgument.player())

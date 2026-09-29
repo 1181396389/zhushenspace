@@ -1,0 +1,18 @@
+{
+  "name": "战斗模式与预设",
+  "icon": "minecraft:netherite_sword",
+  "category": "zhushenspace:basics",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "战斗模式",
+      "text": "按 $(k:key.zhushenspace.toggle_combat) 切换战斗模式。战斗模式下：$(li)数字键 1~9 施放当前技能栏$(li)$(k:key.zhushenspace.switch_bar) 切换 A / B 栏$(li)肢体 HUD 显示在屏幕上$(br2)在面板「预设」页把技能芯片拖入技能栏。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "动作轮盘",
+      "text": "按住 $(k:key.zhushenspace.art_wheel) 打开$(bold)动作轮盘$()，松开关闭。$(br2)不占技能栏的主动效果都在这里：意志加持、意志守御、能量加值、魔力感知、蛛行术、水面行走、灵感视觉、冥想、留手、增幅、八阵图元素。$(br)拥有对应能量池 / 技艺后才会出现。"
+    }
+  ]
+}

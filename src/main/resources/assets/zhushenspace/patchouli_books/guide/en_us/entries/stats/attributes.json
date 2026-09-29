@@ -1,0 +1,18 @@
+{
+  "name": "属性",
+  "icon": "minecraft:golden_apple",
+  "category": "zhushenspace:stats",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "九项属性",
+      "text": "$(bold)生理$()：力量、敏捷、耐力$(br)$(bold)心智$()：智力、感知、决心$(br)$(bold)社交$()：风度、操作、沉着$(br2)属性满 5 即为$(bold)传奇$()，会解锁额外加成（见面板悬停说明）。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "作用",
+      "text": "$(li)$(bold)力量$()：近战判定$(li)$(bold)敏捷$()：护甲、投掷与弓箭判定$(li)$(bold)耐力$()：生命值$(li)$(bold)智力$()：魔法关键属性$(li)$(bold)感知$()：弱点光点、查克拉关键属性$(li)$(bold)决心$()：意志力池、心灵检定$(li)$(bold)风度$()：回声检定、道术 / 妖术$(li)$(bold)沉着$()：心灵检定、意志豁免"
+    }
+  ]
+}

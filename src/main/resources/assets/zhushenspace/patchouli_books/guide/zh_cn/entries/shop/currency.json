@@ -1,0 +1,13 @@
+{
+  "name": "货币",
+  "icon": "minecraft:gold_ingot",
+  "category": "zhushenspace:shop",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "积分与支线",
+      "text": "$(bold)积分$()与五级$(bold)支线$()（S / A / B / C / D）。价格写作「D+500」= 1 个 D 级支线 + 500 积分。$(br)支线可在货币界面合成与拆分。$(br2)$(bold)XP$() 用于技艺研发。"
+    }
+  ]
+}

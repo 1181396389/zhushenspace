@@ -1,0 +1,13 @@
+{
+  "name": "擒抱",
+  "icon": "minecraft:lead",
+  "category": "zhushenspace:combat",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "擒抱",
+      "text": "擒抱是肉搏的技能能力。对抗值 = 数值 × 20%~100% 浮动，1 轮 = 3 秒。$(br2)被擒抱时失去天生防御，也无法施放需要姿势的法术。"
+    }
+  ]
+}

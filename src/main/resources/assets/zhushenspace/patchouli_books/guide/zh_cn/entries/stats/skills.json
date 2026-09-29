@@ -1,0 +1,13 @@
+{
+  "name": "技能",
+  "icon": "minecraft:book",
+  "category": "zhushenspace:stats",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "九项技能",
+      "text": "$(li)$(bold)运动$()：投掷与弓箭；自我保护 / 跳跃 / 攀爬$(li)$(bold)肉搏$()：徒手；格挡 / 摔绊 / 冲锋 / 擒抱$(li)$(bold)白刃$()：人造武器；白刃格挡$(li)$(bold)神秘学$()：施法判定$(li)$(bold)表达$()：回声检定$(li)$(bold)枪械$()：需 TACZ$(li)手艺、科学、动物沟通"
+    }
+  ]
+}

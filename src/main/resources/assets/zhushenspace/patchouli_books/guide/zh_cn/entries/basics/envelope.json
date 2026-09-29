@@ -1,0 +1,19 @@
+{
+  "name": "主神邀请函",
+  "icon": "zhushenspace:invitation_envelope",
+  "category": "zhushenspace:basics",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "zhushenspace:invitation_envelope",
+      "title": "主神邀请函",
+      "text": "右键使用邀请函，接受主神的邀请。$(br2)使用后才能打开$(l)主神面板$()：在背包界面上方点击「主神面板」选项卡。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "主神面板",
+      "text": "面板共五页：$(li)$(bold)加点$()：属性与技能$(li)$(bold)预设$()：战斗技能栏 A / B$(li)$(bold)商城$()：流派与技艺$(li)$(bold)专长$()：已习得专长$(li)$(bold)技能$()：技能与武器专业"
+    }
+  ]
+}

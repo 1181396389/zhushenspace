@@ -1,0 +1,12 @@
+{
+  "name": "book.zhushenspace.guide.name",
+  "landing_text": "book.zhushenspace.guide.landing",
+  "version": 1,
+  "use_resource_pack": true,
+  "model": "patchouli:book_purple",
+  "book_texture": "patchouli:textures/gui/book_purple.png",
+  "show_progress": false,
+  "subtitle": "book.zhushenspace.guide.subtitle",
+  "creative_tab": "zhushenspace:zhushen_tab",
+  "i18n": true
+}

@@ -1,0 +1,13 @@
+{
+  "name": "管理员指令",
+  "icon": "minecraft:command_block",
+  "category": "zhushenspace:ref",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "指令",
+      "text": "根指令 $(bold)/zhushen$()（权限 2）：$(li)currency give / show：发放、查看货币$(li)school unlock / grant：流派$(li)build reset / xp / info：建卡$(li)limb restore / sever：肢体$(li)energy give / set / clear：能量池$(li)resetall <玩家> [norefund]：重置加点与全部购买$(li)guide [玩家]：发放本手册"
+    }
+  ]
+}

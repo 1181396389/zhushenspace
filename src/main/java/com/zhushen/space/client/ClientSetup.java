@@ -12,9 +12,8 @@ import org.lwjgl.glfw.GLFW;
  * 客户端按键注册（MOD 总线）：
  * - Alt 切换战斗模式
  * - V 切换战斗预设技能栏（A/B）
- * - K 切换内力吐息（自动档）
- * - H 打坐（恢复内力）
- * - G 意志力：强撑 / 意志加持；B 意志守御
+ * - Z 动作轮盘（意志力、能量池用法、留手 / 增幅等）
+ * - 意志力 / 意志守御：默认不绑定，可在「控制」中自行设置
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
 public class ClientSetup {

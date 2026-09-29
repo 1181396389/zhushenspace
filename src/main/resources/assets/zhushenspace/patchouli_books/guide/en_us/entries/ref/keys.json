@@ -1,0 +1,13 @@
+{
+  "name": "按键",
+  "icon": "minecraft:tripwire_hook",
+  "category": "zhushenspace:ref",
+  "sortnum": 0,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "按键",
+      "text": "$(li)$(k:key.zhushenspace.toggle_combat)：战斗模式$(li)1~9：施放技能（战斗模式）$(li)$(k:key.zhushenspace.switch_bar)：切换 A / B 栏$(li)按住 $(k:key.zhushenspace.art_wheel)：动作轮盘$(br2)意志加持 / 意志守御默认不占键，可在「控制」中自行绑定。"
+    }
+  ]
+}

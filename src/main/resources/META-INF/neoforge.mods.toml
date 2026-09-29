@@ -112,3 +112,11 @@ description='''
     versionRange="[1.1.0,)"
     ordering="NONE"
     side="BOTH"
+
+# Patchouli（帕秋莉手册）- 可选联动：《主神空间·轮回者手册》教程书
+[[dependencies.${mod_id}]]
+    modId="patchouli"
+    type="optional"
+    versionRange="*"
+    ordering="NONE"
+    side="BOTH"

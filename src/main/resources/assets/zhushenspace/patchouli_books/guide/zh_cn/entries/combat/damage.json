@@ -1,0 +1,18 @@
+{
+  "name": "伤害类型",
+  "icon": "minecraft:blaze_powder",
+  "category": "zhushenspace:combat",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "类型与结算",
+      "text": "物理：钝击、挥砍、穿刺。$(br)能量：纯能量、火、寒、电、酸、神圣、邪恶、音波、光。$(br)另有心灵、力场、毒素。$(br2)结算顺序：免疫 → 忽略 → 硬度 / 抵消 → 抗力 / 减免 → 吸收 → 阈值 → 易伤。混合伤害取最弱的防御。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "关键词",
+      "text": "$(bold)【高速X】$()：目标防御 −X。$(br)$(bold)【破甲X】$()：防御再 −X。$(br)$(bold)【破魔X】$()：无视 X 点能量抗力。$(br)$(bold)【击飞】$()：距离 = 伤害 − max(体型+5, 耐力, 力量)；反射豁免低于距离则倒地。$(br)$(bold)措手不及$()：失去天生防御，不能做反射动作。$(br)坠落：超过 3 米每 2 米 1 点严重伤，上限 100。"
+    }
+  ]
+}
