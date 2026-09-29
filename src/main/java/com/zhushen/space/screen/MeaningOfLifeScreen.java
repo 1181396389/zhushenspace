@@ -79,7 +79,7 @@ public class MeaningOfLifeScreen extends Screen {
     }
 
     private static void ui(net.minecraft.core.Holder<net.minecraft.sounds.SoundEvent> e, float pitch, float vol) {
-        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(e, pitch, vol));
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(e.value(), pitch, vol));
     }
 
     private boolean ready() {
