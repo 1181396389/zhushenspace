@@ -121,8 +121,13 @@ public final class CombatFormula {
 
     /** 目标防御：护甲值（玩家按命中部位） */
     public static float defense(LivingEntity victim, DamageSource src) {
-        if (victim instanceof ServerPlayer sp) return (float) LimbManager.defenseFor(sp, src);
-        return victim.getArmorValue();
+        float d = victim instanceof ServerPlayer sp ? (float) LimbManager.defenseFor(sp, src) : victim.getArmorValue();
+        // 措手不及 / 擒抱中（面对组外攻击）：失去天生防御（闪避、格挡加值待接入）
+        if (DamageRules.isFlatFooted(victim, src.getEntity())) {
+            d -= (float) DamageRules.naturalDefense(victim);
+            DamageRules.consumeFlat(victim, src.getEntity());
+        }
+        return Math.max(0f, d);
     }
 
     private static final ResourceLocation STR_ATTACK =

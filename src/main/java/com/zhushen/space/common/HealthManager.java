@@ -99,7 +99,10 @@ public class HealthManager {
             normalize(player); // 被完全吸收/减免的伤害不记录伤势，仅归位生命值
             return;
         }
-        addWound(player, PlayerHealthData.Severity.B, Math.round(amount));
+        int[] sp = DamageRules.takeSplit(player, Math.round(amount));
+        if (sp[2] > 0) addWound(player, PlayerHealthData.Severity.A, sp[2]);
+        if (sp[1] > 0) addWound(player, PlayerHealthData.Severity.L, sp[1]);
+        if (sp[0] > 0) addWound(player, PlayerHealthData.Severity.B, sp[0]);
     }
 
     /** 原版治疗拦截：改为移除伤势（冲击 → 严重 → 恶性，1:1）并回复完好生命值 */

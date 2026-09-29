@@ -39,11 +39,22 @@ public final class FeatEffects {
 
     /** 各能量池（灵力 / 精神力 / 妖力 / 佛力 / 魔力 / 道力 / 灵能 / 内力 / 查克拉），待能量系统对接 */
     public enum Pool {
-        SPIRIT(FeatType.SIXTH_SENSE), MIND(FeatType.PSIONIC_TALENT), YOKAI(FeatType.YOKAI_BLOOD),
-        BUDDHA(FeatType.REINCARNATED_BUDDHA), MAGIC(FeatType.MAGIC_CONSTITUTION), DAO(FeatType.INNATE_DAO_BODY),
-        PSYCHIC(FeatType.PSYCHIC_CONSTITUTION), NEILI(FeatType.MARTIAL_PRODIGY), CHAKRA(FeatType.CHAKRA_CONSTITUTION);
+        SPIRIT(FeatType.SIXTH_SENSE, "spirit", AttributeType.RESOLVE, AttributeType.COMPOSURE),
+        MIND(FeatType.PSIONIC_TALENT, "mind", AttributeType.RESOLVE, AttributeType.COMPOSURE),
+        YOKAI(FeatType.YOKAI_BLOOD, "yokai", AttributeType.CHARM, AttributeType.ENDURANCE),
+        BUDDHA(FeatType.REINCARNATED_BUDDHA, "buddha", AttributeType.RESOLVE, AttributeType.CHARM),
+        MAGIC(FeatType.MAGIC_CONSTITUTION, "magic", AttributeType.INTELLIGENCE, AttributeType.RESOLVE),
+        DAO(FeatType.INNATE_DAO_BODY, "dao", AttributeType.CHARM, AttributeType.RESOLVE),
+        PSYCHIC(FeatType.PSYCHIC_CONSTITUTION, "psychic", AttributeType.RESOLVE, AttributeType.COMPOSURE),
+        NEILI(FeatType.MARTIAL_PRODIGY, "neili", AttributeType.ENDURANCE, AttributeType.PERCEPTION),
+        CHAKRA(FeatType.CHAKRA_CONSTITUTION, "chakra", AttributeType.PERCEPTION, AttributeType.ENDURANCE);
         public final FeatType feat;
-        Pool(FeatType f) { feat = f; }
+        public final String id;
+        public final AttributeType a, b;
+        Pool(FeatType f, String id, AttributeType a, AttributeType b) { feat = f; this.id = id; this.a = a; this.b = b; }
+        /** 基础容量 = 两项相关属性之和（与内力池 耐力+感知 一致） */
+        public double capacity(int[] pts) { return pts[a.ordinal()] + pts[b.ordinal()]; }
+        public static Pool byId(String id) { for (Pool p : values()) if (p.id.equals(id)) return p; return null; }
     }
 
     public static boolean has(Player p, FeatType f) {

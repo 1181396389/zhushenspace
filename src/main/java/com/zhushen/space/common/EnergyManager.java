@@ -104,11 +104,30 @@ public class EnergyManager {
                     p[AttributeType.ENDURANCE.ordinal()] + p[AttributeType.PERCEPTION.ordinal()]);
         }
 
+        // 专长能量池（灵力 / 精神力 / 妖力 / 佛力 / 魔力 / 道力 / 灵能 / 内力 / 查克拉）
+        syncFeatPools(player, data, p);
+
         // 主能量池 = 基础容量最大的池：传奇加成直接扩充其上限（无池时 applyMainPoolBonus 无事可做）
         data.applyMainPoolBonus(bonus);
         // 意志力池：上限 = 决心加点（+ 决心满级时每点传奇 +3），独立于主能量池
         WillpowerManager.recalc(player, data);
         sync(player);
+    }
+
+    /** 专长能量池：拥有专长则按属性重算基础容量；失去专长则移除（内力池可能由太极饰品发放，不移除） */
+    private static void syncFeatPools(ServerPlayer player, PlayerEnergyData data, int[] p) {
+        for (FeatEffects.Pool pool : FeatEffects.Pool.values()) {
+            boolean has = FeatEffects.has(player, pool.feat);
+            if (has) {
+                double cap = pool.capacity(p);
+                if (POOL_NEILI.equals(pool.id)) cap = Math.max(cap, p[AttributeType.ENDURANCE.ordinal()] + p[AttributeType.PERCEPTION.ordinal()]);
+                boolean fresh = data.getPool(pool.id) == null;
+                data.setBaseCapacity(pool.id, cap);
+                if (fresh) data.getPool(pool.id).current = cap;
+            } else if (!POOL_NEILI.equals(pool.id) && data.getPool(pool.id) != null) {
+                data.removePool(pool.id);
+            }
+        }
     }
 
     /** ===== 内力：自动获得的技能 ===== */
@@ -266,6 +285,11 @@ public class EnergyManager {
         for (var entity : event.getLevel().players()) {
             if (!(entity instanceof ServerPlayer player)) continue;
             PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
+            boolean featRestored = false;
+            for (FeatEffects.Pool fp : FeatEffects.Pool.values()) {
+                if (!POOL_NEILI.equals(fp.id) && data.getPool(fp.id) != null && data.restore(fp.id, Double.MAX_VALUE) > 0) featRestored = true;
+            }
+            if (featRestored) sync(player);
             if (data.getPool(POOL_NEILI) != null && data.restore(POOL_NEILI, Double.MAX_VALUE) > 0) {
                 player.displayClientMessage(Component.translatable("msg.zhushenspace.neili.sleep"), true);
                 // 特效：晨光磬音 + 符文环
@@ -324,6 +348,14 @@ public class EnergyManager {
             case POOL_MAIN -> 0xFFE0B84D;         // 主能量池：鎏金（传奇能量）
             case POOL_NEILI -> 0xFF4DE0C0;        // 内力：青碧（东方之气）
             case WillpowerManager.POOL_ID -> 0xFFE0704D; // 意志力：赤焰
+            case "spirit" -> 0xFF9FE8FF;   // 灵力：幽蓝
+            case "mind" -> 0xFFB48CFF;     // 精神力：紫
+            case "yokai" -> 0xFFFF7AB8;    // 妖力：妖粉
+            case "buddha" -> 0xFFFFD35A;   // 佛力：金
+            case "magic" -> 0xFF5A7BFF;    // 魔力：靛蓝
+            case "dao" -> 0xFF7FE0A0;      // 道力：青绿
+            case "psychic" -> 0xFFE05AFF;  // 灵能：品红
+            case "chakra" -> 0xFF4DA6FF;   // 查克拉：蓝
             default -> PALETTE[Math.floorMod(id.hashCode(), PALETTE.length)];
         };
     }
