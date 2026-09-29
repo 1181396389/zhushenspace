@@ -69,10 +69,24 @@ public final class JjkStyle {
     public static void button(GuiGraphics g, Font font, int mx, int my, int x, int y, int w, int h,
                               Component label, int accent, boolean enabled) {
         boolean hover = enabled && ZsTheme.over(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hover ? alpha(accent, 0.9f) : 0xE0080808);
-        g.renderOutline(x, y, w, h, enabled ? accent : 0xFF404040);
-        g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, alpha(accent, 0.5f));
-        g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2,
+        long now = ZsAnim.nowMs();
+        int s = 3;
+        int bg = hover ? alpha(accent, 0.9f) : 0xE0080808;
+        for (int r = 0; r < h; r++) {
+            int off = s - r * s / Math.max(1, h - 1);
+            g.fill(x + off, y + r, x + w - s + off, y + r + 1, bg);
+        }
+        int e = enabled ? accent : 0xFF404040;
+        line(g, x + s, y, x + w, y, 1, e);
+        line(g, x, y + h - 1, x + w - s, y + h - 1, 1, e);
+        line(g, x + s, y, x, y + h - 1, 1, e);
+        line(g, x + w, y, x + w - s, y + h - 1, 1, e);
+        if (enabled && !hover) {
+            float t = ((now + x * 7L) % 3000) / 3000f;
+            int px = x + (int) (t * w);
+            g.fill(px, y + h - 2, Math.min(x + w - s, px + 10), y + h - 1, alpha(accent, 0.8f));
+        }
+        g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2 + 1,
                 !enabled ? 0xFF606060 : hover ? INK : 0xFFFFFFFF, false);
     }
 
@@ -343,5 +357,123 @@ public final class JjkStyle {
         line(g, cx - 5, cy - 5, cx + 5, cy + 5, 1, alpha(0xFFFFFFFF, fl));
         line(g, cx + 5, cy - 5, cx - 5, cy + 5, 1, alpha(SUKUNA_GLOW, fl));
         line(g, cx - 6, cy - 4, cx + 4, cy + 6, 1, alpha(SUKUNA, fl * 0.4f));
+    }
+
+    // ================= 咒术回战 UI 组件（动态） =================
+
+    /** 咒力面板：墨色渐变底 + 毛笔粗糙边 + 流动咒力描边 + 角落封印括号 + 上升咒力残屑 */
+    public static void cursedPanel(GuiGraphics g, int x, int y, int w, int h, int accent, float fade, int seed) {
+        long now = ZsAnim.nowMs();
+        g.fillGradient(x, y, x + w, y + h, alpha(0xFF07080E, 0.9f * fade), alpha(0xFF0B0306, 0.9f * fade));
+        // 底部咒力雾
+        g.fillGradient(x + 1, y + h - 18, x + w - 1, y + h - 1, 0, alpha(accent, 0.10f * fade));
+        // 毛笔边：顶/底随机粗细
+        for (int i = 0; i < w; i += 2) {
+            float r1 = hash(seed * 31L + i, 7), r2 = hash(seed * 17L + i, 11);
+            int t1 = r1 > 0.85f ? 2 : 1, t2 = r2 > 0.8f ? 2 : 1;
+            g.fill(x + i, y, x + Math.min(w, i + 2), y + t1, alpha(0xFF2A2F3C, fade));
+            g.fill(x + i, y + h - t2, x + Math.min(w, i + 2), y + h, alpha(0xFF2A2F3C, fade));
+        }
+        g.fill(x, y, x + 1, y + h, alpha(0xFF2A2F3C, fade));
+        g.fill(x + w - 1, y, x + w, y + h, alpha(0xFF2A2F3C, fade));
+        // 流动咒力：沿周长游走的光带
+        int per = 2 * (w + h);
+        for (int k = 0; k < 2; k++) {
+            float head = ((now / 6f) + k * per / 2f + seed * 53) % per;
+            for (int j = 0; j < 36; j++) {
+                float d = (head - j * 1.5f + per) % per;
+                float a = (1 - j / 36f) * fade;
+                int col = alpha(k == 0 ? accent : SUKUNA_GLOW, a * 0.9f);
+                float px, py;
+                if (d < w) { px = x + d; py = y; }
+                else if (d < w + h) { px = x + w - 1; py = y + d - w; }
+                else if (d < 2 * w + h) { px = x + w - 1 - (d - w - h); py = y + h - 1; }
+                else { px = x; py = y + h - 1 - (d - 2 * w - h); }
+                g.fill((int) px, (int) py, (int) px + 1, (int) py + 1, col);
+            }
+        }
+        // 角落封印括号
+        int c = alpha(accent, fade), L = 6;
+        g.fill(x - 1, y - 1, x + L, y + 1, c); g.fill(x - 1, y - 1, x + 1, y + L, c);
+        g.fill(x + w - L, y - 1, x + w + 1, y + 1, c); g.fill(x + w - 1, y - 1, x + w + 1, y + L, c);
+        g.fill(x - 1, y + h - 1, x + L, y + h + 1, c); g.fill(x - 1, y + h - L, x + 1, y + h + 1, c);
+        g.fill(x + w - L, y + h - 1, x + w + 1, y + h + 1, c); g.fill(x + w - 1, y + h - L, x + w + 1, y + h + 1, c);
+        // 上升残屑
+        for (int i = 0; i < Math.max(4, w / 14); i++) {
+            float life = ((now + (long) (hash(seed, i) * 4000)) % 4000) / 4000f;
+            int px = x + 3 + (int) (hash(seed + 1, i) * (w - 6)) + (int) (Math.sin(life * 6 + i) * 2);
+            int py = y + h - 2 - (int) (life * Math.min(40, h * 0.5f));
+            g.fill(px, py, px + 1, py + 1, alpha(i % 3 == 0 ? SUKUNA_GLOW : accent, (1 - life) * 0.6f * fade));
+        }
+    }
+
+    /** 符咒标签：选中为纸白符纸 + 朱印；未选为墨底；悬停轻颤 */
+    public static void talisman(GuiGraphics g, Font font, int mx, int my, int x, int y, int w, int h,
+                                Component label, int accent, boolean sel, float fade) {
+        boolean hov = ZsTheme.over(mx, my, x, y, w, h);
+        long now = ZsAnim.nowMs();
+        int jx = hov && !sel ? (int) Math.round(Math.sin(now / 40.0) * 0.6) : 0;
+        x += jx;
+        if (sel) {
+            g.fill(x, y, x + w, y + h, alpha(PAPER, fade));
+            g.fill(x, y, x + 2, y + h, alpha(SUKUNA, fade));
+            g.fill(x + w - 2, y, x + w, y + h, alpha(SUKUNA, fade));
+            // 纸面墨纹扫过
+            int sx = (int) ((now / 8) % (w + 20)) - 10;
+            for (int k = 0; k < 4; k++) g.fill(Math.max(x + 2, x + sx + k), y, Math.min(x + w - 2, x + sx + k + 1), y + h, 0x18000000);
+            g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2 + 1, INK, false);
+        } else {
+            g.fill(x, y, x + w, y + h, alpha(0xE0080808, fade));
+            g.fill(x, y, x + w, y + 1, alpha(hov ? 0xFFFFFFFF : accent, 0.7f * fade));
+            g.fill(x, y + h - 1, x + w, y + h, alpha(0xFF303440, fade));
+            g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2 + 1, hov ? 0xFFFFFFFF : 0xFFB8C0CC, false);
+        }
+    }
+
+    /** 斜切等级印：斜角平行四边形；拥有=主题色 + 斩击光；待确认=脉冲 */
+    public static void sealPip(GuiGraphics g, Font font, int x, int y, int w, int h, String label,
+                               int accent, boolean own, boolean saved, boolean hov) {
+        long now = ZsAnim.nowMs();
+        float pulse = ZsAnim.pulse(700);
+        int bg = own ? (saved ? accent : alpha(accent, 0.45f + 0.4f * pulse)) : 0xE00A0B10;
+        int s = Math.min(4, h / 2);
+        for (int r = 0; r < h; r++) {
+            int off = s - r * s / Math.max(1, h - 1);
+            g.fill(x + off, y + r, x + w - s + off, y + r + 1, bg);
+        }
+        int edge = hov ? 0xFFFFFFFF : alpha(accent, own ? 1f : 0.7f);
+        line(g, x + s, y, x + w, y, 1, edge);
+        line(g, x, y + h - 1, x + w - s, y + h - 1, 1, edge);
+        line(g, x + s, y, x, y + h - 1, 1, edge);
+        line(g, x + w, y, x + w - s, y + h - 1, 1, edge);
+        if (own) {
+            // 周期性斩击高光
+            float t = ((now + x * 13L) % 2400) / 2400f;
+            if (t < 0.25f) {
+                float u = t / 0.25f;
+                int cx = x + (int) (u * (w + 8)) - 4;
+                line(g, cx + 3, y, cx - 3, y + h, 2, 0x88FFFFFF);
+            }
+        }
+        if (hov) g.fill(x + s, y - 2, x + w - s, y - 1, alpha(accent, 0.6f + 0.4f * pulse));
+        g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2 + 1, own ? INK : 0xFFD8DEE8, false);
+    }
+
+    /** 列表选中条：咒焰火舌 + 横扫墨迹 */
+    public static void selectRow(GuiGraphics g, int x, int y, int w, int h, int accent) {
+        long now = ZsAnim.nowMs();
+        g.fillGradient(x, y, x + w, y + h, alpha(accent, 0.28f), alpha(accent, 0.08f));
+        for (int i = 0; i < w; i += 2) {
+            float f = (float) Math.sin(i * 0.35 + now / 90.0) * 0.5f + 0.5f;
+            int fh = (int) (f * 3 * hash(i, now / 120));
+            if (fh > 0) g.fill(x + i, y + h - fh, x + i + 1, y + h, alpha(accent, 0.5f));
+        }
+        int sx = (int) ((now / 5) % (w + 40)) - 20;
+        g.fillGradient(Math.max(x, x + sx), y, Math.min(x + w, x + sx + 14), y + h, 0x00FFFFFF, 0x00FFFFFF);
+        for (int k = 0; k < 14; k++) {
+            int px = x + sx + k;
+            if (px < x || px >= x + w) continue;
+            g.fill(px, y, px + 1, y + h, alpha(0xFFFFFFFF, 0.10f * (1 - Math.abs(k - 7) / 7f)));
+        }
     }
 }

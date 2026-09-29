@@ -587,13 +587,27 @@ public class GodPanelScreen extends Screen {
         return new int[]{featDetailX() + 4, lay[2] + idx * 14, featDetailW() - 8, 12};
     }
 
+    private int featAnimSel = -1;
+    private long featSelAt;
+
     private void renderFeatCards(GuiGraphics g, int mouseX, int mouseY, float fade) {
         // —— 头部：标题 + 搜索 + 重置 / 确认 ——
         g.drawString(font, Component.translatable("screen.zhushenspace.godpanel.tab.feats"), panelX + 10, actionY + 3,
                 ZsAnim.withAlpha(0xFFF2ECE0, fade), true);
+        {
+            int tw = font.width(Component.translatable("screen.zhushenspace.godpanel.tab.feats"));
+            float grow = ZsAnim.easeOutCubic(fade);
+            JjkStyle.line(g, panelX + 8, actionY + 13, panelX + 8 + (tw + 10) * grow, actionY + 12, 2, JjkStyle.alpha(JjkStyle.SUKUNA, fade));
+        }
         int[] sr = featSearchRect();
         g.fill(sr[0], sr[1], sr[0] + sr[2], sr[1] + sr[3], 0xCC06070C);
-        g.renderOutline(sr[0], sr[1], sr[2], sr[3], featSearchFocus ? 0xFFFFFFFF : 0xFF3A4050);
+        g.fill(sr[0], sr[1] + sr[3] - 1, sr[0] + sr[2], sr[1] + sr[3], featSearchFocus ? JjkStyle.GOJO : 0xFF3A4050);
+        if (featSearchFocus) {
+            float fw = ZsAnim.tween(ZsAnim.key(91, sr[0], sr[1]), 1f, 10f);
+            int half = (int) (sr[2] / 2f * fw);
+            g.fill(sr[0] + sr[2] / 2 - half, sr[1] + sr[3] - 2, sr[0] + sr[2] / 2 + half, sr[1] + sr[3] - 1, JjkStyle.alpha(JjkStyle.GOJO_LIGHT, 0.7f));
+        } else ZsAnim.tween(ZsAnim.key(91, sr[0], sr[1]), 0f, 50f);
+        g.drawString(font, "咒", sr[0] + sr[2] - 10, sr[1] + (sr[3] - 8) / 2, JjkStyle.alpha(JjkStyle.SUKUNA, 0.5f + 0.5f * ZsAnim.pulse(1600)), false);
         String shown = featSearch.isEmpty() && !featSearchFocus
                 ? Component.translatable("build.zhushenspace.search").getString() : featSearch;
         String clip = font.plainSubstrByWidth(shown, sr[2] - 10, true);
@@ -617,32 +631,36 @@ public class GodPanelScreen extends Screen {
             featChipX[i] = cx;
             featChipW[i] = w;
             boolean sel = featFilter == i, hov = over(mouseX, mouseY, cx, cy, w, 11);
-            g.fill(cx, cy, cx + w, cy + 11, sel ? ZsAnim.withAlpha(JjkStyle.GOJO, 0.85f * fade) : ZsAnim.withAlpha(0xFF06070C, 0.8f * fade));
-            g.renderOutline(cx, cy, w, 11, hov ? 0xFFFFFFFF : ZsAnim.withAlpha(0xFF3A4050, fade));
-            g.drawString(font, c, cx + 4, cy + 2, sel ? 0xFF05060A : 0xFFC8D0DC, false);
+            JjkStyle.talisman(g, font, mouseX, mouseY, cx, cy, w, 11, c, JjkStyle.GOJO, sel, fade);
             cx += w + 3;
         }
 
         // —— 左：列表 ——
         List<FeatType> vis = featVisible();
         int lx = featListX(), lw = featListW(), top = featPaneTop(), bot = featPaneBottom();
-        g.fill(lx, top, lx + lw, bot, ZsAnim.withAlpha(0xFF05060A, 0.82f * fade));
-        g.renderOutline(lx, top, lw, bot - top, ZsAnim.withAlpha(0xFF2A3040, fade));
+        JjkStyle.cursedPanel(g, lx, top, lw, bot - top, JjkStyle.GOJO, fade, 1);
         featMaxScroll = Math.max(0, vis.size() * FEAT_ROW_H - (bot - top - 2));
         featScroll = Math.max(0, Math.min(featScroll, featMaxScroll));
         if (!vis.isEmpty() && !vis.contains(FeatType.VALUES[Math.min(featSel, FeatType.COUNT - 1)])) featSel = vis.get(0).ordinal();
         g.enableScissor(lx + 1, top + 1, lx + lw - 1, bot - 1);
+        {
+            int selIdx = vis.indexOf(FeatType.VALUES[Math.min(featSel, FeatType.COUNT - 1)]);
+            if (selIdx >= 0) {
+                float sy = ZsAnim.tween(ZsAnim.key(92, lx, 0), top + 1 + selIdx * FEAT_ROW_H - featScroll, 18f);
+                JjkStyle.selectRow(g, lx + 1, (int) sy, lw - 2, FEAT_ROW_H, catColor(FeatType.VALUES[featSel].category));
+            }
+        }
         for (int r = 0; r < vis.size(); r++) {
             FeatType f = vis.get(r);
             int ry = top + 1 + r * FEAT_ROW_H - featScroll;
             if (ry + FEAT_ROW_H < top || ry > bot) continue;
             int k = f.ordinal();
             boolean sel = k == featSel, hov = over(mouseX, mouseY, lx, ry, lw - 4, FEAT_ROW_H) && mouseY >= top && mouseY < bot;
-            if (sel) g.fill(lx + 1, ry, lx + lw - 1, ry + FEAT_ROW_H, 0x402A6090);
-            else if (hov) g.fill(lx + 1, ry, lx + lw - 1, ry + FEAT_ROW_H, 0x22FFFFFF);
+            if (!sel && hov) g.fill(lx + 1, ry, lx + lw - 1, ry + FEAT_ROW_H, 0x22FFFFFF);
             g.fill(lx + 1, ry, lx + 3, ry + FEAT_ROW_H, sel ? catColor(f.category) : ZsAnim.withAlpha(catColor(f.category), 0.45f));
             String name = font.plainSubstrByWidth(Component.translatable(f.nameKey()).getString(), lw - 44);
-            g.drawString(font, name, lx + 7, ry + 4, featEditable(f) ? 0xFFE8EEF8 : 0xFF8A92A0, false);
+            int nx = lx + 7 + (int) ZsAnim.tween(ZsAnim.key(93, k, 0), sel ? 4f : hov ? 2f : 0f, 14f);
+            g.drawString(font, name, nx, ry + 4, featEditable(f) ? 0xFFE8EEF8 : 0xFF8A92A0, false);
             int top2 = featTopLevel(k);
             String lv = top2 == 0 ? "—" : "Lv" + top2 + "/" + f.maxLevel;
             boolean pend = featCur[k] != featSaved[k];
@@ -658,20 +676,30 @@ public class GodPanelScreen extends Screen {
             int barH = Math.max(12, trackH * (bot - top) / (vis.size() * FEAT_ROW_H));
             int by = top + 2 + (trackH - barH) * featScroll / featMaxScroll;
             g.fill(lx + lw - 3, top + 2, lx + lw - 2, bot - 2, 0x22FFFFFF);
-            g.fill(lx + lw - 4, by, lx + lw - 1, by + barH, 0xAA8FB8E0);
+            g.fill(lx + lw - 4, by, lx + lw - 1, by + barH, JjkStyle.alpha(JjkStyle.GOJO, 0.6f + 0.3f * ZsAnim.pulse(1200)));
         }
 
         // —— 右：详情 ——
         int dx = featDetailX(), dw = featDetailW();
-        g.fill(dx, top, dx + dw, bot, ZsAnim.withAlpha(0xFF05060A, 0.82f * fade));
-        g.renderOutline(dx, top, dw, bot - top, ZsAnim.withAlpha(0xFF2A3040, fade));
+        JjkStyle.cursedPanel(g, dx, top, dw, bot - top, JjkStyle.SUKUNA, fade, 2);
         featHoverLevel = -1;
         if (vis.isEmpty()) return;
         FeatType f = FeatType.VALUES[featSel];
         int k = f.ordinal();
         int accent = catColor(f.category);
         int y = top + 4;
-        g.drawString(font, Component.translatable(f.nameKey()), dx + 5, y, 0xFFF2ECE0, false);
+        {
+            // 切换条目时标题从右侧斩入
+            float in = ZsAnim.tween(ZsAnim.key(94, k, 0), 1f, 9f);
+            if (featAnimSel != k) { featAnimSel = k; featSelAt = ZsAnim.nowMs(); }
+            float t = ZsAnim.easeOutCubic(ZsAnim.clamp01((ZsAnim.nowMs() - featSelAt) / 260f));
+            int ox = (int) ((1 - t) * 18);
+            g.drawString(font, Component.translatable(f.nameKey()), dx + 5 + ox, y, ZsAnim.withAlpha(0xFFF2ECE0, Math.max(0.1f, t)), true);
+            int nw = font.width(Component.translatable(f.nameKey()));
+            if (t < 1f) JjkStyle.line(g, dx + 2, y + 9 - t * 8, dx + 10 + nw * t + 8, y + 1 + t * 2, 1, JjkStyle.alpha(0xFFFFFFFF, 1 - t));
+            JjkStyle.line(g, dx + 5, y + 21, dx + 5 + (dw - 10) * t, y + 21, 1, JjkStyle.alpha(accent, 0.35f));
+            if (in < 0) featSelAt = 0;
+        }
         Component cat = Component.translatable(f.category.nameKey());
         g.drawString(font, cat, dx + dw - 5 - font.width(cat), y, accent, false);
         Component pre = Component.translatable("build.zhushenspace.prereq",
@@ -684,11 +712,8 @@ public class GodPanelScreen extends Screen {
             boolean hov = over(mouseX, mouseY, r[0], r[1], r[2], r[3]);
             if (hov) featHoverLevel = l;
             int price = f.creationOnly() ? f.payLowerPrice(l) : f.levelPrice(l);
-            int bg = own ? (saved ? accent : ZsAnim.withAlpha(accent, 0.45f + 0.35f * ZsAnim.pulse(800))) : 0xCC101218;
-            g.fill(r[0], r[1], r[0] + r[2], r[1] + r[3], bg);
-            g.renderOutline(r[0], r[1], r[2], r[3], hov && featEditable(f) ? 0xFFFFFFFF : ZsAnim.withAlpha(accent, 0.7f));
             String lbl = "Lv" + l + " · " + price;
-            g.drawString(font, lbl, r[0] + (r[2] - font.width(lbl)) / 2, r[1] + 3, own ? 0xFF05060A : 0xFFD8DEE8, false);
+            JjkStyle.sealPip(g, font, r[0], r[1], r[2], r[3], lbl, accent, own, saved, hov && featEditable(f));
         }
         // 选择项
         if (f == FeatType.SPECIAL_IDENTITY) {
@@ -722,7 +747,7 @@ public class GodPanelScreen extends Screen {
                     .withStyle(net.minecraft.ChatFormatting.DARK_GRAY), dw - 14));
         }
         int descTop = lay[3], descH = bot - 3 - descTop;
-        g.fill(dx + 4, descTop - 2, dx + dw - 4, descTop - 1, 0x22FFFFFF);
+        for (int q = dx + 4; q < dx + dw - 4; q += 4) g.fill(q, descTop - 2, q + 2, descTop - 1, 0x33FFFFFF);
         featDescMax = Math.max(0, lines.size() * 10 - descH);
         featDescScroll = Math.max(0, Math.min(featDescScroll, featDescMax));
         if (descH > 8) {
@@ -733,7 +758,7 @@ public class GodPanelScreen extends Screen {
             g.disableScissor();
             if (featDescMax > 0) {
                 int by = descTop + (descH - 10) * featDescScroll / featDescMax;
-                g.fill(dx + dw - 3, by, dx + dw - 1, by + 10, 0xAA8FB8E0);
+                g.fill(dx + dw - 3, by, dx + dw - 1, by + 10, JjkStyle.alpha(JjkStyle.SUKUNA_GLOW, 0.8f));
             }
         }
     }
