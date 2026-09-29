@@ -689,5 +689,9 @@
   "book.zhushenspace.guide.landing": "Welcome to the Zhushen Space, reincarnator.$(br2)This handbook covers attributes, combat, energy pools, the shop and arts.",
   "book.zhushenspace.guide.subtitle": "Handbook",
   "msg.zhushenspace.guide.given": "Received the handbook",
-  "msg.zhushenspace.guide.no_patchouli": "Patchouli is not installed"
+  "msg.zhushenspace.guide.no_patchouli": "Patchouli is not installed",
+  "screen.zhushenspace.art.general": "General Arts",
+  "screen.zhushenspace.art.general_desc": "Basic arts shared by each energy pool, grouped by pool. Requires the matching pool.",
+  "screen.zhushenspace.art.desc": "Supernatural arts and spells. General Arts are available now; more to come.",
+  "screen.zhushenspace.art.owned_count": "Owned %s/%s"
 }

@@ -1682,11 +1682,15 @@ public class GodPanelScreen extends Screen {
             renderArtDetail(g, mouseX, mouseY);
             return;
         }
+        if (artPage > 0) {
+            renderArtPages(g, mouseX, mouseY);
+            return;
+        }
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             renderSchoolDetail(g, mouseX, mouseY);
             return;
         }
-        renderArtGrid(g, mouseX, mouseY);
+        renderArtCard(g, mouseX, mouseY);
         for (int i = 0; i < SchoolType.COUNT; i++) {
             SchoolType school = SchoolType.values()[i];
             int cy = shopCardY(i);
@@ -1890,7 +1894,51 @@ public class GodPanelScreen extends Screen {
 
     private int detailArt = -1;
 
-    private int artGridTop() { return shopCardY(SchoolType.COUNT) + 2; }
+    /** 技艺层级：0 商城首页；1 技艺大类（列出子分类）；2 通用技艺（按能量池分组） */
+    private int artPage = 0;
+
+    private int artGridTop() { return listTop + 18; }
+
+    private int artCardY() { return shopCardY(SchoolType.COUNT); }
+
+    private static int ownedArts() {
+        int n = 0;
+        for (ArtSkill s : ArtSkill.values()) if (ClientArtData.owns(s)) n++;
+        return n;
+    }
+
+    /** 大分类卡片（首页「技艺」、技艺页「通用技艺」）共用 */
+    private void renderGroupCard(GuiGraphics g, int mouseX, int mouseY, int cy, String titleKey, String descKey) {
+        int cx = panelX + 5, cw = panelW - 10;
+        ZsTheme.card(g, cx, cy, cw, 52, over(mouseX, mouseY, cx, cy, cw, 52));
+        g.drawString(font, Component.translatable(titleKey), cx + 8, cy + 5, TEXT_MAIN, true);
+        String cnt = Component.translatable("screen.zhushenspace.art.owned_count", ownedArts(), ArtSkill.COUNT).getString();
+        g.drawString(font, cnt, cx + cw - font.width(cnt) - 8, cy + 6, GOLD, true);
+        int dy = cy + 17;
+        for (FormattedCharSequence l : font.split(Component.translatable(descKey), cw - 16)) {
+            if (dy > cy + 30) break;
+            g.drawString(font, l, cx + 8, dy, TEXT_SUB, true);
+            dy += 10;
+        }
+        String detail = Component.translatable("screen.zhushenspace.shop.detail").getString();
+        g.drawString(font, detail, cx + cw - font.width(detail) - 8, cy + 39, ACCENT, true);
+    }
+
+    private void renderArtCard(GuiGraphics g, int mouseX, int mouseY) {
+        renderGroupCard(g, mouseX, mouseY, artCardY(), "screen.zhushenspace.art.title", "screen.zhushenspace.art.desc");
+    }
+
+    private void renderArtPages(GuiGraphics g, int mouseX, int mouseY) {
+        int y = listTop + 2;
+        renderSmallButton(g, mouseX, mouseY, panelX + 5, y, 30, 12, Component.translatable("screen.zhushenspace.shop.back"));
+        g.drawString(font, Component.translatable(artPage == 1 ? "screen.zhushenspace.art.title" : "screen.zhushenspace.art.general"),
+                panelX + 42, y + 2, TEXT_MAIN, true);
+        if (artPage == 1) {
+            renderGroupCard(g, mouseX, mouseY, listTop + 18, "screen.zhushenspace.art.general", "screen.zhushenspace.art.general_desc");
+        } else {
+            renderArtGrid(g, mouseX, mouseY);
+        }
+    }
 
     private static final int ART_TILE_H = 30;
 
@@ -1898,12 +1946,11 @@ public class GodPanelScreen extends Screen {
         int cols = 3, gap = 4;
         int w = (panelW - 10 - gap * (cols - 1)) / cols;
         int x = panelX + 5 + (i % cols) * (w + gap);
-        int y = artGridTop() + 14 + (i / cols) * (ART_TILE_H + gap);
+        int y = artGridTop() + (i / cols) * (ART_TILE_H + gap);
         return new int[]{x, y, w};
     }
 
     private void renderArtGrid(GuiGraphics g, int mouseX, int mouseY) {
-        g.drawString(font, Component.translatable("screen.zhushenspace.art.title"), panelX + 8, artGridTop() + 2, ACCENT, true);
         for (int i = 0; i < ArtSkill.CATEGORIES.length; i++) {
             FeatEffects.Pool pool = ArtSkill.CATEGORIES[i];
             int[] t = artTile(i);
@@ -2062,6 +2109,20 @@ public class GodPanelScreen extends Screen {
     }
 
     private boolean handleArtClick(double mouseX, double mouseY) {
+        int cw = panelW - 10;
+        if (detailArt < 0 && artPage == 0) {
+            if (over(mouseX, mouseY, panelX + 5, artCardY(), cw, 52)) { artPage = 1; playClick(1.1f); return true; }
+            return false;
+        }
+        if (detailArt < 0 && over(mouseX, mouseY, panelX + 5, listTop + 2, 30, 12)) {
+            artPage--;
+            playClick(1.0f);
+            return true;
+        }
+        if (detailArt < 0 && artPage == 1) {
+            if (over(mouseX, mouseY, panelX + 5, listTop + 18, cw, 52)) { artPage = 2; playClick(1.1f); return true; }
+            return false;
+        }
         if (detailArt < 0) {
             for (int i = 0; i < ArtSkill.CATEGORIES.length; i++) {
                 int[] t = artTile(i);
@@ -2116,7 +2177,7 @@ public class GodPanelScreen extends Screen {
 
     /** 商城页点击 */
     private boolean handleShopClick(double mouseX, double mouseY) {
-        if (detailArt >= 0) return handleArtClick(mouseX, mouseY);
+        if (detailArt >= 0 || artPage > 0) return handleArtClick(mouseX, mouseY);
         if (detailSchool < 0 && handleArtClick(mouseX, mouseY)) return true;
         // 详情页
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
@@ -2258,6 +2319,7 @@ public class GodPanelScreen extends Screen {
                     dragFromBar = -1;
                     detailSchool = -1;
                     detailArt = -1;
+                    artPage = 0;
                     detailScroll = 0;
                     chipScroll = 0;
                     return true;
@@ -2488,6 +2550,7 @@ public class GodPanelScreen extends Screen {
         if (discardConfirm) { discardConfirm = false; playClick(0.8f); return; }
         if (profChooser >= 0) { profChooser = -1; playClick(0.8f); return; }
         if (tab == Tab.SHOP && detailArt >= 0) { detailArt = -1; detailScroll = 0; playClick(0.8f); return; }
+        if (tab == Tab.SHOP && artPage > 0) { artPage--; playClick(0.8f); return; }
         if (tab == Tab.SHOP && detailSchool >= 0) { detailSchool = -1; playClick(0.8f); return; }
         if (dragging >= 0) { dragging = -1; return; }
         if (buildDirty()) { discardConfirm = true; playClick(0.6f); return; }

@@ -689,5 +689,9 @@
   "book.zhushenspace.guide.landing": "欢迎来到主神空间，轮回者。$(br2)本手册记录了加点、战斗、能量池、商城与技艺的全部规则。$(br)找不到的数值，请在主神面板中悬停查看。",
   "book.zhushenspace.guide.subtitle": "轮回者手册",
   "msg.zhushenspace.guide.given": "已获得《主神空间·轮回者手册》",
-  "msg.zhushenspace.guide.no_patchouli": "未安装帕秋莉手册（Patchouli），无法发放教程书"
+  "msg.zhushenspace.guide.no_patchouli": "未安装帕秋莉手册（Patchouli），无法发放教程书",
+  "screen.zhushenspace.art.general": "通用技艺",
+  "screen.zhushenspace.art.general_desc": "各能量池通用的基础技艺，按灵力、精神力、灵能、妖力、佛法、魔法、道术、内力、查克拉分组。拥有对应能量池才能购买与施放。",
+  "screen.zhushenspace.art.desc": "超凡的技艺与法术。目前开放「通用技艺」，更多分类后续加入。",
+  "screen.zhushenspace.art.owned_count": "已购 %s/%s"
 }
