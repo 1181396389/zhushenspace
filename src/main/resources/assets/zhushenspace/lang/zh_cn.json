@@ -77,7 +77,7 @@
   "skill.zhushenspace.brawl": "肉搏",
   "skill.zhushenspace.brawl.desc": "徒手格斗的技艺。肉搏攻击（拳头或任何肢体）判定：力量 + 肉搏 + 天生武器伤害 − 目标防御 ± 调整。等级提升后依次解锁：肉搏格挡、摔绊、冲锋攻击。",
   "skill.zhushenspace.blade": "白刃",
-  "skill.zhushenspace.blade.desc": "人造武器的近战技艺。白刃攻击判定：力量 + 白刃 + 武器伤害 − 目标防御 ± 调整。武器分类：长剑（原版剑）、重剑、突刺剑、扇子，达到 3 点可选择其中一个作为专业，使用没有专业的分类武器受 9 点器械减值（未分类的普通物品不需要专业）。达到一定等级后解锁：白刃格挡。",
+  "skill.zhushenspace.blade.desc": "人造武器的近战技艺。白刃攻击判定：力量 + 白刃 + 武器伤害 − 目标防御 ± 调整。武器分类：长剑（原版剑）、重剑、突刺剑、扇子，达到 3 点和 4 点时各免费获得一个专业（通过加点最多共获得 3 个专业），使用没有专业的分类武器受 9 点器械减值（未分类的普通物品不需要专业）。达到一定等级后解锁：白刃格挡。",
   "skill.zhushenspace.craft": "手艺",
   "skill.zhushenspace.craft.desc": "制作与改造装备的手艺（暂未开放）。",
   "skill.zhushenspace.occultism": "神秘学",
@@ -89,7 +89,7 @@
   "skill.zhushenspace.expression": "表达",
   "skill.zhushenspace.expression.desc": "表达自我、感染他人的能力（暂未开放）。",
   "skill.zhushenspace.firearms": "枪械",
-  "skill.zhushenspace.firearms.desc": "枪械射击的技艺。枪械攻击判定：敏捷（炮为智力）+ 枪械 + 武器伤害 − 目标防御 ± 调整；散弹等多弹丸武器的属性与技能加值平摊到每颗弹丸。枪械分类：手枪、冲锋枪、散弹枪、机枪、步枪（含狙击）、炮（火箭筒），达到 3 点可选择其中一个作为专业，使用没有专业的分类受 9 点器械减值。需安装 TACZ 枪械模组。",
+  "skill.zhushenspace.firearms.desc": "枪械射击的技艺。枪械攻击判定：敏捷（炮为智力）+ 枪械 + 武器伤害 − 目标防御 ± 调整；散弹等多弹丸武器的属性与技能加值平摊到每颗弹丸。枪械分类：手枪、冲锋枪、散弹枪、机枪、步枪（含狙击）、炮（火箭筒），达到 3 点和 4 点时各免费获得一个专业（通过加点最多共获得 3 个专业），使用没有专业的分类受 9 点器械减值。需安装 TACZ 枪械模组。",
   "ability.zhushenspace.self_protection": "自我保护",
   "ability.zhushenspace.self_protection.short": "自我",
   "ability.zhushenspace.self_protection.desc": "短时间内获得额外护甲，护甲量取决于敏捷与运动等级。",
@@ -402,9 +402,10 @@
   "screen.zhushenspace.profession.choose": "选专业",
   "screen.zhushenspace.profession.title_blade": "选择白刃专业",
   "screen.zhushenspace.profession.title_gun": "选择枪械专业",
-  "screen.zhushenspace.profession.warn": "选择后不可更改",
+  "screen.zhushenspace.profession.warn": "选择后不可更改（技能 3、4 各得一个，加点最多共 3 个）",
   "message.zhushenspace.weapon.too_heavy": "力量不足，无法使用这件武器",
   "message.zhushenspace.weapon.cant_draw": "力量不足，你拉不开这张弓",
   "message.zhushenspace.weapon.two_handed": "弓必须双手使用",
-  "command.zhushenspace.profession.reset": "已重置 %s 的专业"
+  "command.zhushenspace.profession.reset": "已重置 %s 的专业",
+  "screen.zhushenspace.profession.choose_n": "选专业 ×%s"
 }

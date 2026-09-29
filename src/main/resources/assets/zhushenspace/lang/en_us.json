@@ -77,7 +77,7 @@
   "skill.zhushenspace.brawl": "Brawl",
   "skill.zhushenspace.brawl.desc": "Unarmed fighting. Brawl attack: Strength + Brawl + natural weapon damage − target defense ± modifiers. Unlocks Brawl Block, Trip and Charge Attack.",
   "skill.zhushenspace.blade": "Blade",
-  "skill.zhushenspace.blade.desc": "Melee with artificial weapons. Blade attack: Strength + Blade + weapon damage − target defense ± modifiers. Categories: Longsword (vanilla swords), Greatsword, Rapier, Fan; at 3 points choose one as your profession, other categories take a 9-point penalty (uncategorized items need none). Unlocks Blade Block.",
+  "skill.zhushenspace.blade.desc": "Melee with artificial weapons. Blade attack: Strength + Blade + weapon damage − target defense ± modifiers. Categories: Longsword (vanilla swords), Greatsword, Rapier, Fan; gain a free profession at 3 and again at 4 points (max 3 professions from points), other categories take a 9-point penalty (uncategorized items need none). Unlocks Blade Block.",
   "skill.zhushenspace.craft": "Craft",
   "skill.zhushenspace.craft.desc": "Crafting and modifying equipment (coming soon).",
   "skill.zhushenspace.occultism": "Occultism",
@@ -89,7 +89,7 @@
   "skill.zhushenspace.expression": "Expression",
   "skill.zhushenspace.expression.desc": "Expressing yourself and moving others (coming soon).",
   "skill.zhushenspace.firearms": "Firearms",
-  "skill.zhushenspace.firearms.desc": "Marksmanship. Gun attack: Agility (Intelligence for cannons) + Firearms + weapon damage − target defense ± modifiers; multi-pellet guns split the bonus across pellets. Categories: Pistol, SMG, Shotgun, Machine Gun, Rifle (incl. sniper), Cannon; at 3 points choose one as your profession, others take a 9-point penalty. Requires TACZ.",
+  "skill.zhushenspace.firearms.desc": "Marksmanship. Gun attack: Agility (Intelligence for cannons) + Firearms + weapon damage − target defense ± modifiers; multi-pellet guns split the bonus across pellets. Categories: Pistol, SMG, Shotgun, Machine Gun, Rifle (incl. sniper), Cannon; gain a free profession at 3 and again at 4 points (max 3 professions from points), others take a 9-point penalty. Requires TACZ.",
   "ability.zhushenspace.self_protection": "Self-Protection",
   "ability.zhushenspace.self_protection.short": "GRD",
   "ability.zhushenspace.self_protection.desc": "Briefly gain extra armor; the amount depends on your Agility and Athletics.",
@@ -402,9 +402,10 @@
   "screen.zhushenspace.profession.choose": "Pick",
   "screen.zhushenspace.profession.title_blade": "Choose a blade profession",
   "screen.zhushenspace.profession.title_gun": "Choose a firearms profession",
-  "screen.zhushenspace.profession.warn": "This choice is permanent",
+  "screen.zhushenspace.profession.warn": "Permanent (one at skill 3 and 4; max 3 from points)",
   "message.zhushenspace.weapon.too_heavy": "Not strong enough to use this weapon",
   "message.zhushenspace.weapon.cant_draw": "Not strong enough to draw this bow",
   "message.zhushenspace.weapon.two_handed": "Bows require both hands",
-  "command.zhushenspace.profession.reset": "Reset professions of %s"
+  "command.zhushenspace.profession.reset": "Reset professions of %s",
+  "screen.zhushenspace.profession.choose_n": "Pick ×%s"
 }

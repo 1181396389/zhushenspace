@@ -506,6 +506,7 @@ public class GodPanelScreen extends Screen {
     private final int[] profChipX = {-1, -1}, profChipY = new int[2], profChipW = new int[2];
     /** 正在选择的专业组（-1 = 未打开选择框） */
     private int profChooser = -1;
+    private final int[] profPending = new int[2];
 
     private static final int PROF_BTN_W = 70, PROF_BTN_H = 16;
 
@@ -534,8 +535,15 @@ public class GodPanelScreen extends Screen {
                 com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
         for (int k = 0; k < list.size(); k++) {
             int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
-            XytStyle.darkButton(g, font, mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H,
-                    Component.translatable(list.get(k).nameKey()));
+            boolean owned = (ClientSkillData.professionMask(profChooser) & (1 << list.get(k).ordinal())) != 0;
+            if (owned) {
+                g.fill(bx, by, bx + PROF_BTN_W, by + PROF_BTN_H, 0x55000000);
+                g.drawCenteredString(font, Component.translatable(list.get(k).nameKey()).append(" ✔"),
+                        bx + PROF_BTN_W / 2, by + 4, 0xFF808080);
+            } else {
+                XytStyle.darkButton(g, font, mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H,
+                        Component.translatable(list.get(k).nameKey()));
+            }
         }
         int cy = b[1] + b[3] - 20;
         XytStyle.darkButton(g, font, mouseX, mouseY, b[0] + b[2] / 2 - 25, cy, 50, 14,
@@ -549,7 +557,8 @@ public class GodPanelScreen extends Screen {
                 com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
         for (int k = 0; k < list.size(); k++) {
             int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
-            if (over(mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H)) {
+            if (over(mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H)
+                    && (ClientSkillData.professionMask(profChooser) & (1 << list.get(k).ordinal())) == 0) {
                 PacketDistributor.sendToServer(new com.zhushen.space.network.ChooseProfessionPayload(
                         profChooser, list.get(k).ordinal()));
                 playClick(1.3f);
@@ -588,22 +597,31 @@ public class GodPanelScreen extends Screen {
         }
         g.drawString(font, lv, end + 3, ty, lvColor, false);
 
-        // 专业（白刃 / 枪械达到 3 点可选择一个武器分类专业，选择后不可更改）
+        // 专业：技能达到 3、4 时各免费获得一个（加点最多共 3 个），选择后不可更改
         int grp = i == SkillType.BLADE.ordinal() ? 0 : i == SkillType.FIREARMS.ordinal() ? 1 : -1;
         if (grp >= 0) {
             profChipX[grp] = -1;
-            if (saved >= com.zhushen.space.data.WeaponCategory.PROFESSION_LEVEL) {
-                int px = end + 3 + font.width(lv) + 6, py = ry + (h - 11) / 2;
-                int prof = ClientSkillData.profession(grp);
-                Component label = prof >= 0
-                        ? Component.translatable(com.zhushen.space.data.WeaponCategory.values()[prof].nameKey())
-                        : Component.translatable("screen.zhushenspace.profession.choose");
+            int mask = ClientSkillData.professionMask(grp);
+            int pending = ClientSkillData.pendingProfessions(grp, saved);
+            profPending[grp] = pending;
+            int px = end + 3 + font.width(lv) + 6, py = ry + (h - 11) / 2;
+            for (var c : com.zhushen.space.data.WeaponCategory.values()) {
+                if ((mask & (1 << c.ordinal())) == 0) continue;
+                Component name = Component.translatable(c.nameKey());
+                int pw = font.width(name) + 8;
+                g.fill(px, py, px + pw, py + 11, 0x33000000);
+                g.renderOutline(px, py, pw, 11, XytStyle.INK_SUB);
+                g.drawString(font, name, px + 4, py + 2, XytStyle.INK, false);
+                px += pw + 3;
+            }
+            if (pending > 0) {
+                Component label = Component.translatable("screen.zhushenspace.profession.choose_n", pending);
                 int pw = font.width(label) + 8;
                 boolean hov = over(mouseX, mouseY, px, py, pw, 11);
-                int bg = prof >= 0 ? 0x33000000 : (ZsAnim.pulse(900) > 0.5f ? XytStyle.ORANGE : 0xFFB05A20);
-                g.fill(px, py, px + pw, py + 11, prof >= 0 ? bg : ZsAnim.withAlpha(bg, 0.85f));
-                g.renderOutline(px, py, pw, 11, hov && prof < 0 ? 0xFFFFFFFF : XytStyle.INK_SUB);
-                g.drawString(font, label, px + 4, py + 2, prof >= 0 ? XytStyle.INK : 0xFFFFFFFF, false);
+                int bg = ZsAnim.pulse(900) > 0.5f ? XytStyle.ORANGE : 0xFFB05A20;
+                g.fill(px, py, px + pw, py + 11, ZsAnim.withAlpha(bg, 0.85f));
+                g.renderOutline(px, py, pw, 11, hov ? 0xFFFFFFFF : XytStyle.INK_SUB);
+                g.drawString(font, label, px + 4, py + 2, 0xFFFFFFFF, false);
                 profChipX[grp] = px;
                 profChipY[grp] = py;
                 profChipW[grp] = pw;
@@ -1406,7 +1424,7 @@ public class GodPanelScreen extends Screen {
         }
         if (button == 0 && tab == Tab.SKILLS) {
             for (int gi = 0; gi < 2; gi++) {
-                if (profChipX[gi] >= 0 && ClientSkillData.profession(gi) < 0
+                if (profChipX[gi] >= 0 && profPending[gi] > 0
                         && over(mouseX, mouseY, profChipX[gi], profChipY[gi], profChipW[gi], 11)
                         && mouseY >= listTop && mouseY < listBottom) {
                     profChooser = gi;

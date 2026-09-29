@@ -35,6 +35,21 @@ public enum WeaponCategory {
     public enum ProfGroup { BLADE, GUN }
 
     public static final int PROFESSION_LEVEL = 3;
+    /** 技能达到 3 与 4 时各免费获得一个专业 */
+    public static final int SECOND_PROFESSION_LEVEL = 4;
+    /** 通过加点最多获得的专业总数（特殊效果可额外增加） */
+    public static final int MAX_PROFESSIONS = 3;
+
+    /** 该组已获得的专业选择次数 */
+    public static int earned(int level) {
+        return (level >= PROFESSION_LEVEL ? 1 : 0) + (level >= SECOND_PROFESSION_LEVEL ? 1 : 0);
+    }
+
+    /** 该组尚可选择的专业数：min(本组获得次数 − 本组已选, 总上限 + 额外 − 全部已选) */
+    public static int pending(int level, int groupMask, int allMasksCount, int extra) {
+        return Math.max(0, Math.min(earned(level) - Integer.bitCount(groupMask),
+                MAX_PROFESSIONS + extra - allMasksCount));
+    }
     /** 属性 / 技能前提每差 1 点的器械减值 */
     public static final int REQ_PENALTY = 6;
     /** 没有专业惩罚 */

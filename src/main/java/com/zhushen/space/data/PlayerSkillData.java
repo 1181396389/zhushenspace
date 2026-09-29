@@ -21,7 +21,10 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
     /** 是否已使用过主神邀请函（技能点仅发放一次，防止重复刷点） */
     private boolean envelopeUsed = false;
     /** 已选专业（WeaponCategory 序号，-1 = 未选）：[0] 白刃，[1] 枪械 */
-    private final int[] professions = {-1, -1};
+    /** 每组专业位掩码（bit = WeaponCategory 序号） */
+    private final int[] professions = {0, 0};
+    /** 特殊效果额外给予的专业上限 */
+    private int extraProfessions = 0;
     /** 两套战斗预设栏：每格 -1 为空，否则为 SkillAbility 序号 */
     private int[][] bars = new int[BAR_COUNT][BAR_SLOTS];
 
@@ -53,16 +56,38 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
         this.totalSkillPoints += amount;
     }
 
-    public int profession(int group) {
+    public int professionMask(int group) {
         return professions[group];
+    }
+
+    public boolean hasProfession(WeaponCategory c) {
+        WeaponCategory.ProfGroup g = c.profGroup();
+        return g != null && (professions[g.ordinal()] & (1 << c.ordinal())) != 0;
+    }
+
+    public void addProfession(int group, int category) {
+        professions[group] |= 1 << category;
+    }
+
+    public int professionCount() {
+        return Integer.bitCount(professions[0]) + Integer.bitCount(professions[1]);
+    }
+
+    public int extraProfessions() {
+        return extraProfessions;
+    }
+
+    public void setExtraProfessions(int v) {
+        extraProfessions = Math.max(0, v);
     }
 
     public int[] professions() {
         return professions;
     }
 
-    public void setProfession(int group, int category) {
-        professions[group] = category;
+    public void clearProfessions() {
+        professions[0] = 0;
+        professions[1] = 0;
     }
 
     public boolean envelopeUsed() {
@@ -140,10 +165,12 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
         tag.putIntArray("Points", points);
         tag.putInt("TotalPoints", totalSkillPoints);
         tag.putBoolean("EnvelopeUsed", envelopeUsed);
-        for (int g = 0; g < 2; g++) {
-            int c = professions[g];
-            tag.putString("Prof" + g, c >= 0 && c < WeaponCategory.values().length ? WeaponCategory.values()[c].key : "");
+        net.minecraft.nbt.ListTag profs = new net.minecraft.nbt.ListTag();
+        for (WeaponCategory c : WeaponCategory.values()) {
+            if (hasProfession(c)) profs.add(net.minecraft.nbt.StringTag.valueOf(c.key));
         }
+        tag.put("Professions", profs);
+        tag.putInt("ExtraProfessions", extraProfessions);
         // 按技能 key 存档（而非枚举序号），以后在 SkillAbility 中增删/调整顺序不会让老存档错位
         for (int b = 0; b < BAR_COUNT; b++) {
             net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
@@ -167,10 +194,17 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
                 ? tag.getInt("TotalPoints")
                 : SkillType.DEFAULT_TOTAL_SKILL_POINTS;
         this.envelopeUsed = tag.getBoolean("EnvelopeUsed");
-        for (int g = 0; g < 2; g++) {
-            WeaponCategory c = WeaponCategory.byKey(tag.getString("Prof" + g));
-            professions[g] = c == null ? -1 : c.ordinal();
+        clearProfessions();
+        net.minecraft.nbt.ListTag profs = tag.getList("Professions", net.minecraft.nbt.Tag.TAG_STRING);
+        for (int k = 0; k < profs.size(); k++) {
+            WeaponCategory c = WeaponCategory.byKey(profs.getString(k));
+            if (c != null && c.profGroup() != null) addProfession(c.profGroup().ordinal(), c.ordinal());
         }
+        for (int g = 0; g < 2; g++) { // 旧存档（单专业）迁移
+            WeaponCategory c = WeaponCategory.byKey(tag.getString("Prof" + g));
+            if (c != null && c.profGroup() != null) addProfession(c.profGroup().ordinal(), c.ordinal());
+        }
+        extraProfessions = tag.getInt("ExtraProfessions");
         // 新格式：Bar0/Bar1；旧格式兼容：Slots 迁移到第一栏
         int[][] loaded = new int[BAR_COUNT][];
         loaded[0] = tag.contains("Bar0") ? tag.getIntArray("Bar0") : tag.getIntArray("Slots");

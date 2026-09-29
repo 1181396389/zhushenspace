@@ -140,8 +140,7 @@ public class ModCommands {
                                         .executes(ctx -> {
                                             ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
                                             var d = p.getData(com.zhushen.space.data.ModAttachments.PLAYER_SKILLS);
-                                            d.setProfession(0, -1);
-                                            d.setProfession(1, -1);
+                                            d.clearProfessions();
                                             com.zhushen.space.common.SkillServer.sync(p);
                                             ctx.getSource().sendSuccess(() -> Component.translatable(
                                                     "command.zhushenspace.profession.reset", p.getDisplayName()), true);

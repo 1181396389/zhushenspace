@@ -112,7 +112,7 @@ public final class CombatFormula {
         WeaponCategory.ProfGroup g = c.profGroup();
         if (g == null) return 0;
         PlayerSkillData d = p.getData(ModAttachments.PLAYER_SKILLS);
-        return d.profession(g.ordinal()) == c.ordinal() ? 0 : WeaponCategory.NO_PROFESSION_PENALTY;
+        return d.hasProfession(c) ? 0 : WeaponCategory.NO_PROFESSION_PENALTY;
     }
 
     public static int strengthDeficit(ServerPlayer p, ItemStack stack) {

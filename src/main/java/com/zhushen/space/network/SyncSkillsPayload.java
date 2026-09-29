@@ -40,8 +40,9 @@ public record SyncSkillsPayload(int[] points, int totalSkillPoints, int[][] bars
         }
         buf.writeVarInt(payload.leapRemainTicks);
         buf.writeVarInt(payload.climbRemainTicks);
-        buf.writeVarInt(payload.professions[0] + 1);
-        buf.writeVarInt(payload.professions[1] + 1);
+        buf.writeVarInt(payload.professions[0]);
+        buf.writeVarInt(payload.professions[1]);
+        buf.writeVarInt(payload.professions[2]);
     }
 
     private static SyncSkillsPayload read(FriendlyByteBuf buf) {
@@ -62,7 +63,7 @@ public record SyncSkillsPayload(int[] points, int totalSkillPoints, int[][] bars
         }
         int leapRemain = buf.readVarInt();
         int climbRemain = buf.readVarInt();
-        int[] prof = {buf.readVarInt() - 1, buf.readVarInt() - 1};
+        int[] prof = {buf.readVarInt(), buf.readVarInt(), buf.readVarInt()};
         return new SyncSkillsPayload(points, total, bars, cooldowns, leapRemain, climbRemain, prof);
     }
 

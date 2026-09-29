@@ -66,23 +66,30 @@ public class SkillServer {
         int[] active = SkillManager.activeStateTicks(player);
         PacketDistributor.sendToPlayer(player, new SyncSkillsPayload(
                 data.points(), data.totalSkillPoints(), data.bars(),
-                SkillManager.remainingCooldowns(player), active[0], active[1], data.professions().clone()));
+                SkillManager.remainingCooldowns(player), active[0], active[1], new int[]{data.professionMask(0), data.professionMask(1), data.extraProfessions()}));
     }
 
-    /** 选择专业：对应技能（白刃 / 枪械）已确认达到 3 点、该组尚未选择、分类属于该组；选择后不可更改 */
+    private static com.zhushen.space.data.SkillType skillOf(int group) {
+        return group == 0 ? com.zhushen.space.data.SkillType.BLADE : com.zhushen.space.data.SkillType.FIREARMS;
+    }
+
+    /** 某组尚可免费选择的专业数（技能 3、4 各一个；加点最多共 3 个，特殊效果可加） */
+    public static int pendingProfessions(PlayerSkillData data, int group) {
+        return com.zhushen.space.data.WeaponCategory.pending(data.get(skillOf(group).ordinal()),
+                data.professionMask(group), data.professionCount(), data.extraProfessions());
+    }
+
+    /** 选择专业：该组有剩余名额、分类属于该组且尚未拥有；选择后不可更改 */
     public static void chooseProfession(ServerPlayer player, int group, int category) {
         PlayerSkillData data = player.getData(ModAttachments.PLAYER_SKILLS);
         if (group < 0 || group > 1 || category < 0 || category >= com.zhushen.space.data.WeaponCategory.values().length) return;
-        com.zhushen.space.data.WeaponCategory.ProfGroup g = com.zhushen.space.data.WeaponCategory.ProfGroup.values()[group];
         com.zhushen.space.data.WeaponCategory c = com.zhushen.space.data.WeaponCategory.values()[category];
-        com.zhushen.space.data.SkillType skill = g == com.zhushen.space.data.WeaponCategory.ProfGroup.BLADE
-                ? com.zhushen.space.data.SkillType.BLADE : com.zhushen.space.data.SkillType.FIREARMS;
-        if (c.profGroup() != g || data.profession(group) >= 0
-                || data.get(skill.ordinal()) < com.zhushen.space.data.WeaponCategory.PROFESSION_LEVEL) {
+        if (c.profGroup() == null || c.profGroup().ordinal() != group || data.hasProfession(c)
+                || pendingProfessions(data, group) <= 0) {
             sync(player);
             return;
         }
-        data.setProfession(group, category);
+        data.addProfession(group, category);
         sync(player);
     }
 }
