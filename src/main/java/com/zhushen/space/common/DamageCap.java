@@ -119,6 +119,12 @@ public final class DamageCap {
      * 伤害浮动（{@link DamageVariance}）掷出后按同一比例缩放本次近战的基础伤害，
      * 使上限始终是「浮动后基础伤害 × 上限倍率」，浮动不会被上限抵消或放大。
      */
+    /** 攻击判定公式替换了本次近战的基础伤害：上限以公式结果为基础 */
+    public static void setMeleeBase(ServerPlayer player, LivingEntity victim, float base) {
+        Melee m = current(player, victim);
+        if (m != null) m.base = Math.max(0f, base);
+    }
+
     public static void scaleMeleeBase(ServerPlayer player, LivingEntity victim, float factor) {
         Melee m = current(player, victim);
         if (m != null) m.base *= factor;

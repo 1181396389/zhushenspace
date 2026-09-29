@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("9"); // 协议版本：邀请函状态同步
+        PayloadRegistrar registrar = event.registrar("10"); // 协议版本：武器分类与专业
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -46,6 +46,13 @@ public class ModNetworking {
                     ClientSkillData.update(payload.points(), payload.totalSkillPoints(),
                             payload.bars(), payload.cooldownTicks());
                     ClientSkillData.updateTransient(payload.leapRemainTicks(), payload.climbRemainTicks());
+                    ClientSkillData.updateProfessions(payload.professions());
+                }));
+        registrar.playToServer(ChooseProfessionPayload.TYPE, ChooseProfessionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer serverPlayer) {
+                        SkillServer.chooseProfession(serverPlayer, payload.group(), payload.category());
+                    }
                 }));
         registrar.playToServer(CommitSkillAllocationPayload.TYPE, CommitSkillAllocationPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {

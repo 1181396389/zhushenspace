@@ -20,6 +20,8 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
     private int totalSkillPoints = SkillType.DEFAULT_TOTAL_SKILL_POINTS;
     /** 是否已使用过主神邀请函（技能点仅发放一次，防止重复刷点） */
     private boolean envelopeUsed = false;
+    /** 已选专业（WeaponCategory 序号，-1 = 未选）：[0] 白刃，[1] 枪械 */
+    private final int[] professions = {-1, -1};
     /** 两套战斗预设栏：每格 -1 为空，否则为 SkillAbility 序号 */
     private int[][] bars = new int[BAR_COUNT][BAR_SLOTS];
 
@@ -49,6 +51,18 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
 
     public void addTotalPoints(int amount) {
         this.totalSkillPoints += amount;
+    }
+
+    public int profession(int group) {
+        return professions[group];
+    }
+
+    public int[] professions() {
+        return professions;
+    }
+
+    public void setProfession(int group, int category) {
+        professions[group] = category;
     }
 
     public boolean envelopeUsed() {
@@ -126,6 +140,10 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
         tag.putIntArray("Points", points);
         tag.putInt("TotalPoints", totalSkillPoints);
         tag.putBoolean("EnvelopeUsed", envelopeUsed);
+        for (int g = 0; g < 2; g++) {
+            int c = professions[g];
+            tag.putString("Prof" + g, c >= 0 && c < WeaponCategory.values().length ? WeaponCategory.values()[c].key : "");
+        }
         // 按技能 key 存档（而非枚举序号），以后在 SkillAbility 中增删/调整顺序不会让老存档错位
         for (int b = 0; b < BAR_COUNT; b++) {
             net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
@@ -149,6 +167,10 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
                 ? tag.getInt("TotalPoints")
                 : SkillType.DEFAULT_TOTAL_SKILL_POINTS;
         this.envelopeUsed = tag.getBoolean("EnvelopeUsed");
+        for (int g = 0; g < 2; g++) {
+            WeaponCategory c = WeaponCategory.byKey(tag.getString("Prof" + g));
+            professions[g] = c == null ? -1 : c.ordinal();
+        }
         // 新格式：Bar0/Bar1；旧格式兼容：Slots 迁移到第一栏
         int[][] loaded = new int[BAR_COUNT][];
         loaded[0] = tag.contains("Bar0") ? tag.getIntArray("Bar0") : tag.getIntArray("Slots");

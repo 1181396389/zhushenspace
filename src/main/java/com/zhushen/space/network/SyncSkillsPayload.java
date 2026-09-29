@@ -16,7 +16,7 @@ import net.minecraft.resources.ResourceLocation;
  * 玩家移动由客户端预测，客户端需依据该状态在本地同步施加跳跃修改器与攀爬行为。
  */
 public record SyncSkillsPayload(int[] points, int totalSkillPoints, int[][] bars, int[] cooldownTicks,
-                                int leapRemainTicks, int climbRemainTicks)
+                                int leapRemainTicks, int climbRemainTicks, int[] professions)
         implements CustomPacketPayload {
 
     public static final Type<SyncSkillsPayload> TYPE =
@@ -40,6 +40,8 @@ public record SyncSkillsPayload(int[] points, int totalSkillPoints, int[][] bars
         }
         buf.writeVarInt(payload.leapRemainTicks);
         buf.writeVarInt(payload.climbRemainTicks);
+        buf.writeVarInt(payload.professions[0] + 1);
+        buf.writeVarInt(payload.professions[1] + 1);
     }
 
     private static SyncSkillsPayload read(FriendlyByteBuf buf) {
@@ -60,7 +62,8 @@ public record SyncSkillsPayload(int[] points, int totalSkillPoints, int[][] bars
         }
         int leapRemain = buf.readVarInt();
         int climbRemain = buf.readVarInt();
-        return new SyncSkillsPayload(points, total, bars, cooldowns, leapRemain, climbRemain);
+        int[] prof = {buf.readVarInt() - 1, buf.readVarInt() - 1};
+        return new SyncSkillsPayload(points, total, bars, cooldowns, leapRemain, climbRemain, prof);
     }
 
     @Override

@@ -166,6 +166,14 @@ public final class LimbManager {
         return part;
     }
 
+    /** 攻击判定用的目标防御：护甲值（只计覆盖命中部位的盔甲） */
+    public static double defenseFor(ServerPlayer victim, DamageSource src) {
+        double armor = victim.getAttributeValue(Attributes.ARMOR);
+        if (src.is(DamageTypeTags.BYPASSES_ARMOR)) return 0;
+        LimbPart part = resolvePart(victim, src);
+        return Math.max(0, armor - uncoveredArmor(victim, part)[0]);
+    }
+
     /** 选一条未断的腿（lateral 指示偏向，0 = 随机）；两腿皆断 → 躯干 */
     private static LimbPart pickLeg(ServerPlayer victim, double lateral) {
         PlayerLimbData d = data(victim);

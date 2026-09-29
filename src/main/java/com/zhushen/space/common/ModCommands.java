@@ -133,6 +133,20 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
+                // ===== 专业 =====
+                .then(Commands.literal("profession")
+                        .then(Commands.literal("reset")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                                            var d = p.getData(com.zhushen.space.data.ModAttachments.PLAYER_SKILLS);
+                                            d.setProfession(0, -1);
+                                            d.setProfession(1, -1);
+                                            com.zhushen.space.common.SkillServer.sync(p);
+                                            ctx.getSource().sendSuccess(() -> Component.translatable(
+                                                    "command.zhushenspace.profession.reset", p.getDisplayName()), true);
+                                            return 1;
+                                        }))))
                 // ===== 大厅场景 =====
                 .then(Commands.literal("hall")
                         .then(Commands.literal("rebuild")

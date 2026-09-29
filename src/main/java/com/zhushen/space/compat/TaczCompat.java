@@ -33,6 +33,11 @@ public final class TaczCompat {
         return loaded ? TaczGunEvents.panelDamage(player, stack) : null;
     }
 
+    /** 手持 TACZ 枪械时返回其武器分类，否则 null */
+    public static com.zhushen.space.data.WeaponCategory gunCategory(net.minecraft.world.item.ItemStack stack) {
+        return loaded ? TaczGunEvents.categoryOf(stack) : null;
+    }
+
     /** TACZ 是否已安装 */
     public static boolean isLoaded() {
         return loaded;

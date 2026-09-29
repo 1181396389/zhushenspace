@@ -66,6 +66,23 @@ public class SkillServer {
         int[] active = SkillManager.activeStateTicks(player);
         PacketDistributor.sendToPlayer(player, new SyncSkillsPayload(
                 data.points(), data.totalSkillPoints(), data.bars(),
-                SkillManager.remainingCooldowns(player), active[0], active[1]));
+                SkillManager.remainingCooldowns(player), active[0], active[1], data.professions().clone()));
+    }
+
+    /** 选择专业：对应技能（白刃 / 枪械）已确认达到 3 点、该组尚未选择、分类属于该组；选择后不可更改 */
+    public static void chooseProfession(ServerPlayer player, int group, int category) {
+        PlayerSkillData data = player.getData(ModAttachments.PLAYER_SKILLS);
+        if (group < 0 || group > 1 || category < 0 || category >= com.zhushen.space.data.WeaponCategory.values().length) return;
+        com.zhushen.space.data.WeaponCategory.ProfGroup g = com.zhushen.space.data.WeaponCategory.ProfGroup.values()[group];
+        com.zhushen.space.data.WeaponCategory c = com.zhushen.space.data.WeaponCategory.values()[category];
+        com.zhushen.space.data.SkillType skill = g == com.zhushen.space.data.WeaponCategory.ProfGroup.BLADE
+                ? com.zhushen.space.data.SkillType.BLADE : com.zhushen.space.data.SkillType.FIREARMS;
+        if (c.profGroup() != g || data.profession(group) >= 0
+                || data.get(skill.ordinal()) < com.zhushen.space.data.WeaponCategory.PROFESSION_LEVEL) {
+            sync(player);
+            return;
+        }
+        data.setProfession(group, category);
+        sync(player);
     }
 }

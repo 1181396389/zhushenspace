@@ -129,7 +129,7 @@ public final class DamageVariance {
             } catch (RuntimeException ignored) {
             }
         }
-        dmg += SkillManager.meleePanelBonus(player);
+        dmg = CombatFormula.panel(player, dmg) + SkillManager.meleePanelBonus(player);
         return new DamagePanelPayload((byte) 0, Math.max(0f, dmg), 1);
     }
 

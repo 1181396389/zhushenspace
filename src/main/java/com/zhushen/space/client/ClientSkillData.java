@@ -41,6 +41,17 @@ public class ClientSkillData {
     }
 
     /** 同步进行中的增益状态（跳跃 / 攀爬剩余 tick，0 表示不活跃） */
+    private static final int[] PROFESSIONS = {-1, -1};
+
+    public static void updateProfessions(int[] p) {
+        if (p != null && p.length == 2) System.arraycopy(p, 0, PROFESSIONS, 0, 2);
+    }
+
+    /** 已选专业（WeaponCategory 序号，-1 = 未选）；group 0 = 白刃，1 = 枪械 */
+    public static int profession(int group) {
+        return PROFESSIONS[group];
+    }
+
     public static void updateTransient(int leapRemainTicks, int climbRemainTicks) {
         long now = System.currentTimeMillis();
         leapUntilMs = leapRemainTicks > 0 ? now + leapRemainTicks * 50L : 0;

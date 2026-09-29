@@ -6,7 +6,9 @@ import com.tacz.guns.resource.index.CommonGunIndex;
 import com.tacz.guns.resource.pojo.data.gun.GunData;
 import com.tacz.guns.api.item.IGun;
 import com.tacz.guns.util.AttachmentDataUtils;
+import com.zhushen.space.common.CombatFormula;
 import com.zhushen.space.common.DamageCap;
+import com.zhushen.space.data.WeaponCategory;
 import com.zhushen.space.common.DamageVariance;
 import com.zhushen.space.common.GunDamage;
 import com.zhushen.space.data.ModAttachments;
@@ -105,19 +107,13 @@ final class TaczGunEvents {
         int level = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.FIREARMS.ordinal());
         float factor = 1f;
         float cap = DamageCap.capFor(level);
-        if (level > 0) {
-            Tier tier = tierOf(event.getGunId());
-            float bonus = tier.bonus(level);
-            float hs = event.getHeadshotMultiplier();
-            if (tier == Tier.HEAVY && event.isHeadShot() && hs > 0) {
-                // B：狙击 / 重武器爆头时，技能加成与爆头倍率相加（hs + bonus），而非相乘（hs × (1 + bonus)）
-                factor = Math.min((hs + bonus) / hs, cap);
-                event.setHeadshotMultiplier(hs * factor);
-            } else {
-                factor = Math.min(1f + bonus, cap);
-                event.setBaseAmount(event.getBaseAmount() * factor);
-            }
-        }
+        // 攻击判定：属性（敏捷 / 炮为智力）+ 枪械 + 武器伤害 − 目标防御 ± 调整（没有专业 −9）；
+        // 散弹等多弹丸：属性 + 技能 − 防御 − 减值 按弹丸数平摊到每颗弹丸
+        WeaponCategory cat = categoryOf(event.getGunId());
+        int pellets = pellets(event.getGunId());
+        float def = event.getHurtEntity() instanceof net.minecraft.world.entity.LivingEntity le ? le.getArmorValue() : 0f;
+        float bonus = CombatFormula.attr(player, cat.attribute) + level - def - CombatFormula.professionPenalty(player, cat);
+        event.setBaseAmount(Math.max(0f, event.getBaseAmount() + bonus / pellets));
         // 伤害浮动：面板伤害的 20%~100% 随机（每发子弹一次，先于爆头倍率与暴击 / 弱点）
         event.setBaseAmount(event.getBaseAmount() * DamageVariance.roll(player.getRandom()));
         // 开始本发子弹的结算上下文：暴击 / 弱点每发只判定一次，并与技能乘区合并封顶（C）
@@ -141,8 +137,9 @@ final class TaczGunEvents {
             float base = (float) AttachmentDataUtils.getDamageWithAttachment(stack, data);
             int pellets = Math.max(1, data.getBulletData().getBulletAmount());
             int level = player.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.FIREARMS.ordinal());
-            float factor = level > 0 ? Math.min(1f + tierOf(gunId).bonus(level), DamageCap.capFor(level)) : 1f;
-            return new float[]{base * factor, pellets};
+            WeaponCategory cat = categoryOf(gunId);
+            float bonus = CombatFormula.attr(player, cat.attribute) + level - CombatFormula.professionPenalty(player, cat);
+            return new float[]{Math.max(0f, base + bonus / pellets), pellets};
         } catch (RuntimeException e) {
             return null;
         }
@@ -162,6 +159,38 @@ final class TaczGunEvents {
             case TYPE_PISTOL, TYPE_SMG -> Tier.REGULAR;
             default -> Tier.REGULAR;
         };
+    }
+
+    /** 枪械分类：手枪 / 冲锋枪 / 散弹枪 / 机枪 / 步枪（含狙击）/ 炮（火箭筒）；未知类型按步枪 */
+    static WeaponCategory categoryOf(ResourceLocation gunId) {
+        if (gunId == null) return WeaponCategory.RIFLE;
+        CommonGunIndex index = TimelessAPI.getCommonGunIndex(gunId).orElse(null);
+        String type = index == null ? null : index.getType();
+        if (type == null) return WeaponCategory.RIFLE;
+        return switch (type) {
+            case TYPE_PISTOL -> WeaponCategory.PISTOL;
+            case TYPE_SMG -> WeaponCategory.SMG;
+            case TYPE_SHOTGUN -> WeaponCategory.SHOTGUN;
+            case TYPE_MG -> WeaponCategory.MACHINE_GUN;
+            case TYPE_RPG -> WeaponCategory.CANNON;
+            default -> WeaponCategory.RIFLE; // rifle / sniper
+        };
+    }
+
+    static WeaponCategory categoryOf(ItemStack stack) {
+        try {
+            IGun iGun = IGun.getIGunOrNull(stack);
+            if (iGun == null) return null;
+            return categoryOf(iGun.getGunId(stack));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static int pellets(ResourceLocation gunId) {
+        CommonGunIndex index = gunId == null ? null : TimelessAPI.getCommonGunIndex(gunId).orElse(null);
+        if (index == null) return 1;
+        return Math.max(1, index.getGunData().getBulletData().getBulletAmount());
     }
 
     /** 步枪基础弹匣容量 ≥ 50 视为大容量（不计扩容弹匣配件） */

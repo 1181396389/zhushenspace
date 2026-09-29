@@ -377,11 +377,7 @@ public class SkillManager {
         PlayerSkillData skills = player.getData(ModAttachments.PLAYER_SKILLS);
         ItemStack mainhand = player.getMainHandItem();
         float bonus = 0f;
-        if (mainhand.isEmpty()) {
-            bonus += Math.max(0, skills.get(SkillType.BRAWL.ordinal()));
-        } else if (isColdWeapon(mainhand)) {
-            bonus += Math.max(0, skills.get(SkillType.BLADE.ordinal()));
-        }
+        // 肉搏 / 白刃技能已并入攻击判定公式（CombatFormula），此处只剩冲锋加成
         State st = STATES.get(player.getUUID());
         if (st != null && st.chargeActive) {
             bonus += Math.min((int) st.chargeDistance, SkillAbility.CHARGE_DAMAGE_CAP);
@@ -403,13 +399,7 @@ public class SkillManager {
         ItemStack mainhand = player.getMainHandItem();
         // TACZ 对部分实体以「伪装近战」结算子弹（直接来源为玩家），需按伤害类型排除
         boolean melee = event.getSource().getDirectEntity() == player && !GunDamage.isGun(event.getSource());
-        if (melee && mainhand.isEmpty()) {
-            int brawl = skills.get(SkillType.BRAWL.ordinal());
-            if (brawl > 0) event.setAmount(event.getAmount() + brawl);
-        } else if (melee && isColdWeapon(mainhand)) {
-            int blade = skills.get(SkillType.BLADE.ordinal());
-            if (blade > 0) event.setAmount(event.getAmount() + blade);
-        }
+        // 肉搏 / 白刃技能已并入攻击判定公式（CombatFormula）
 
         if (st == null) return;
 

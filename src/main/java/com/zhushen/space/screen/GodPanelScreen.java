@@ -286,6 +286,8 @@ public class GodPanelScreen extends Screen {
         }
         g.pose().popPose();
         ZsTheme.endOpen(g);
+        if (tab == Tab.SKILLS) renderProfChooser(g, mouseX, mouseY);
+        else profChooser = -1;
     }
 
     private void renderPanel(GuiGraphics g) {
@@ -500,6 +502,69 @@ public class GodPanelScreen extends Screen {
         }
     }
 
+    /** 专业选择入口（技能行内）：[0] 白刃，[1] 枪械；x = -1 表示不可见 */
+    private final int[] profChipX = {-1, -1}, profChipY = new int[2], profChipW = new int[2];
+    /** 正在选择的专业组（-1 = 未打开选择框） */
+    private int profChooser = -1;
+
+    private static final int PROF_BTN_W = 70, PROF_BTN_H = 16;
+
+    private int[] profBox() {
+        int n = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]).size();
+        int rows = (n + 1) / 2;
+        int w = PROF_BTN_W * 2 + 18, h = 44 + rows * (PROF_BTN_H + 4) + 22;
+        return new int[]{panelX + (panelW - w) / 2, panelY + (panelH - h) / 2, w, h};
+    }
+
+    /** 专业选择框：列出该组分类，点击即选定（不可更改） */
+    private void renderProfChooser(GuiGraphics g, int mouseX, int mouseY) {
+        if (profChooser < 0) return;
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 400);
+        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xAA000000);
+        int[] b = profBox();
+        XytStyle.chrome(g, b[0], b[1], b[2], b[3]);
+        Component title = Component.translatable(profChooser == 0
+                ? "screen.zhushenspace.profession.title_blade" : "screen.zhushenspace.profession.title_gun");
+        g.drawCenteredString(font, title, b[0] + b[2] / 2, b[1] + 8, XytStyle.INK);
+        g.drawCenteredString(font, Component.translatable("screen.zhushenspace.profession.warn"),
+                b[0] + b[2] / 2, b[1] + 20, XytStyle.WARN);
+        var list = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
+        for (int k = 0; k < list.size(); k++) {
+            int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
+            XytStyle.darkButton(g, font, mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H,
+                    Component.translatable(list.get(k).nameKey()));
+        }
+        int cy = b[1] + b[3] - 20;
+        XytStyle.darkButton(g, font, mouseX, mouseY, b[0] + b[2] / 2 - 25, cy, 50, 14,
+                Component.translatable("gui.cancel"));
+        g.pose().popPose();
+    }
+
+    private boolean handleProfChooserClick(double mouseX, double mouseY) {
+        int[] b = profBox();
+        var list = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
+        for (int k = 0; k < list.size(); k++) {
+            int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
+            if (over(mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H)) {
+                PacketDistributor.sendToServer(new com.zhushen.space.network.ChooseProfessionPayload(
+                        profChooser, list.get(k).ordinal()));
+                playClick(1.3f);
+                profChooser = -1;
+                return true;
+            }
+        }
+        int cy = b[1] + b[3] - 20;
+        if (over(mouseX, mouseY, b[0] + b[2] / 2 - 25, cy, 50, 14) || !over(mouseX, mouseY, b[0], b[1], b[2], b[3])) {
+            profChooser = -1;
+            playClick(0.8f);
+        }
+        return true;
+    }
+
     private void renderXytRow(GuiGraphics g, int mouseX, int mouseY, PointList list, int i, int x0, int ry, int rw) {
         int h = ROW_HEIGHT - 1;
         XytStyle.row(g, x0, ry, rw, h, i == list.hovered);
@@ -522,6 +587,28 @@ public class GodPanelScreen extends Screen {
             lvColor = cur != saved ? XytStyle.ORANGE : XytStyle.INK;
         }
         g.drawString(font, lv, end + 3, ty, lvColor, false);
+
+        // 专业（白刃 / 枪械达到 3 点可选择一个武器分类专业，选择后不可更改）
+        int grp = i == SkillType.BLADE.ordinal() ? 0 : i == SkillType.FIREARMS.ordinal() ? 1 : -1;
+        if (grp >= 0) {
+            profChipX[grp] = -1;
+            if (saved >= com.zhushen.space.data.WeaponCategory.PROFESSION_LEVEL) {
+                int px = end + 3 + font.width(lv) + 6, py = ry + (h - 11) / 2;
+                int prof = ClientSkillData.profession(grp);
+                Component label = prof >= 0
+                        ? Component.translatable(com.zhushen.space.data.WeaponCategory.values()[prof].nameKey())
+                        : Component.translatable("screen.zhushenspace.profession.choose");
+                int pw = font.width(label) + 8;
+                boolean hov = over(mouseX, mouseY, px, py, pw, 11);
+                int bg = prof >= 0 ? 0x33000000 : (ZsAnim.pulse(900) > 0.5f ? XytStyle.ORANGE : 0xFFB05A20);
+                g.fill(px, py, px + pw, py + 11, prof >= 0 ? bg : ZsAnim.withAlpha(bg, 0.85f));
+                g.renderOutline(px, py, pw, 11, hov && prof < 0 ? 0xFFFFFFFF : XytStyle.INK_SUB);
+                g.drawString(font, label, px + 4, py + 2, prof >= 0 ? XytStyle.INK : 0xFFFFFFFF, false);
+                profChipX[grp] = px;
+                profChipY[grp] = py;
+                profChipW[grp] = pw;
+            }
+        }
 
         int by = ry + (ROW_HEIGHT - PM_BTN) / 2;
         int step = list.step(i);
@@ -1312,6 +1399,22 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (profChooser >= 0) {
+            if (button == 0) return handleProfChooserClick(mouseX, mouseY);
+            profChooser = -1;
+            return true;
+        }
+        if (button == 0 && tab == Tab.SKILLS) {
+            for (int gi = 0; gi < 2; gi++) {
+                if (profChipX[gi] >= 0 && ClientSkillData.profession(gi) < 0
+                        && over(mouseX, mouseY, profChipX[gi], profChipY[gi], profChipW[gi], 11)
+                        && mouseY >= listTop && mouseY < listBottom) {
+                    profChooser = gi;
+                    playClick(1.1f);
+                    return true;
+                }
+            }
+        }
         if (button == 0) {
             // 底部货币栏：点击打开货币界面（拖拽拼合/拆解）
             if (over(mouseX, mouseY, panelX + 4, panelY + panelH - 16, panelW - 8, 14)) {
