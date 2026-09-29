@@ -33,41 +33,7 @@ public final class JjkDomain {
         int lx0 = Math.max(x, mid - ex), lx1 = Math.min(sx, mid + ex);
         if (lx1 > lx0) {
             g.enableScissor(lx0, y, lx1, y + h);
-            g.fillGradient(x, y, sx, y + h, 0xFF02040E, 0xFF060A1E);
-            // 星空
-            for (int i = 0; i < 160; i++) {
-                int px = x + (int) (hash(i, 101) * (w * 0.6f)), py = y + (int) (hash(i, 102) * h);
-                float tw = (float) Math.abs(Math.sin(t * (0.8 + hash(i, 103) * 2.5) + i));
-                int c = hash(i, 104) < 0.2f ? GOJO : 0xFFFFFFFF;
-                g.fill(px, py, px + 1, py + 1, alpha(c, 0.15f + 0.7f * tw * hash(i, 105)));
-            }
-            // 旋转星系（倾斜螺旋臂）
-            float gx = x + w * 0.24f, gy = y + h * 0.42f, gr = Math.min(w * 0.22f, h * 0.36f);
-            disk(g, gx, gy, gr * 0.5f, 0.35f, 0x1A6FD3FF);
-            disk(g, gx, gy, gr * 0.25f, 0.35f, 0x336FD3FF);
-            for (int arm = 0; arm < 3; arm++) {
-                for (int j = 0; j < 90; j++) {
-                    float d = j / 90f;
-                    double a = arm * Math.PI * 2 / 3 + d * 5.5 + t * 0.25;
-                    float r = d * gr + (hash(arm * 100 + j, 7) - 0.5f) * 4;
-                    float px = gx + (float) Math.cos(a) * r, py = gy + (float) Math.sin(a) * r * 0.35f;
-                    g.fill((int) px, (int) py, (int) px + 1, (int) py + 1,
-                            alpha(j % 7 == 0 ? 0xFFFFFFFF : GOJO_LIGHT, 0.75f * (1 - d * 0.7f)));
-                }
-            }
-            disk(g, gx, gy, 3, 0.6f, 0xEEFFFFFF);
-            // 信息流：自消失点朝观者奔涌的光线（越近越长越亮）
-            float vx = x + w * 0.24f, vy = y + h * 0.5f;
-            for (int i = 0; i < 70; i++) {
-                float ph = (t * (0.25f + hash(i, 111) * 0.35f) + hash(i, 112)) % 1f;
-                double a = hash(i, 113) * Math.PI * 2;
-                float r0 = ph * ph * w * 0.7f, r1 = r0 + 2 + ph * ph * 22;
-                float c = (float) Math.cos(a), s = (float) Math.sin(a) * 0.8f;
-                line(g, vx + c * r0, vy + s * r0, vx + c * r1, vy + s * r1, 1,
-                        alpha(i % 5 == 0 ? GOJO : 0xFFFFFFFF, 0.1f + 0.6f * ph));
-            }
-            // 地平辉光
-            g.fillGradient(x, y + h - h / 4, sx, y + h, 0x00000000, 0x302C5CA8);
+            voidDomain(g, x, y, sx, h, w, t, open);
             g.disableScissor();
         }
 
@@ -147,6 +113,115 @@ public final class JjkDomain {
     }
 
     /** 伏魔御厨子神社剪影：台基、立柱、三重翘檐屋顶、正面獠牙巨口、檐角牛骨 */
+    private static int hsv(float hue, float sat, float val) {
+        hue = ((hue % 1f) + 1f) % 1f;
+        float h6 = hue * 6, f = h6 - (int) h6;
+        float p = val * (1 - sat), q = val * (1 - sat * f), u = val * (1 - sat * (1 - f));
+        float r, gg, b;
+        switch ((int) h6) {
+            case 0 -> { r = val; gg = u; b = p; }
+            case 1 -> { r = q; gg = val; b = p; }
+            case 2 -> { r = p; gg = val; b = u; }
+            case 3 -> { r = p; gg = q; b = val; }
+            case 4 -> { r = u; gg = p; b = val; }
+            default -> { r = val; gg = p; b = q; }
+        }
+        return 0xFF000000 | ((int) (r * 255) << 16) | ((int) (gg * 255) << 8) | (int) (b * 255);
+    }
+
+    /**
+     * 无量空处（动画版）：墨色云翳中撕开一道白光裂隙，巨大的「黑洞之眼」带虹彩光环缓慢旋转，
+     * 墨点碎屑被吸入，周期性闪白（信息洪流灌入的瞬间）。
+     */
+    private static void voidDomain(GuiGraphics g, int x, int y, int sx, int h, int w, float t, float open) {
+        int x1 = sx;
+        // 底：深墨蓝 → 冷灰（云翳）
+        g.fillGradient(x, y, x1, y + h, 0xFF0B0F1A, 0xFF1A2130);
+        // 墨云团块（缓慢漂移）
+        for (int i = 0; i < 22; i++) {
+            float cx = x + ((hash(i, 301) * (w * 0.6f) + t * (3 + hash(i, 302) * 5)) % (w * 0.6f));
+            float cy = y + hash(i, 303) * h;
+            float r = 8 + hash(i, 304) * 22;
+            disk(g, cx, cy, r, 0.7f, alpha(0xFF02030A, 0.35f));
+        }
+        float gx = x + w * 0.23f, gy = y + h * 0.46f;
+        float appear = ZsAnim.easeOutBack(ZsAnim.clamp01(open * 1.2f));
+        float R = Math.min(w * 0.2f, h * 0.36f) * appear;
+        // —— 白光裂隙：斜向贯穿，边缘为撕裂墨块 ——
+        float slope = -0.32f;
+        float rift = 0.5f + 0.5f * (float) Math.sin(t * 0.9);
+        for (int px = x; px < x1; px += 2) {
+            float cy = gy + (px - gx) * slope;
+            float n1 = hash(px / 2, 311), n2 = hash(px / 2, 312);
+            float hw = (R * 0.18f + 3) * (0.7f + 0.3f * rift) + (n1 - 0.5f) * 6;
+            float hw2 = hw + 2 + n2 * 5;
+            g.fill(px, (int) (cy - hw2), px + 2, (int) (cy + hw2), alpha(0xFFBFD6EA, 0.35f));
+            g.fill(px, (int) (cy - hw), px + 2, (int) (cy + hw), 0xFFF4F8FF);
+            // 墨块啃噬边缘
+            if (n2 > 0.72f) {
+                int bs = 1 + (int) (hash(px, 313) * 4);
+                g.fill(px, (int) (cy - hw) - 1, px + bs, (int) (cy - hw) + bs, 0xFF05060A);
+            }
+            if (n1 > 0.75f) {
+                int bs = 1 + (int) (hash(px, 314) * 4);
+                g.fill(px, (int) (cy + hw) - bs, px + bs, (int) (cy + hw) + 1, 0xFF05060A);
+            }
+        }
+        if (R < 2) return;
+        // —— 外围吸积旋涡：灰白流线顺时针旋转 ——
+        float rot = t * 0.35f;
+        for (int a = 0; a < 240; a++) {
+            double ang = a * Math.PI * 2 / 240;
+            for (int k = 0; k < 14; k++) {
+                float d = k / 14f;
+                float rr = R * (1.02f + d * 0.75f);
+                double aa = ang + rot + d * 1.4;
+                float streak = (float) (0.5 + 0.5 * Math.sin(ang * 9 + d * 7 - t * 1.3));
+                float av = (1 - d) * (0.15f + 0.55f * streak);
+                int px = (int) (gx + Math.cos(aa) * rr), py = (int) (gy + Math.sin(aa) * rr * 0.92f);
+                g.fill(px, py, px + 1, py + 1, alpha(k < 3 ? 0xFFE6EEF8 : 0xFF8FA0B8, av));
+            }
+        }
+        // —— 虹彩光环（金 → 青 → 紫，随角度与时间流转）——
+        for (int a = 0; a < 360; a++) {
+            double ang = a * Math.PI / 180;
+            float lum = (float) (0.55 + 0.45 * Math.sin(ang * 2 - t * 2.1));
+            int col = hsv(0.12f + (float) Math.sin(ang + t * 0.6) * 0.35f, 0.55f, 1f);
+            for (int k = 0; k < 3; k++) {
+                float rr = R * (0.94f + k * 0.035f);
+                int px = (int) (gx + Math.cos(ang) * rr), py = (int) (gy + Math.sin(ang) * rr * 0.92f);
+                g.fill(px, py, px + 1, py + 1, alpha(k == 1 ? 0xFFFFFFFF : col, lum * (k == 1 ? 0.9f : 0.7f)));
+            }
+        }
+        // —— 视界：纯黑 + 内侧暗蓝旋纹 ——
+        disk(g, gx, gy, R * 0.92f, 0.92f, 0xFF000000);
+        for (int j = 0; j < 120; j++) {
+            float d = j / 120f;
+            double aa = -t * 0.8 + d * 9;
+            float rr = R * (0.88f - d * 0.5f);
+            int px = (int) (gx + Math.cos(aa) * rr), py = (int) (gy + Math.sin(aa) * rr * 0.92f);
+            g.fill(px, py, px + 1, py + 1, alpha(0xFF3A5A8A, 0.5f * (1 - d)));
+        }
+        // 深处一点闪烁的光（无限）
+        float blink = (float) Math.pow(0.5 + 0.5 * Math.sin(t * 1.7), 6);
+        disk(g, gx, gy, 1 + 1.5f * blink, 1f, alpha(0xFFFFFFFF, 0.4f + 0.6f * blink));
+        // —— 被吸入的墨点碎屑 ——
+        for (int i = 0; i < 60; i++) {
+            float ph = (t * (0.12f + hash(i, 321) * 0.2f) + hash(i, 322)) % 1f;
+            double ang = hash(i, 323) * Math.PI * 2 + ph * 2.2;
+            float rr = R * (2.4f - ph * 1.45f);
+            int px = (int) (gx + Math.cos(ang) * rr), py = (int) (gy + Math.sin(ang) * rr * 0.92f);
+            int sz = hash(i, 324) > 0.7f ? 2 : 1;
+            g.fill(px, py, px + sz, py + sz, alpha(0xFF05060A, 0.9f * (1 - ph * 0.6f)));
+        }
+        // —— 信息洪流闪白：约每 7 秒一次 ——
+        float fl = (t % 7f);
+        if (fl < 0.35f) g.fill(x, y, x1, y + h, alpha(0xFFFFFFFF, (0.35f - fl) / 0.35f * 0.55f));
+        // 暗角
+        g.fillGradient(x, y, x1, y + h / 5, 0x88000000, 0x00000000);
+        g.fillGradient(x, y + h - h / 5, x1, y + h, 0x00000000, 0x88000000);
+    }
+
     private static void shrine(GuiGraphics g, float cx, float base, float size, float t) {
         int wood = 0xFF1C0508, woodL = 0xFF3A0A10, edge = 0xFF8A1A24, bone = 0xFFE6D8BC;
         float s = size / 100f;
