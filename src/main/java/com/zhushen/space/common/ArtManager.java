@@ -98,6 +98,71 @@ public final class ArtManager {
         if (e.getEntity() instanceof ServerPlayer p) sync(p);
     }
 
+    /**
+     * 重置加点与全部购买（建卡、流派、流派技能、技艺及其选项 / 研发、轮盘设置）。
+     * refund = true 时退还购买所花的积分 / 支线 / XP。返回退还的积分。
+     */
+    public static int resetAll(ServerPlayer p, boolean refund) {
+        PlayerCurrencyData cur = p.getData(ModAttachments.PLAYER_CURRENCY);
+        com.zhushen.space.data.PlayerSchoolData sch = p.getData(ModAttachments.PLAYER_SCHOOLS);
+        PlayerArtData d = data(p);
+        int score = 0;
+        if (refund) {
+            for (com.zhushen.space.data.SchoolType st : com.zhushen.space.data.SchoolType.values()) {
+                if (!sch.isUnlocked(st)) continue;
+                cur.addBranch(st.branchTier(), st.branchCost());
+                score += st.scoreCost();
+                for (SkillAbility a : SkillAbility.values()) {
+                    if (!a.isSchoolAbility() || !sch.isSkillPurchased(st.ordinal(), a.ordinal())) continue;
+                    if (st.key().equals(a.gate()) && !isFreeSchoolSkill(a)) {
+                        cur.addBranch(ProgressManager.abilityBranchTier(a), ProgressManager.abilityBranchCost(a));
+                        score += ProgressManager.abilityScoreCost(a);
+                    }
+                }
+            }
+            for (ArtSkill s : ArtSkill.values()) {
+                if (!d.owns(s)) continue;
+                if (s.branchTier >= 0) cur.addBranch(s.branchTier, s.branchCost);
+                score += s.scoreCost;
+                int xp = 0;
+                for (int i = 0; i < s.researches.length; i++) if (d.hasResearch(s, i)) xp += s.researches[i].xp();
+                if (s.mode == ArtSkill.Mode.PICK && s.extraCost > 0)
+                    xp += Math.max(0, Integer.bitCount(d.optionBits[s.ordinal()]) - 1) * s.extraCost;
+                cur.addXp(xp);
+            }
+            cur.addScore(score);
+        }
+        sch.reset();
+        p.setData(ModAttachments.PLAYER_ARTS, new PlayerArtData());
+        BUFFS.remove(p.getUUID());
+        VIGOR.remove(p.getUUID());
+        armor(p, MOD_OUTER, 0);
+        armor(p, MOD_WARD, 0);
+        armor(p, MOD_PALM, 0);
+        p.removeEffect(MobEffects.INVISIBILITY);
+        if (!p.isCreative() && !p.isSpectator()) {
+            p.getAbilities().mayfly = false;
+            p.getAbilities().flying = false;
+            p.onUpdateAbilities();
+        }
+        EnergyManager.removePool(p, EnergyManager.POOL_NEILI);
+        com.zhushen.space.data.PlayerSkillData sd = p.getData(ModAttachments.PLAYER_SKILLS);
+        sd.clearGatedSlots();
+        for (int b = 0; b < com.zhushen.space.data.PlayerSkillData.BAR_COUNT; b++) {
+            int[] bar = sd.bar(b).clone();
+            for (int i = 0; i < bar.length; i++)
+                if (bar[i] >= 0 && bar[i] < SkillAbility.COUNT && SkillAbility.values()[bar[i]].isArtAbility()) bar[i] = -1;
+            sd.setBar(b, bar);
+        }
+        BuildServer.reset(p);
+        ProgressManager.sync(p);
+        sync(p);
+        return score;
+    }
+
+    /** 购买流派时赠送的技能（听劲）不退款 */
+    private static boolean isFreeSchoolSkill(SkillAbility a) { return a == SkillAbility.TING_JIN; }
+
     /** 施法者等级（D1 C2 B3 A4 S5 SSS6 九S7，取最高施法等级）：目前体质专长均为 D 级 */
     public static int casterLevel(ServerPlayer p) { return 1; }
 

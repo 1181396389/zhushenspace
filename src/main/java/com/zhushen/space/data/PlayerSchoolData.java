@@ -52,6 +52,12 @@ public class PlayerSchoolData implements INBTSerializable<CompoundTag> {
         skillBits[schoolOrdinal] |= (1 << abilityId);
     }
 
+    /** 清空全部流派与已购技能 */
+    public void reset() {
+        java.util.Arrays.fill(unlocked, false);
+        java.util.Arrays.fill(skillBits, 0);
+    }
+
     /** 已购买技能位掩码（用于同步） */
     public int[] skillBits() {
         return skillBits;

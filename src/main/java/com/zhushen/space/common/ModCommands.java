@@ -133,6 +133,12 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
+                // ===== 重置加点与全部购买 =====
+                .then(Commands.literal("resetall")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(ctx -> resetAll(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), true))
+                                .then(Commands.literal("norefund")
+                                        .executes(ctx -> resetAll(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"), false)))))
                 // ===== 建卡 XP =====
                 .then(Commands.literal("build")
                         .then(Commands.literal("reset")
@@ -360,6 +366,14 @@ public class ModCommands {
         }
         HallBuilder.clear(hall);
         source.sendSuccess(() -> Component.literal("大厅场景已清空"), true);
+        return 1;
+    }
+
+    private static int resetAll(CommandSourceStack src, ServerPlayer p, boolean refund) {
+        int score = com.zhushen.space.common.ArtManager.resetAll(p, refund);
+        src.sendSuccess(() -> Component.literal("已重置 " + p.getName().getString() + " 的加点与全部购买"
+                + (refund ? "（已退还 " + score + " 积分及对应支线 / XP）" : "（不退款）")), true);
+        p.sendSystemMessage(Component.literal("§e你的加点与全部购买已被重置，请重新建卡。"));
         return 1;
     }
 }
