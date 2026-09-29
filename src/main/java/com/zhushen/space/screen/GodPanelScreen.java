@@ -2109,9 +2109,9 @@ public class GodPanelScreen extends Screen {
     }
 
     private boolean handleArtClick(double mouseX, double mouseY) {
-        int cw = panelW - 10;
+        int gw = panelW - 10;
         if (detailArt < 0 && artPage == 0) {
-            if (over(mouseX, mouseY, panelX + 5, artCardY(), cw, 52)) { artPage = 1; playClick(1.1f); return true; }
+            if (over(mouseX, mouseY, panelX + 5, artCardY(), gw, 52)) { artPage = 1; playClick(1.1f); return true; }
             return false;
         }
         if (detailArt < 0 && over(mouseX, mouseY, panelX + 5, listTop + 2, 30, 12)) {
@@ -2120,7 +2120,7 @@ public class GodPanelScreen extends Screen {
             return true;
         }
         if (detailArt < 0 && artPage == 1) {
-            if (over(mouseX, mouseY, panelX + 5, listTop + 18, cw, 52)) { artPage = 2; playClick(1.1f); return true; }
+            if (over(mouseX, mouseY, panelX + 5, listTop + 18, gw, 52)) { artPage = 2; playClick(1.1f); return true; }
             return false;
         }
         if (detailArt < 0) {
