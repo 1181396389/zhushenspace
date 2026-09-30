@@ -47,7 +47,9 @@ import java.util.UUID;
  * 不良状态的效果（仅玩家）：由不良状态点数的档位派生出的固有不良状态 + 直接施加的固有不良状态，
  * 换算成移动速度、防御、攻击 / 检定 / 施法 / 豁免的修正与各种行为限制。
  * <p>
- * 本模组没有先攻顺序，「先攻值降低」无对应效果；基础移动速度按 {@link #BASE_SPEED_M} 米计算（−4 米 = 移速 −1/3）。
+ * 本模组没有先攻顺序，「先攻值降低」无对应效果；移动速度的降低按百分比计算：
+ * 轻度不良状态「速度 −4 米」= 移速 −{@link #SPEED_LIGHT_PCT}%，失速「基础速度 −12 米」= 移速 −{@link #SPEED_SLOW_PCT}%，
+ * 多项相加，降至 0% 时无法移动（飞行中的人物坠落）；「每移动 1 米耗费 2 米」类效果 = 剩余移速减半。
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID)
 public final class StatusEffects {
@@ -55,8 +57,10 @@ public final class StatusEffects {
     private StatusEffects() {
     }
 
-    /** 人物的基础移动速度（米）：轻度不良状态的「基础移动速度降低 X 米」按此比例换算 */
-    public static final int BASE_SPEED_M = 12;
+    /** 轻度不良状态「速度 −4 米」对应的移速降低百分比 */
+    public static final int SPEED_LIGHT_PCT = 30;
+    /** 失速「基础速度 −12 米」对应的移速降低百分比 */
+    public static final int SPEED_SLOW_PCT = 60;
 
     private static ResourceLocation rl(String s) { return ResourceLocation.fromNamespaceAndPath(ZhuShenSpace.MODID, s); }
 
@@ -248,12 +252,13 @@ public final class StatusEffects {
         if (any(p, Condition.FROZEN, Condition.PETRIFIED, Condition.ROOTED, Condition.PARALYZED, Condition.UNCONSCIOUS,
                 Condition.ASLEEP, Condition.ETERNAL_SLEEP, Condition.ENSLAVED, Condition.STUNNED, Condition.HELPLESS,
                 Condition.FLOATING, Condition.IMPRISONED, Condition.BANISHED, Condition.DISABLED)) return 0;
-        int meters = 0;
+        // 按百分比降低（多项相加，最低 0%）
+        int pct = 0;
         for (StatusType t : new StatusType[]{StatusType.FREEZE, StatusType.CRYSTAL, StatusType.ENTANGLE, StatusType.PARALYSIS, StatusType.FATIGUE}) {
-            if (light(p, t)) meters += 4;
+            if (light(p, t)) pct += SPEED_LIGHT_PCT;
         }
-        if (light(p, StatusType.SLOW)) meters += 12;
-        double f = Math.max(0, (BASE_SPEED_M - meters) / (double) BASE_SPEED_M);
+        if (light(p, StatusType.SLOW)) pct += SPEED_SLOW_PCT;
+        double f = Math.max(0, (100 - pct) / 100.0);
         int legs = (limbDisabled(p, LimbPart.RIGHT_LEG) ? 1 : 0) + (limbDisabled(p, LimbPart.LEFT_LEG) ? 1 : 0);
         if (legs >= 2) return 0;
         if (legs == 1) f *= 0.5;                                   // 单腿残障：每移动 1 米耗费 2 点移动力
