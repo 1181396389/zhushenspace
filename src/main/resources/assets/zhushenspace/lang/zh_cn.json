@@ -915,5 +915,7 @@
   "msg.zhushenspace.survival.weary": "疲惫：疲乏 +%1$s，沉着 -%1$s",
   "msg.zhushenspace.survival.weary_resist": "你强撑着没有倒下",
   "msg.zhushenspace.survival.weary_end": "睡足了一觉，疲惫解除了",
-  "screen.zhushenspace.wheel.first_aid": "急救"
+  "screen.zhushenspace.wheel.first_aid": "急救",
+  "hud.zhushenspace.resting": "短休中… %s%%",
+  "hud.zhushenspace.survival.overexert": "透支"
 }

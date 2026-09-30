@@ -51,6 +51,7 @@ public class ClientSetup {
     @SubscribeEvent
     public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
         ClientMeditation.init(event);
+        com.zhushen.space.common.PoseControl.CLIENT = ClientCondition::keepCrawl;
     }
 
     @SubscribeEvent

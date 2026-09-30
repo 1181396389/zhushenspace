@@ -101,6 +101,50 @@ public final class ClientCondition {
     public static boolean has(Condition c) { return (conditions & c.bit()) != 0; }
     public static boolean limbDisabled(LimbPart part) { return (limbDisabled & part.bit()) != 0; }
 
+    /** 强制趴伏（PlayerPoseMixin）：本地玩家看同步来的倒地 / 断腿；其他玩家保持服务端同步的趴伏姿态 */
+    public static boolean keepCrawl(net.minecraft.world.entity.player.Player p) {
+        Minecraft mc = Minecraft.getInstance();
+        if (p == mc.player) {
+            if (p.getAbilities().flying) return false;
+            if (has && !p.isCreative() && prone() && !freeMover()) return true;
+            return ClientLimbData.severed(p.getId(), LimbPart.RIGHT_LEG) && ClientLimbData.severed(p.getId(), LimbPart.LEFT_LEG);
+        }
+        return p.getPose() == Pose.SWIMMING && !p.isInWater() && !p.isSwimming();
+    }
+
+    /**
+     * 视野：本模组造成的移速变化（不良状态、断腿、休息 / 冥想时的定身）不再让视野缩放，
+     * 否则速度一变画面就一缩一放，看起来像在抽搐。原版的疾跑 / 药水 / 拉弓视野效果保留。
+     */
+    @SubscribeEvent
+    public static void onFov(net.neoforged.neoforge.client.event.ComputeFovModifierEvent event) {
+        net.minecraft.world.entity.player.Player p = event.getPlayer();
+        var inst = p.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        float walk = p.getAbilities().getWalkingSpeed();
+        if (inst == null || walk <= 0) return;
+        var lock = p.getEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN);
+        boolean restLock = lock != null && lock.getAmplifier() >= 9;
+        boolean ours = restLock;
+        double base = inst.getBaseValue(), add = 0, mulBase = 0, mulTotal = 1;
+        for (var m : inst.getModifiers()) {
+            boolean skip = m.id().getNamespace().equals(com.zhushen.space.ZhuShenSpace.MODID)
+                    || restLock && m.id().getPath().contains("slowness");
+            if (skip) { ours = true; continue; }
+            switch (m.operation()) {
+                case ADD_VALUE -> add += m.amount();
+                case ADD_MULTIPLIED_BASE -> mulBase += m.amount();
+                case ADD_MULTIPLIED_TOTAL -> mulTotal *= 1 + m.amount();
+            }
+        }
+        if (!ours) return;
+        double b = base + add;
+        double without = Math.max(0, (b + b * mulBase) * mulTotal);
+        double with = inst.getValue();
+        float sWith = (float) ((with / walk + 1) / 2), sWithout = (float) ((without / walk + 1) / 2);
+        if (sWith <= 0.01f) return;
+        event.setNewFovModifier(event.getNewFovModifier() / sWith * sWithout);
+    }
+
     private static boolean active(LocalPlayer p) {
         return has && p != null && !p.isCreative() && !p.isSpectator();
     }
@@ -307,14 +351,11 @@ public final class ClientCondition {
         }
 
         // --- 生存条（快捷栏右侧：水分 / 体力 / 精力） ---
-        int x0 = w / 2 + 91 + 6, bottom = h - 2, bh = 20;
-        bar(g, font, x0, bottom, bh, thirst / SurvivalManager.MAX, 0xFF3FA9F5, "hud.zhushenspace.survival.thirst_short", thirst < 15, ms);
-        bar(g, font, x0 + 11, bottom, bh, stamina / staminaMax, exhausted() ? 0xFFE04040 : 0xFFE8C547,
-                "hud.zhushenspace.survival.stamina_short", exhausted(), ms);
-        bar(g, font, x0 + 22, bottom, bh, sleep / SurvivalManager.MAX, 0xFFA58CFF, "hud.zhushenspace.survival.sleep_short", sleep < 15, ms);
+        int x0 = w / 2 + 91 + 6, bottom = h - 1;
+        survivalBars(g, font, x0, bottom, Math.max(40, Math.min(78, w - x0 - 4)), ms);
 
         // --- 不良状态 / 倒地 ---
-        int y = bottom - bh - 22;
+        int y = bottom - 33;
         if (prone()) {
             g.drawString(font, Component.translatable(standing() ? "hud.zhushenspace.prone.standing" : "hud.zhushenspace.prone.hint"),
                     x0, y, 0xFFFFD27F, true);
@@ -351,19 +392,118 @@ public final class ClientCondition {
         }
     }
 
-    private static void bar(GuiGraphics g, Font font, int x, int bottom, int bh, float frac, int color, String label,
-                            boolean warn, long ms) {
-        frac = Math.max(0f, Math.min(1f, frac));
-        g.fill(x, bottom - bh, x + 7, bottom, 0x90000000);
-        int fh = Math.round((bh - 2) * frac);
-        int c = warn && (ms / 300) % 2 == 0 ? 0xFFFFFFFF : color;
-        g.fill(x + 1, bottom - 1 - fh, x + 6, bottom - 1, c);
+    // ===== 生存条（体力 / 水分 / 精力） =====
+
+    /** 显示值（平滑）与残影值（刚失去的部分稍后才收回） */
+    private static final float[] DISP = {-1, -1, -1}, TRAIL = {-1, -1, -1};
+    private static final long[] TRAIL_HOLD = new long[3];
+    private static long lastBarMs, lastChangeMs;
+    private static float barAlpha = 1f;
+
+    private static final String[] ICON_BOLT = {
+            "...##..", "..##...", ".##....", ".#####.", "...##..", "..##...", ".##...."};
+    private static final String[] ICON_DROP = {
+            "...#...", "..###..", ".##o##.", "##o####", "#######", "#######", ".#####."};
+    private static final String[] ICON_MOON = {
+            "..####.", ".###...", "###....", "###....", "###....", ".###...", "..####."};
+
+    /**
+     * 快捷栏右侧的三条横向生存条：体力（上）/ 水分（中）/ 精力（下）。
+     * 平滑变化 + 失去部分的残影；偏低时闪烁描边；体力透支时变红并出现流动斜纹；
+     * 三项都充足且体力一段时间没有变化时整体淡出，减少遮挡。
+     */
+    private static void survivalBars(GuiGraphics g, Font font, int x0, int bottom, int width, long ms) {
+        float dt = lastBarMs == 0 ? 0f : Math.min(0.25f, (ms - lastBarMs) / 1000f);
+        lastBarMs = ms;
+        float[] target = {
+                staminaMax > 0 ? stamina / staminaMax : 1f,
+                thirst / SurvivalManager.MAX,
+                sleep / SurvivalManager.MAX};
+        for (int i = 0; i < 3; i++) {
+            float t = Math.max(0f, Math.min(1f, target[i]));
+            if (DISP[i] < 0) { DISP[i] = t; TRAIL[i] = t; }
+            if (Math.abs(t - DISP[i]) > 0.002f && i == 0) lastChangeMs = ms;
+            DISP[i] += (t - DISP[i]) * Math.min(1f, dt * 10f);
+            if (t >= TRAIL[i]) { TRAIL[i] = DISP[i]; TRAIL_HOLD[i] = ms; }
+            else if (ms - TRAIL_HOLD[i] > 500) TRAIL[i] = Math.max(DISP[i], TRAIL[i] - dt * 0.35f);
+        }
+        boolean calm = target[0] >= 0.98f && target[1] >= 0.5f && target[2] >= 0.5f && !exhausted() && ms - lastChangeMs > 3000;
+        barAlpha += ((calm ? 0.4f : 1f) - barAlpha) * Math.min(1f, dt * 4f);
+
+        int rowH = 7, bw = width - 9 - 14;
+        boolean ex = exhausted();
+        drawBar(g, font, x0, bottom - rowH * 3 + 1, bw, 0, ICON_BOLT, ex ? 0xFFE0463C : 0xFFF2C84B, ex ? 0xFF8A1E1A : 0xFFB5781E,
+                target[0] < 0.2f || ex, ex, ms);
+        drawBar(g, font, x0, bottom - rowH * 2 + 1, bw, 1, ICON_DROP, 0xFF5CC3FF, 0xFF1F5FB8, target[1] < 0.15f, false, ms);
+        drawBar(g, font, x0, bottom - rowH + 1, bw, 2, ICON_MOON, 0xFFB9A2FF, 0xFF5A40B0, target[2] < 0.15f, false, ms);
+    }
+
+    private static int alpha(int argb, float a) {
+        int al = Math.round(((argb >>> 24) & 0xFF) * Math.max(0f, Math.min(1f, a)));
+        return (al << 24) | (argb & 0xFFFFFF);
+    }
+
+    private static void drawBar(GuiGraphics g, Font font, int x, int y, int bw, int idx, String[] icon, int top, int bot,
+                                boolean warn, boolean overexert, long ms) {
+        float a = barAlpha;
+        float pulse = warn ? (float) (0.5 + 0.5 * Math.sin(ms / 160.0)) : 0f;
+        // 图标（带 1 像素阴影）
+        int iconColor = warn ? blend(top, 0xFFFFFFFF, pulse * 0.6f) : top;
+        for (int r = 0; r < icon.length; r++) {
+            for (int c = 0; c < icon[r].length(); c++) {
+                char ch = icon[r].charAt(c);
+                if (ch == '.') continue;
+                g.fill(x + c + 1, y + r - 1 + 1, x + c + 2, y + r + 1, alpha(0xA0000000, a));
+                g.fill(x + c, y + r - 1, x + c + 1, y + r, alpha(ch == 'o' ? 0xFFFFFFFF : iconColor, a));
+            }
+        }
+        int bx = x + 9, by = y, bh = 5;
+        // 外框（圆角）与低值闪烁描边
+        int frame = warn ? blend(0xFF18121E, 0xFFFF5A4A, pulse) : 0xFF18121E;
+        g.fill(bx + 1, by - 1, bx + bw - 1, by, alpha(frame, a * 0.9f));
+        g.fill(bx + 1, by + bh, bx + bw - 1, by + bh + 1, alpha(frame, a * 0.9f));
+        g.fill(bx, by, bx + 1, by + bh, alpha(frame, a * 0.9f));
+        g.fill(bx + bw - 1, by, bx + bw, by + bh, alpha(frame, a * 0.9f));
+        int ix = bx + 1, iw = bw - 2;
+        g.fill(ix, by, ix + iw, by + bh, alpha(0x70000000, a));
+        // 残影
+        int tw = Math.round(iw * TRAIL[idx]), fw = Math.round(iw * DISP[idx]);
+        if (tw > fw) g.fill(ix + fw, by, ix + tw, by + bh, alpha(0x90FFFFFF, a * 0.55f));
+        // 填充：上亮下暗渐变 + 顶部高光
+        if (fw > 0) {
+            g.fillGradient(ix, by, ix + fw, by + bh, alpha(top, a), alpha(bot, a));
+            g.fill(ix, by, ix + fw, by + 1, alpha(0x55FFFFFF, a));
+            if (overexert) {
+                // 体力透支：流动斜纹
+                int off = (int) ((ms / 60) % 6);
+                for (int px = 0; px < fw; px++)
+                    for (int k = 0; k < bh; k++)
+                        if ((px + k + off) % 6 < 2) g.fill(ix + px, by + k, ix + px + 1, by + k + 1, alpha(0x50000000, a));
+            }
+            // 末端亮点
+            g.fill(ix + fw - 1, by, ix + fw, by + bh, alpha(0x60FFFFFF, a));
+        }
+        // 四分刻度
+        for (int q = 1; q < 4; q++) {
+            int qx = ix + iw * q / 4;
+            g.fill(qx, by + 1, qx + 1, by + bh - 1, alpha(0x40000000, a));
+        }
+        // 数值（小字）
+        String txt = overexert ? Component.translatable("hud.zhushenspace.survival.overexert").getString()
+                : Math.round(DISP[idx] * 100) + "%";
         g.pose().pushPose();
-        g.pose().translate(x + 3.5f, bottom - bh - 8, 0);
-        g.pose().scale(0.75f, 0.75f, 1f);
-        Component l = Component.translatable(label);
-        g.drawString(font, l, -font.width(l) / 2, 0, color, true);
+        g.pose().translate(bx + bw + 2, by, 0);
+        g.pose().scale(0.6f, 0.6f, 1f);
+        g.drawString(font, txt, 0, 0, alpha(warn ? blend(0xFFD8D0E8, 0xFFFF6A5A, pulse) : 0xFFD8D0E8, a), true);
         g.pose().popPose();
+    }
+
+    private static int blend(int c1, int c2, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        int a1 = c1 >>> 24, r1 = c1 >> 16 & 0xFF, g1 = c1 >> 8 & 0xFF, b1 = c1 & 0xFF;
+        int a2 = c2 >>> 24, r2 = c2 >> 16 & 0xFF, g2 = c2 >> 8 & 0xFF, b2 = c2 & 0xFF;
+        return (Math.round(a1 + (a2 - a1) * t) << 24) | (Math.round(r1 + (r2 - r1) * t) << 16)
+                | (Math.round(g1 + (g2 - g1) * t) << 8) | Math.round(b1 + (b2 - b1) * t);
     }
 
     /** 失去一只眼：该侧视野变暗（右眼 → 画面右侧） */

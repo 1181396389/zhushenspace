@@ -153,7 +153,8 @@ public final class RestManager {
         RESTS.put(p.getUUID(), r);
         if (!bed) {
             p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, r.duration, LOCK_AMPLIFIER, false, false));
-            sendPose(p, r.duration);
+            // 长休：盘坐动作；短休：只显示进度，不套用打坐动作（负数 = 仅进度）
+            sendPose(p, kind == Kind.LONG ? r.duration : -r.duration);
             p.displayClientMessage(Component.translatable(kind == Kind.LONG
                     ? "msg.zhushenspace.rest.long_start" : "msg.zhushenspace.rest.short_start"), true);
         }

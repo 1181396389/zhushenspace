@@ -915,5 +915,7 @@
   "msg.zhushenspace.survival.weary": "Weary: Fatigue +%1$s, Composure -%1$s",
   "msg.zhushenspace.survival.weary_resist": "You fight off the weariness",
   "msg.zhushenspace.survival.weary_end": "A full sleep; no longer weary",
-  "screen.zhushenspace.wheel.first_aid": "First Aid"
+  "screen.zhushenspace.wheel.first_aid": "First Aid",
+  "hud.zhushenspace.resting": "Short rest… %s%%",
+  "hud.zhushenspace.survival.overexert": "OUT"
 }

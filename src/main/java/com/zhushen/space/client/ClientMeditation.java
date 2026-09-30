@@ -36,18 +36,27 @@ public final class ClientMeditation {
         ClientAnims.init(event);
     }
 
-    /** 网络包入口：ticks &gt; 0 开始，0 结束 */
+    /** 网络包入口：ticks &gt; 0 开始（盘坐动作），ticks &lt; 0 开始（只显示进度，如短休），0 结束 */
     public static void handle(int entityId, int ticks) {
         Minecraft mc = Minecraft.getInstance();
         Entity entity = mc.level != null ? mc.level.getEntity(entityId) : null;
-        if (ticks > 0) {
-            ACTIVE.put(entityId, new long[]{ZsAnim.nowMs(), ticks * 50L});
-        } else if (ACTIVE.remove(entityId) == null) {
-            return;
+        boolean anim;
+        if (ticks != 0) {
+            anim = ticks > 0;
+            long[] old = ACTIVE.put(entityId, new long[]{ZsAnim.nowMs(), Math.abs(ticks) * 50L, anim ? 1 : 0});
+            if (!anim && (old == null || old[2] == 0)) return;
+            if (!anim) { // 从盘坐切换为仅进度：收功
+                if (entity instanceof AbstractClientPlayer player) ClientAnims.play(player, "meditate_end", 3);
+                return;
+            }
+        } else {
+            long[] old = ACTIVE.remove(entityId);
+            if (old == null || old[2] == 0) return;
+            anim = false;
         }
         if (entity instanceof AbstractClientPlayer player) {
             // KosmX Player Animator：盘坐调息（循环）/ 收功起身
-            ClientAnims.play(player, ticks > 0 ? "meditate" : "meditate_end", ticks > 0 ? 8 : 3);
+            ClientAnims.play(player, anim ? "meditate" : "meditate_end", anim ? 8 : 3);
         }
     }
 
@@ -83,7 +92,8 @@ public final class ClientMeditation {
         ZsAnim.TAIJI.draw(g, cx - 10, y - 10, 20, 20, alpha << 24 | 0xFFFFFF);
         int bw = 90;
         ZsTheme.flowBar(g, 0x6D656469L, cx - bw / 2, y + size / 2 + 2, bw, 3, prog, 0xFF4FC3F7, false);
-        Component text = Component.translatable("hud.zhushenspace.meditating", (int) (prog * 100));
+        Component text = Component.translatable(st[2] != 0 ? "hud.zhushenspace.meditating" : "hud.zhushenspace.resting",
+                (int) (prog * 100));
         g.drawCenteredString(mc.font, text, cx, y + size / 2 + 8, ZsAnim.withAlpha(ZsTheme.TEXT_TITLE, in));
     }
 }
