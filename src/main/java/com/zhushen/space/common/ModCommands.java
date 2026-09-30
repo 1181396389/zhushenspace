@@ -133,6 +133,67 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
+                // ===== 不良状态 / 倒地 / 生存需求 / 眼睛（测试用） =====
+                .then(Commands.literal("status")
+                        .then(Commands.literal("add")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("type", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.StatusType.values()).map(t -> t.key), b))
+                                                .then(Commands.argument("points", IntegerArgumentType.integer(1, 999))
+                                                        .executes(ctx -> statusAdd(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
+                                                                StringArgumentType.getString(ctx, "type"), IntegerArgumentType.getInteger(ctx, "points"), "natural"))
+                                                        .then(Commands.argument("kind", StringArgumentType.word())
+                                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                                        java.util.List.of("natural", "malicious", "magic"), b))
+                                                                .executes(ctx -> statusAdd(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
+                                                                        StringArgumentType.getString(ctx, "type"), IntegerArgumentType.getInteger(ctx, "points"),
+                                                                        StringArgumentType.getString(ctx, "kind"))))))))
+                        .then(Commands.literal("clear")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            StatusManager.clear(EntityArgument.getPlayer(ctx, "player"), null, true);
+                                            ctx.getSource().sendSuccess(() -> Component.literal("已清除全部不良状态与毁灭性后果"), true);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("info")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> statusInfo(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))))
+                .then(Commands.literal("prone")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.literal("on").executes(ctx -> {
+                                    StatusManager.setProne(EntityArgument.getPlayer(ctx, "player"), true, "msg.zhushenspace.prone.knocked");
+                                    return 1;
+                                }))
+                                .then(Commands.literal("off").executes(ctx -> {
+                                    StatusManager.setProne(EntityArgument.getPlayer(ctx, "player"), false, null);
+                                    return 1;
+                                }))))
+                .then(Commands.literal("survival")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("what", StringArgumentType.word())
+                                        .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                java.util.List.of("thirst", "stamina", "sleep"), b))
+                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0, 200))
+                                                .executes(ctx -> survivalSet(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
+                                                        StringArgumentType.getString(ctx, "what"), DoubleArgumentType.getDouble(ctx, "value")))))))
+                .then(Commands.literal("eye")
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .then(Commands.argument("side", StringArgumentType.word())
+                                        .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                java.util.List.of("right", "left"), b))
+                                        .then(Commands.literal("lose").executes(ctx -> {
+                                            LimbManager.loseEye(EntityArgument.getPlayer(ctx, "player"),
+                                                    "left".equals(StringArgumentType.getString(ctx, "side"))
+                                                            ? com.zhushen.space.data.PlayerLimbData.LEFT_EYE : com.zhushen.space.data.PlayerLimbData.RIGHT_EYE);
+                                            return 1;
+                                        }))
+                                        .then(Commands.literal("restore").executes(ctx -> {
+                                            LimbManager.restoreEye(EntityArgument.getPlayer(ctx, "player"),
+                                                    "left".equals(StringArgumentType.getString(ctx, "side"))
+                                                            ? com.zhushen.space.data.PlayerLimbData.LEFT_EYE : com.zhushen.space.data.PlayerLimbData.RIGHT_EYE);
+                                            return 1;
+                                        })))))
                 // ===== 快速医疗 / 休息（测试用） =====
                 .then(Commands.literal("quickheal")
                         .then(Commands.literal("grant")
@@ -439,6 +500,52 @@ public class ModCommands {
         src.sendSuccess(() -> Component.literal(p.getName().getString() + " 快速医疗：" + (act.isEmpty() ? "无" : act)
                 + "；断肢再生进度 " + String.format("%.1f/%.0f", rg[0], rg[1])
                 + "；长休" + (wait <= 0 ? "可用" : "冷却 " + (wait + 19) / 20 + " 秒")), false);
+        return 1;
+    }
+
+    private static int statusAdd(CommandSourceStack src, ServerPlayer p, String type, int points, String kind) {
+        com.zhushen.space.data.StatusType t = com.zhushen.space.data.StatusType.byKey(type);
+        if (t == null) {
+            src.sendFailure(Component.literal("未知的不良状态类型：" + type));
+            return 0;
+        }
+        StatusManager.Source k = "magic".equals(kind) ? StatusManager.Source.MAGIC
+                : "malicious".equals(kind) ? StatusManager.Source.MALICIOUS : StatusManager.Source.NATURAL;
+        int got = StatusManager.add(p, t, points, false, src.getEntity(), k, 20 * 60);
+        src.sendSuccess(() -> Component.literal("已给予 " + p.getName().getString() + " ").append(Component.translatable(t.nameKey()))
+                .append(" 点数 " + got + "（当前 " + StatusManager.data(p).points(t) + "）"), true);
+        return 1;
+    }
+
+    private static int statusInfo(CommandSourceStack src, ServerPlayer p) {
+        var d = StatusManager.data(p);
+        StringBuilder sb = new StringBuilder(p.getName().getString()).append("：");
+        for (com.zhushen.space.data.StatusType t : com.zhushen.space.data.StatusType.values()) {
+            sb.append(Component.translatable(t.nameKey()).getString()).append(' ').append(d.points(t)).append('/')
+                    .append(StatusManager.heavyAt(p, t)).append('/').append(StatusManager.destructiveAt(p, t))
+                    .append(d.isPermanent(t) ? "[毁灭]" : "").append("  ");
+        }
+        sb.append("\n水分 ").append(Math.round(d.thirst)).append(" 体力 ").append(Math.round(d.stamina)).append('/')
+                .append(Math.round(SurvivalManager.maxStamina(p))).append(" 精力 ").append(Math.round(d.sleep))
+                .append(d.prone ? " 倒地" : "").append(d.exhausted ? " 力竭" : "").append(d.collapsed ? " 昏睡" : "")
+                .append(" 失去眼睛 ").append(LimbManager.eyesLost(p));
+        src.sendSuccess(() -> Component.literal(sb.toString()), false);
+        return 1;
+    }
+
+    private static int survivalSet(CommandSourceStack src, ServerPlayer p, String what, double value) {
+        var d = StatusManager.data(p);
+        switch (what) {
+            case "thirst" -> d.thirst = (float) Math.min(100, value);
+            case "sleep" -> { d.sleep = (float) Math.min(100, value); if (d.sleep >= 20) d.collapsed = false; }
+            case "stamina" -> { d.stamina = (float) Math.min(SurvivalManager.maxStamina(p), value); if (d.stamina > 0) d.exhausted = false; }
+            default -> {
+                src.sendFailure(Component.literal("可选：thirst / stamina / sleep"));
+                return 0;
+            }
+        }
+        StatusManager.sync(p);
+        src.sendSuccess(() -> Component.literal("已设置 " + what + " = " + value), true);
         return 1;
     }
 }

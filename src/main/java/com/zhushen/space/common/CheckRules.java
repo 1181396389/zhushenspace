@@ -90,7 +90,7 @@ public final class CheckRules {
         int cap = cap(p, k, sub);
         mod += boost(p, k);
         float def = CombatFormula.defense(target, p.damageSources().playerAttack(p));
-        float raw = (cap + mod - def) * DamageVariance.roll(p.getRandom());
+        float raw = (cap + mod - def - StatusManager.attackPenalty(p, false)) * DamageVariance.roll(p.getRandom());
         return new Result(Math.max(0, Math.min(cap, raw)), cap, raw);
     }
 

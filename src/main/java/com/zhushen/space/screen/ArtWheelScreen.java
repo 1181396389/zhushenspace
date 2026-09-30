@@ -59,6 +59,20 @@ public class ArtWheelScreen extends Screen {
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.long_rest"),
                 () -> tr(ClientArtData.flag(PoolEffects.F_REST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),
                 () -> true, b -> art(16, 0, 0), null));
+        // 冥想：有能量池时可用，与短休 / 打坐互相独立（各自判定恢复）
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.meditate"),
+                () -> tr(ClientArtData.flag(PoolEffects.F_MEDITATE) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),
+                () -> anyPool(), b -> art(17, 0, 0), null));
+        // 卧倒 / 爬起来
+        ENTRIES.add(new Entry(() -> tr(com.zhushen.space.client.ClientCondition.prone()
+                        ? "screen.zhushenspace.wheel.stand" : "screen.zhushenspace.wheel.prone"),
+                () -> tr(com.zhushen.space.client.ClientCondition.prone() ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),
+                () -> true, b -> art(18, 0, 0), null));
+        // 扑灭火焰（燃烧时显示）
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.extinguish"),
+                () -> String.valueOf(com.zhushen.space.client.ClientCondition.points(com.zhushen.space.data.StatusType.BURN)),
+                () -> com.zhushen.space.client.ClientCondition.points(com.zhushen.space.data.StatusType.BURN) > 0,
+                b -> art(19, 0, 0), null));
         // 留手：点击开关，滚轮 ±5%
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.holdback"),
                 () -> ClientArtData.holdback() < 0 ? tr("screen.zhushenspace.wheel.off") : ClientArtData.holdback() + "%",

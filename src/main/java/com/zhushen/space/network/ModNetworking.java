@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("13"); // 协议版本：技艺
+        PayloadRegistrar registrar = event.registrar("14"); // 协议版本：身体状况 / 眼睛
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -130,7 +130,9 @@ public class ModNetworking {
         registrar.playToClient(SyncLimbPayload.TYPE, SyncLimbPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientLimbData.update(payload.entityId(), payload.current(),
-                                payload.max(), payload.severedMask())));
+                                payload.max(), payload.severedMask(), payload.eyeMask())));
+        registrar.playToClient(SyncConditionPayload.TYPE, SyncConditionPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientCondition.update(payload)));
         registrar.playToClient(PlayerAnimPayload.TYPE, PlayerAnimPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientAnims.handle(payload.entityId(), payload.name())));

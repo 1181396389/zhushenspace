@@ -46,6 +46,11 @@ public class HealthManager {
 
     // ===== 对外接口 =====
 
+    /** 是否处于昏迷（伤势满载或头部血量清空，且未以意志力强撑） */
+    public static boolean isUnconscious(ServerPlayer player) {
+        return UNCONSCIOUS.getOrDefault(player.getUUID(), false);
+    }
+
     /** 直接记录一档伤势（太极采劲/撞墙等「严重伤害」走 L 池） */
     public static void addWound(ServerPlayer player, PlayerHealthData.Severity severity, int amount) {
         if (amount <= 0) return;

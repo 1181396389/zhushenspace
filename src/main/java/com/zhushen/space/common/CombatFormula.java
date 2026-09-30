@@ -122,6 +122,8 @@ public final class CombatFormula {
     /** 目标防御：护甲值（玩家按命中部位） */
     public static float defense(LivingEntity victim, DamageSource src) {
         float d = victim instanceof ServerPlayer sp ? (float) LimbManager.defenseFor(sp, src) : victim.getArmorValue();
+        // 倒地（远程 +3 / 近战 −6）与轻度不良状态（−4）
+        d += StatusManager.defenseMod(victim, src);
         // 措手不及 / 擒抱中（面对组外攻击）：失去天生防御（闪避、格挡加值待接入）
         if (DamageRules.isFlatFooted(victim, src.getEntity())) {
             d -= (float) DamageRules.naturalDefense(victim);
@@ -190,7 +192,7 @@ public final class CombatFormula {
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
             float wd = weaponDamage(p, event.getAmount());
             base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + wd - def - pen
-                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH);
+                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false);
             base = Math.max(0f, base);
             event.setAmount(base);
             DamageCap.setMeleeBase(p, victim, base);
@@ -211,7 +213,7 @@ public final class CombatFormula {
             float wd = event.getAmount();
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * WeaponCategory.REQ_PENALTY
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY);
+                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true);
             base = Math.max(0f, Math.min(base, wd + ath + str));
             event.setAmount(base);
         } else if (direct instanceof AbstractArrow arrow) {
@@ -231,7 +233,7 @@ public final class CombatFormula {
             float wd = event.getAmount();
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * 2
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY);
+                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true);
             base = Math.max(0f, Math.min(base, wd * 2 + ath + sp.strReq()));
             event.setAmount(base);
         } else {

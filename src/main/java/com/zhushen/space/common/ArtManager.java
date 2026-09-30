@@ -315,8 +315,8 @@ public final class ArtManager {
     static int reflexSave(LivingEntity t, Entity attacker) {
         if (!DamageRules.canReflex(t, attacker)) return 0;
         if (t instanceof ServerPlayer sp)
-            return Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS) + PoolEffects.checkBonus(sp, AttributeType.AGILITY))
-                    * DamageVariance.roll(sp.getRandom()));
+            return Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS) + PoolEffects.checkBonus(sp, AttributeType.AGILITY)
+                    + StatusManager.reflexBonus(sp)) * DamageVariance.roll(sp.getRandom())); // 倒地：对抗范围伤害 +3
         var st = GrappleManager.stats(t);
         return st == null ? 0 : Math.round((st.agi() + st.athletics()) * DamageVariance.roll(t.getRandom()));
     }

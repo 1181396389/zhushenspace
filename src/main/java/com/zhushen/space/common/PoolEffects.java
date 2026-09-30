@@ -45,7 +45,7 @@ public final class PoolEffects {
 
     public static final String SAGE = "sage";
     /** 轮盘状态位（同步到客户端） */
-    public static final int F_BOOST = 1, F_SPIDER = 2, F_WATER = 4, F_SENSE = 8, F_SIGHT = 16, F_REST = 32;
+    public static final int F_BOOST = 1, F_SPIDER = 2, F_WATER = 4, F_SENSE = 8, F_SIGHT = 16, F_REST = 32, F_MEDITATE = 64;
 
     private static final Map<UUID, Long> SENSE_UNTIL = new HashMap<>(), SIGHT_UNTIL = new HashMap<>(),
             SPIDER_NEXT = new HashMap<>(), WATER_NEXT = new HashMap<>(), REST_END = new HashMap<>(),
@@ -68,7 +68,7 @@ public final class PoolEffects {
 
     /** 两项属性检定（成功数） */
     static int check(ServerPlayer p, AttributeType a, AttributeType b) {
-        return Math.max(0, Math.round((attr(p, a) + attr(p, b)) * DamageVariance.roll(p.getRandom())));
+        return Math.max(0, Math.round((attr(p, a) + attr(p, b) - StatusManager.checkPenalty(p, a, b)) * DamageVariance.roll(p.getRandom())));
     }
 
     public static int flags(ServerPlayer p) {
@@ -80,6 +80,7 @@ public final class PoolEffects {
         if (SENSE_UNTIL.getOrDefault(p.getUUID(), 0L) > now) f |= F_SENSE;
         if (SIGHT_UNTIL.getOrDefault(p.getUUID(), 0L) > now) f |= F_SIGHT;
         if (RestManager.isResting(p)) f |= F_REST;
+        if (REST_END.containsKey(p.getUUID())) f |= F_MEDITATE;
         return f;
     }
 
@@ -178,6 +179,11 @@ public final class PoolEffects {
             }
             case 15 -> RestManager.toggle(p, RestManager.Kind.SHORT); // 短休（冥想）
             case 16 -> RestManager.toggle(p, RestManager.Kind.LONG);  // 长休
+            case 17 -> startMeditate(p);                               // 冥想（独立于短休，各自判定）
+            case 18 -> StatusManager.toggleProne(p);                  // 卧倒 / 爬起来
+            case 19 -> StatusManager.extinguish(p);                   // 扑灭火焰
+            case 20 -> SurvivalManager.drinkFromSource(p);            // 潜行空手右键水面：喝生水
+            case 21 -> StatusManager.standUp(p);                      // 跳跃键：爬起来
             default -> {}
         }
         ArtManager.sync(p);
@@ -222,7 +228,38 @@ public final class PoolEffects {
         }
     }
 
-    // ===== 冥想（短休）：开始 / 打断 / 完成由 RestManager 统一管理 =====
+    // ===== 冥想：静坐 20 秒，各能量池按各自的判定恢复；冷却 5 分钟（与短休 / 打坐互相独立） =====
+
+    static final int MEDITATE_TICKS = 400, MEDITATE_COOLDOWN = 6000;
+
+    static void startMeditate(ServerPlayer p) {
+        long now = p.level().getGameTime();
+        if (REST_END.containsKey(p.getUUID())) return;
+        if (!anyPool(p)) { ArtManager.deny(p, "msg.zhushenspace.art.no_pool"); return; }
+        long cd = REST_CD.getOrDefault(p.getUUID(), 0L);
+        if (cd > now) {
+            p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.meditate_cd", (cd - now + 19) / 20), true);
+            return;
+        }
+        REST_END.put(p.getUUID(), now + MEDITATE_TICKS);
+        p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, MEDITATE_TICKS, 9, false, true));
+        p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.meditate_start"), true);
+    }
+
+    static boolean anyPool(ServerPlayer p) {
+        for (FeatEffects.Pool fp : FeatEffects.Pool.values()) {
+            if (!"neili".equals(fp.id) && energy(p).getPool(fp.id) != null) return true;
+        }
+        return false;
+    }
+
+    static void finishMeditate(ServerPlayer p) {
+        List<String> parts = shortRestPools(p);
+        EnergyManager.sync(p);
+        p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.meditate_done",
+                parts.isEmpty() ? Component.translatable("msg.zhushenspace.rest.nothing").getString() : String.join(" ", parts)), false);
+        p.serverLevel().sendParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 1, p.getZ(), 20, 0.4, 0.6, 0.4, 0.05);
+    }
     /** 子时（23~1 点）/ 午时（11~13 点）：天地气机交错 */
     static boolean qiHour(ServerPlayer p) {
         long t = Math.floorMod(p.level().getDayTime(), 24000L);
@@ -283,6 +320,13 @@ public final class PoolEffects {
                     if (EnergyManager.consume(p, "chakra", 1)) m.put(id, now + 1200);
                     else { m.remove(id); changed = true; }
                 }
+            }
+            Long med = REST_END.get(id);
+            if (med != null && now >= med) {
+                REST_END.remove(id);
+                REST_CD.put(id, now + MEDITATE_COOLDOWN);
+                finishMeditate(p);
+                changed = true;
             }
             if (e.getServer().getTickCount() % 20 == 0) {
                 if (SENSE_UNTIL.containsKey(id)) {

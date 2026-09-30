@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:campfire_cooking",
+  "category": "misc",
+  "ingredient": {
+    "type": "neoforge:components",
+    "items": "minecraft:potion",
+    "components": {
+      "minecraft:potion_contents": {
+        "potion": "minecraft:water"
+      }
+    },
+    "strict": false
+  },
+  "result": {
+    "id": "minecraft:potion",
+    "count": 1,
+    "components": {
+      "minecraft:potion_contents": {
+        "potion": "minecraft:water"
+      },
+      "minecraft:custom_data": {
+        "zs_boiled": true
+      },
+      "minecraft:custom_name": "{\"translate\":\"item.zhushenspace.boiled_water\",\"italic\":false}"
+    }
+  },
+  "experience": 0.0,
+  "cookingtime": 400
+}

@@ -165,7 +165,7 @@ public final class QuickHealManager {
         }
         PlayerLimbData limbs = LimbManager.data(p);
         LimbPart next = null;
-        int lost = 0;
+        int lost = limbs.eyesLost(); // 眼睛是小部位：每只按 1 计
         for (LimbPart part : LimbPart.values()) {
             if (part.severable() && limbs.isSevered(part)) {
                 lost++;
@@ -182,9 +182,17 @@ public final class QuickHealManager {
         if (progress >= need) {
             if (lost > 1) tag.putDouble(KEY_REGROW, progress - need);
             else tag.remove(KEY_REGROW);
-            LimbManager.restore(p, next);
+            String name;
+            if (next != null) {
+                LimbManager.restore(p, next);
+                name = next.nameKey();
+            } else {
+                int eye = limbs.eyeLost(PlayerLimbData.RIGHT_EYE) ? PlayerLimbData.RIGHT_EYE : PlayerLimbData.LEFT_EYE;
+                LimbManager.restoreEye(p, eye);
+                name = LimbManager.eyeKey(eye);
+            }
             p.displayClientMessage(Component.translatable("msg.zhushenspace.quickheal.regrow",
-                    Component.translatable(next.nameKey())), false);
+                    Component.translatable(name)), false);
         } else {
             tag.putDouble(KEY_REGROW, progress);
         }
@@ -192,8 +200,8 @@ public final class QuickHealManager {
 
     /** 再生进度 {已累计, 需要}（指令查看） */
     public static double[] regrowProgress(ServerPlayer p) {
-        int lost = 0;
         PlayerLimbData limbs = LimbManager.data(p);
+        int lost = limbs.eyesLost();
         for (LimbPart part : LimbPart.values()) if (part.severable() && limbs.isSevered(part)) lost++;
         return new double[]{p.getPersistentData().getDouble(KEY_REGROW), lost == 0 ? 0 : REGROW_PER_LIMB};
     }

@@ -123,6 +123,7 @@ public final class RestManager {
             cancel(p, "msg.zhushenspace.rest.cancel");
             return;
         }
+        if (StatusManager.incapacitated(p)) return;
         if (!p.onGround() || p.isPassenger()) {
             p.displayClientMessage(Component.translatable("msg.zhushenspace.rest.not_ground"), true);
             return;
@@ -209,6 +210,11 @@ public final class RestManager {
             }
             p.setData(ModAttachments.LAST_LONG_REST, worldClock(p));
         }
+        // 体力回满；长休精力回满
+        StatusManager.data(p).stamina = SurvivalManager.maxStamina(p);
+        StatusManager.data(p).exhausted = false;
+        if (kind == Kind.LONG) SurvivalManager.restoreSleep(p, SurvivalManager.MAX);
+        else StatusManager.sync(p);
         // 伤势移除后归位生命值并同步（长休顺带回满未断部位的部位血量）
         HealthManager.afterHeal(p, kind == Kind.LONG ? 10000 : healed);
         EnergyManager.sync(p);

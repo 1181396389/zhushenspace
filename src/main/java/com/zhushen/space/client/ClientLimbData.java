@@ -16,8 +16,14 @@ public final class ClientLimbData {
     private static int[] cur = new int[LimbPart.COUNT];
     private static int[] max = new int[LimbPart.COUNT];
     private static final long[] hitAt = new long[LimbPart.COUNT];
+    /** 本地玩家失去的眼睛：1 右眼，2 左眼 */
+    private static int eyes;
 
-    public static void update(int entityId, int[] c, int[] m, int mask) {
+    public static int eyes() {
+        return eyes;
+    }
+
+    public static void update(int entityId, int[] c, int[] m, int mask, int eyeMask) {
         if (mask == 0) MASKS.remove(entityId);
         else MASKS.put(entityId, mask);
         Minecraft mc = Minecraft.getInstance();
@@ -26,6 +32,7 @@ public final class ClientLimbData {
             for (int i = 0; i < c.length; i++) if (c[i] < cur[i]) hitAt[i] = now;
             cur = c;
             max = m;
+            eyes = eyeMask;
         }
     }
 
@@ -63,5 +70,6 @@ public final class ClientLimbData {
         MASKS.clear();
         cur = new int[LimbPart.COUNT];
         max = new int[LimbPart.COUNT];
+        eyes = 0;
     }
 }

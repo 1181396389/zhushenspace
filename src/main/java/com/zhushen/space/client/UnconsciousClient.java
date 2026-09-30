@@ -29,7 +29,8 @@ public class UnconsciousClient {
         float maxHp = ClientHealthData.maxHp(player.getMaxHealth());
         boolean out = (maxHp - ClientHealthData.total() <= 0.0f && ClientHealthData.l() > 0)
                 || ClientLimbData.selfHeadOut(); // 头部血量清空同样昏迷
-        return out && !ClientWillpower.holdingOn(); // 意志力强撑中不昏迷
+        // 意志力强撑中不昏迷；困到昏睡 / 冰封同样无法行动（不能强撑）
+        return (out && !ClientWillpower.holdingOn()) || ClientCondition.incapacitated();
     }
 
     @SubscribeEvent
@@ -45,7 +46,7 @@ public class UnconsciousClient {
         player.setDeltaMovement(0.0, v.y, 0.0);
 
         // 周期性 actionbar 提示（约每 2 秒）
-        if ((player.tickCount & 39) == 0) {
+        if ((player.tickCount & 39) == 0 && !ClientCondition.incapacitated()) {
             player.displayClientMessage(Component.translatable(
                     "msg.zhushenspace.health.unconscious_hint"), true);
         }

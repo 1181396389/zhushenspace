@@ -92,7 +92,7 @@ public class ClientPoolFx {
         int y = g.guiHeight() - 60;
         String[][] tags = {{"" + PoolEffects.F_SENSE, "hud.zhushenspace.pool.sense"}, {"" + PoolEffects.F_SPIDER, "hud.zhushenspace.pool.spider"},
                 {"" + PoolEffects.F_WATER, "hud.zhushenspace.pool.water"}, {"" + PoolEffects.F_SIGHT, "hud.zhushenspace.pool.sight"},
-                {"" + PoolEffects.F_REST, "hud.zhushenspace.pool.rest"}, {"" + PoolEffects.F_BOOST, "hud.zhushenspace.pool.boost"}};
+                {"" + PoolEffects.F_REST, "hud.zhushenspace.pool.rest"}, {"" + PoolEffects.F_MEDITATE, "hud.zhushenspace.pool.meditate"}, {"" + PoolEffects.F_BOOST, "hud.zhushenspace.pool.boost"}};
         for (String[] t : tags) {
             if (!ClientArtData.flag(Integer.parseInt(t[0]))) continue;
             g.drawString(mc.font, Component.translatable(t[1]), 6, y, 0xFFBFE6FF, true);

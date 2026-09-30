@@ -256,7 +256,12 @@ public final class LimbManager {
         LimbPart part = pending != null ? pending.part() : resolvePart(player, event.getSource());
         int amount = Math.round(event.getNewDamage());
         if (part == null || amount <= 0) return;
+        boolean wasOut = part == LimbPart.HEAD && data(player).current(LimbPart.HEAD, player.getMaxHealth()) <= 0;
         damagePart(player, part, amount);
+        if (part == LimbPart.HEAD) {
+            boolean out = data(player).current(LimbPart.HEAD, player.getMaxHealth()) <= 0;
+            maybeEye(player, event.getSource(), amount, out && !wasOut);
+        }
     }
 
     /** 对部位造成伤害（指令 / 其他系统也可调用） */
@@ -334,9 +339,63 @@ public final class LimbManager {
 
     // ===== 恢复 =====
 
-    /** 恢复部位（null = 全部）：血量回满并接回断肢 */
+    // ===== 眼睛（小部位） =====
+
+    public static int eyesLost(Player player) {
+        return data(player).eyesLost();
+    }
+
+    /** 失去一只眼睛（eye = RIGHT_EYE / LEFT_EYE；0 = 随机一只还在的） */
+    public static void loseEye(ServerPlayer player, int eye) {
+        PlayerLimbData d = data(player);
+        if (eye == 0) {
+            boolean r = !d.eyeLost(PlayerLimbData.RIGHT_EYE), l = !d.eyeLost(PlayerLimbData.LEFT_EYE);
+            if (!r && !l) return;
+            eye = r && l ? (player.getRandom().nextBoolean() ? PlayerLimbData.RIGHT_EYE : PlayerLimbData.LEFT_EYE)
+                    : r ? PlayerLimbData.RIGHT_EYE : PlayerLimbData.LEFT_EYE;
+        }
+        if (d.eyeLost(eye)) return;
+        d.setEyeLost(eye, true);
+        player.displayClientMessage(Component.translatable("msg.zhushenspace.limb.eye_lost",
+                Component.translatable(eyeKey(eye))), false);
+        player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH,
+                SoundSource.PLAYERS, 1.0f, 0.8f);
+        if (player.level() instanceof ServerLevel level) {
+            level.sendParticles(BLOOD_MIST, player.getX(), player.getEyeY(), player.getZ(), 12, 0.1, 0.1, 0.1, 0);
+        }
+        if (d.eyesLost() >= 2) player.displayClientMessage(Component.translatable("msg.zhushenspace.limb.blind"), false);
+        sync(player);
+    }
+
+    public static void restoreEye(ServerPlayer player, int eye) {
+        PlayerLimbData d = data(player);
+        if (!d.eyeLost(eye)) return;
+        d.setEyeLost(eye, false);
+        if (d.eyesLost() < 2) player.removeEffect(net.minecraft.world.effect.MobEffects.BLINDNESS);
+        sync(player);
+    }
+
+    public static String eyeKey(int eye) {
+        return eye == PlayerLimbData.RIGHT_EYE ? "limb.zhushenspace.right_eye" : "limb.zhushenspace.left_eye";
+    }
+
+    /** 头部受击时可能伤到眼睛：单次伤害越重、越是穿刺类，越容易失去一只眼 */
+    private static void maybeEye(ServerPlayer player, DamageSource src, int amount, boolean headOut) {
+        int headMax = LimbPart.HEAD.maxHp(player.getMaxHealth());
+        float chance = headOut ? 0.4f : amount * 2 >= headMax ? 0.2f : amount * 4 >= headMax ? 0.05f : 0f;
+        if (chance <= 0) return;
+        if (src.getDirectEntity() instanceof Projectile || src.is(DamageTypeTags.IS_PROJECTILE)) chance *= 1.5f;
+        if (player.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) chance *= 1.25f;
+        if (player.getRandom().nextFloat() < chance) loseEye(player, 0);
+    }
+
+    /** 恢复部位（null = 全部，含双眼）：血量回满并接回断肢 */
     public static void restore(ServerPlayer player, LimbPart part) {
         PlayerLimbData d = data(player);
+        if (part == null) {
+            d.setEyeLost(PlayerLimbData.RIGHT_EYE | PlayerLimbData.LEFT_EYE, false);
+            player.removeEffect(net.minecraft.world.effect.MobEffects.BLINDNESS);
+        }
         for (LimbPart p : LimbPart.values()) {
             if (part != null && p != part) continue;
             d.setDamage(p, 0);
@@ -435,7 +494,7 @@ public final class LimbManager {
             max[p.ordinal()] = p.maxHp(player.getMaxHealth());
             cur[p.ordinal()] = d.current(p, player.getMaxHealth());
         }
-        return new SyncLimbPayload(player.getId(), cur, max, d.severedMask());
+        return new SyncLimbPayload(player.getId(), cur, max, d.severedMask(), d.eyeMask());
     }
 
     public static void sync(ServerPlayer player) {

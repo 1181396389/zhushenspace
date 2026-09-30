@@ -112,7 +112,11 @@ final class TaczGunEvents {
         WeaponCategory cat = categoryOf(event.getGunId());
         int pellets = pellets(event.getGunId());
         float def = event.getHurtEntity() instanceof net.minecraft.world.entity.LivingEntity le ? le.getArmorValue() : 0f;
-        float bonus = CombatFormula.attr(player, cat.attribute) + level - def - CombatFormula.professionPenalty(player, cat);
+        // 目标的倒地 / 不良状态防御修正（远程）；射手自身的攻击减值（冻结、眼睛）
+        if (event.getHurtEntity() instanceof net.minecraft.server.level.ServerPlayer vp)
+            def = Math.max(0f, def + com.zhushen.space.common.StatusManager.defenseMod(vp, true));
+        float bonus = CombatFormula.attr(player, cat.attribute) + level - def - CombatFormula.professionPenalty(player, cat)
+                - com.zhushen.space.common.StatusManager.attackPenalty(player, true);
         event.setBaseAmount(Math.max(0f, event.getBaseAmount() + bonus / pellets));
         // 伤害浮动：面板伤害的 20%~100% 随机（每发子弹一次，先于爆头倍率与暴击 / 弱点）
         event.setBaseAmount(event.getBaseAmount() * DamageVariance.roll(player.getRandom()));

@@ -48,6 +48,11 @@ public class ModAttachments {
             ATTACHMENTS.register("player_arts",
                     () -> AttachmentType.serializable(PlayerArtData::new).copyOnDeath().build());
 
+    /** 身体状况（水分 / 体力 / 精力、不良状态点数、倒地）：死亡不保留 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerConditionData>> PLAYER_CONDITION =
+            ATTACHMENTS.register("player_condition",
+                    () -> AttachmentType.serializable(PlayerConditionData::new).build());
+
     /** 上一次长休的世界时间（主世界 gameTime；Long.MIN_VALUE = 从未长休）：死亡保留，防止死亡刷新长休 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<Long>> LAST_LONG_REST =
             ATTACHMENTS.register("last_long_rest",

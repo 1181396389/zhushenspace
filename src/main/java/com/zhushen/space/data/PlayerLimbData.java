@@ -10,6 +10,26 @@ public class PlayerLimbData implements INBTSerializable<CompoundTag> {
     /** 各部位已承受的伤害（部位当前血量 = 上限 − 伤害） */
     private final int[] damage = new int[LimbPart.COUNT];
     private int severedMask;
+    /** 失去的眼睛：1 右眼，2 左眼（小部位，不单独计血量） */
+    private int eyeMask;
+
+    public static final int RIGHT_EYE = 1, LEFT_EYE = 2;
+
+    public int eyeMask() {
+        return eyeMask;
+    }
+
+    public boolean eyeLost(int eye) {
+        return (eyeMask & eye) != 0;
+    }
+
+    public void setEyeLost(int eye, boolean lost) {
+        eyeMask = lost ? eyeMask | eye : eyeMask & ~eye;
+    }
+
+    public int eyesLost() {
+        return Integer.bitCount(eyeMask & 3);
+    }
 
     public int damage(LimbPart p) {
         return damage[p.ordinal()];
@@ -38,6 +58,7 @@ public class PlayerLimbData implements INBTSerializable<CompoundTag> {
     public void reset() {
         java.util.Arrays.fill(damage, 0);
         severedMask = 0;
+        eyeMask = 0;
     }
 
     @Override
@@ -45,6 +66,7 @@ public class PlayerLimbData implements INBTSerializable<CompoundTag> {
         CompoundTag tag = new CompoundTag();
         tag.putIntArray("Damage", damage);
         tag.putInt("Severed", severedMask);
+        tag.putInt("Eyes", eyeMask);
         return tag;
     }
 
@@ -54,5 +76,6 @@ public class PlayerLimbData implements INBTSerializable<CompoundTag> {
         java.util.Arrays.fill(damage, 0);
         System.arraycopy(d, 0, damage, 0, Math.min(d.length, damage.length));
         severedMask = tag.getInt("Severed");
+        eyeMask = tag.getInt("Eyes");
     }
 }
