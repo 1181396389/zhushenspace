@@ -36,7 +36,7 @@ import java.util.UUID;
  * - 能量加值（轮盘开关）：检定时自动花 1 点对应能量 +1DP（=3）；同类能量加值不叠加，取一个池。
  *   精神力：决心 / 沉着检定；魔力：心智系（智力 / 感知 / 决心）检定；妖力：生理系（力量 / 敏捷 / 耐力）与感知检定；
  *   灵能：任何检定。道力：道术施法检定额外 1 点 → +3DP。佛力：抵抗心灵影响的豁免 +2DP。
- * - 魔力感知 / 蛛行术 / 水面行走 / 灵感视觉 / 冥想（短休）：均在动作轮盘中使用，不占技能栏。
+ * - 魔力感知 / 蛛行术 / 水面行走 / 灵感视觉 / 短休（冥想）/ 长休：均在动作轮盘中使用，不占技能栏（休息见 RestManager）。
  * - 仙术查克拉：静止每 60 秒 1D10，出 10 则 1 点查克拉转为仙术查克拉；仙人模式下施展忍术可消耗。
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID)
@@ -79,7 +79,7 @@ public final class PoolEffects {
         if (WATER_NEXT.containsKey(p.getUUID())) f |= F_WATER;
         if (SENSE_UNTIL.getOrDefault(p.getUUID(), 0L) > now) f |= F_SENSE;
         if (SIGHT_UNTIL.getOrDefault(p.getUUID(), 0L) > now) f |= F_SIGHT;
-        if (REST_END.containsKey(p.getUUID())) f |= F_REST;
+        if (RestManager.isResting(p)) f |= F_REST;
         return f;
     }
 
@@ -176,7 +176,8 @@ public final class PoolEffects {
                 SIGHT_UNTIL.put(id, now + 1200);
                 p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.sight_on"), true);
             }
-            case 15 -> startRest(p);
+            case 15 -> RestManager.toggle(p, RestManager.Kind.SHORT); // 短休（冥想）
+            case 16 -> RestManager.toggle(p, RestManager.Kind.LONG);  // 长休
             default -> {}
         }
         ArtManager.sync(p);
@@ -221,30 +222,15 @@ public final class PoolEffects {
         }
     }
 
-    // ===== 冥想（短休） =====
-
-    static final int REST_TICKS = 400, REST_COOLDOWN = 6000;
-
-    static void startRest(ServerPlayer p) {
-        long now = p.level().getGameTime();
-        if (REST_END.containsKey(p.getUUID())) return;
-        long cd = REST_CD.getOrDefault(p.getUUID(), 0L);
-        if (cd > now) {
-            p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.rest_cd", (cd - now + 19) / 20), true);
-            return;
-        }
-        REST_END.put(p.getUUID(), now + REST_TICKS);
-        p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, REST_TICKS, 9, false, true));
-        p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.rest_start"), true);
-    }
-
+    // ===== 冥想（短休）：开始 / 打断 / 完成由 RestManager 统一管理 =====
     /** 子时（23~1 点）/ 午时（11~13 点）：天地气机交错 */
     static boolean qiHour(ServerPlayer p) {
         long t = Math.floorMod(p.level().getDayTime(), 24000L);
         return (t >= 17000 && t < 19000) || (t >= 5000 && t < 7000);
     }
 
-    static void finishRest(ServerPlayer p) {
+    /** 短休：各能量池按各自的判定恢复，返回恢复摘要（由 RestManager 调用，调用方负责同步） */
+    static List<String> shortRestPools(ServerPlayer p) {
         PlayerEnergyData d = energy(p);
         List<String> parts = new ArrayList<>();
         restore(p, d, "magic", check(p, AttributeType.INTELLIGENCE, AttributeType.PERCEPTION), parts);
@@ -254,9 +240,7 @@ public final class PoolEffects {
         restore(p, d, "buddha", check(p, AttributeType.RESOLVE, AttributeType.CHARM), parts);
         restore(p, d, "spirit", leg(p, AttributeType.RESOLVE) + leg(p, AttributeType.COMPOSURE), parts);
         restore(p, d, "yokai", qiHour(p) ? Integer.MAX_VALUE : check(p, AttributeType.ENDURANCE, AttributeType.CHARM), parts);
-        EnergyManager.sync(p);
-        p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.rest_done", String.join(" ", parts)), false);
-        p.serverLevel().sendParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 1, p.getZ(), 20, 0.4, 0.6, 0.4, 0.05);
+        return parts;
     }
 
     static void restore(ServerPlayer p, PlayerEnergyData d, String id, int amount, List<String> parts) {
@@ -299,13 +283,6 @@ public final class PoolEffects {
                     if (EnergyManager.consume(p, "chakra", 1)) m.put(id, now + 1200);
                     else { m.remove(id); changed = true; }
                 }
-            }
-            Long rest = REST_END.get(id);
-            if (rest != null && now >= rest) {
-                REST_END.remove(id);
-                REST_CD.put(id, now + REST_COOLDOWN);
-                finishRest(p);
-                changed = true;
             }
             if (e.getServer().getTickCount() % 20 == 0) {
                 if (SENSE_UNTIL.containsKey(id)) {

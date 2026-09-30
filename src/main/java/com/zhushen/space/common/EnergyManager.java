@@ -293,28 +293,26 @@ public class EnergyManager {
         }
     }
 
-    /** 睡觉回满内力：全员入睡跳过夜晚时触发 */
-    @SubscribeEvent
-    public static void onSleepFinished(SleepFinishedTimeEvent event) {
-        for (var entity : event.getLevel().players()) {
-            if (!(entity instanceof ServerPlayer player)) continue;
-            PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
-            boolean featRestored = false;
-            for (FeatEffects.Pool fp : FeatEffects.Pool.values()) {
-                if (POOL_NEILI.equals(fp.id) || data.getPool(fp.id) == null) continue;
-                if (PoolEffects.longRest(player, fp.id)) { featRestored = true; continue; }
-                if (data.restore(fp.id, Double.MAX_VALUE) > 0) featRestored = true;
-            }
-            if (featRestored) sync(player);
-            if (data.getPool(POOL_NEILI) != null && data.restore(POOL_NEILI, Double.MAX_VALUE) > 0) {
-                player.displayClientMessage(Component.translatable("msg.zhushenspace.neili.sleep"), true);
-                // 特效：晨光磬音 + 符文环
-                player.level().playSound(null, player.blockPosition(),
-                        ModSounds.NEILI_MEDITATE_DONE.get(), SoundSource.PLAYERS, 0.8f, 1.2f);
-                enchantRing(player);
-                sync(player);
-            }
+    /**
+     * 长休：各能量池按各自的长休判定恢复（灵能 / 妖力走检定，仙术查克拉不恢复，其余回满），内力回满。
+     * 由 {@link RestManager} 在长休完成时调用（每 24 小时一次），调用方负责同步；返回恢复摘要。
+     */
+    public static java.util.List<String> longRestPools(ServerPlayer player) {
+        PlayerEnergyData data = player.getData(ModAttachments.PLAYER_ENERGY);
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        for (FeatEffects.Pool fp : FeatEffects.Pool.values()) {
+            if (POOL_NEILI.equals(fp.id) || data.getPool(fp.id) == null) continue;
+            double before = data.getPool(fp.id).current;
+            if (!PoolEffects.longRest(player, fp.id)) data.restore(fp.id, Double.MAX_VALUE);
+            var pool = data.getPool(fp.id);
+            double got = pool == null ? 0 : pool.current - before;
+            if (got > 0) parts.add(Component.translatable("energy.zhushenspace." + fp.id).getString()
+                    + "+" + (int) Math.round(got));
         }
+        if (data.getPool(POOL_NEILI) != null && data.restore(POOL_NEILI, Double.MAX_VALUE) > 0) {
+            parts.add(Component.translatable("energy.zhushenspace." + POOL_NEILI).getString() + "+");
+        }
+        return parts;
     }
 
     /** ===== 数据维护接口（指令 / 未来技能消耗接入） ===== */

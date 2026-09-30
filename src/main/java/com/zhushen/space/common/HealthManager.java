@@ -113,17 +113,43 @@ public class HealthManager {
         if (sp[0] > 0) addWound(player, PlayerHealthData.Severity.B, sp[0]);
     }
 
-    /** 原版治疗拦截：改为移除伤势（冲击 → 严重 → 恶性，1:1）并回复完好生命值 */
+    /** 原版治疗拦截：改为移除伤势（冲击 → 严重 → 恶性，1:1）并回复完好生命值。
+     *  饱食度 / 饱和度的自然回血（FoodData）一律取消：伤势只能靠休息、快速医疗与治疗能力处理 */
     @SubscribeEvent
     public static void onHeal(LivingHealEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
         event.setCanceled(true);
+        if (isFoodRegen()) {
+            // FoodData 回血后会追加「回血量 × 6」的消耗：同 tick 退还，饥饿度不会为不存在的回血买单
+            FOOD_REFUND.merge(player.getUUID(), event.getAmount() * 6f, Float::sum);
+            return;
+        }
         PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
         data.heal(Math.round(event.getAmount()));
         LimbManager.heal(player, Math.round(event.getAmount())); // 未断部位同步回复（头优先）
         normalize(player);
         sync(player);
         checkWake(player, data);
+    }
+
+    /** 本 tick 待退还的饥饿消耗（饱食回血被取消时） */
+    private static final Map<UUID, Float> FOOD_REFUND = new HashMap<>();
+
+    /** 调用栈中是否有 FoodData（饱食度 / 饱和度的自然回血） */
+    private static boolean isFoodRegen() {
+        return StackWalker.getInstance().walk(frames -> frames.limit(32)
+                .anyMatch(f -> f.getClassName().equals("net.minecraft.world.food.FoodData")));
+    }
+
+    /** 退还被取消的饱食回血所追加的饥饿消耗（FoodData 在回血之后才追加消耗，故放在玩家 tick 之后） */
+    @SubscribeEvent
+    public static void onPlayerTickPost(net.neoforged.neoforge.event.tick.PlayerTickEvent.Post event) {
+        if (FOOD_REFUND.isEmpty() || !(event.getEntity() instanceof ServerPlayer player)) return;
+        Float refund = FOOD_REFUND.remove(player.getUUID());
+        if (refund == null || refund <= 0f) return;
+        var food = player.getFoodData();
+        float back = Math.min(refund, food.getExhaustionLevel());
+        if (back > 0f) food.addExhaustion(-back);
     }
 
     /** 重生：伤势清零（Attachment 未设 copyOnDeath，双保险同步一次） */

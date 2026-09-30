@@ -48,6 +48,12 @@ public class ModAttachments {
             ATTACHMENTS.register("player_arts",
                     () -> AttachmentType.serializable(PlayerArtData::new).copyOnDeath().build());
 
+    /** 上一次长休的世界时间（主世界 gameTime；Long.MIN_VALUE = 从未长休）：死亡保留，防止死亡刷新长休 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Long>> LAST_LONG_REST =
+            ATTACHMENTS.register("last_long_rest",
+                    () -> AttachmentType.builder(() -> Long.MIN_VALUE)
+                            .serialize(com.mojang.serialization.Codec.LONG).copyOnDeath().build());
+
     /** 大厅返回点：持久化，服务器重启后仍能返回进入大厅前的位置 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<HallReturnData>> HALL_RETURN =
             ATTACHMENTS.register("hall_return",

@@ -133,6 +133,49 @@ public class ModCommands {
                                                 .executes(ctx -> limbSever(ctx.getSource(),
                                                         EntityArgument.getPlayer(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "part")))))))
+                // ===== 快速医疗 / 休息（测试用） =====
+                .then(Commands.literal("quickheal")
+                        .then(Commands.literal("grant")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("source", StringArgumentType.word())
+                                                .then(Commands.argument("level", IntegerArgumentType.integer(1, 99))
+                                                        .executes(ctx -> quickHealGrant(ctx.getSource(),
+                                                                EntityArgument.getPlayer(ctx, "player"),
+                                                                StringArgumentType.getString(ctx, "source"),
+                                                                IntegerArgumentType.getInteger(ctx, "level"), 0))
+                                                        .then(Commands.argument("seconds", IntegerArgumentType.integer(1))
+                                                                .executes(ctx -> quickHealGrant(ctx.getSource(),
+                                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                                        StringArgumentType.getString(ctx, "source"),
+                                                                        IntegerArgumentType.getInteger(ctx, "level"),
+                                                                        IntegerArgumentType.getInteger(ctx, "seconds"))))))))
+                        .then(Commands.literal("revoke")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("source", StringArgumentType.word())
+                                                .executes(ctx -> {
+                                                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                                                    QuickHealManager.revoke(p, StringArgumentType.getString(ctx, "source"));
+                                                    ctx.getSource().sendSuccess(() -> Component.literal("已移除快速医疗来源"), true);
+                                                    return 1;
+                                                }))))
+                        .then(Commands.literal("clear")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            QuickHealManager.clear(EntityArgument.getPlayer(ctx, "player"));
+                                            ctx.getSource().sendSuccess(() -> Component.literal("已清空快速医疗来源"), true);
+                                            return 1;
+                                        })))
+                        .then(Commands.literal("info")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> quickHealInfo(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))))
+                .then(Commands.literal("rest")
+                        .then(Commands.literal("resetlong")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            RestManager.resetLongRest(EntityArgument.getPlayer(ctx, "player"));
+                                            ctx.getSource().sendSuccess(() -> Component.literal("已重置长休冷却"), true);
+                                            return 1;
+                                        }))))
                 // ===== 教程书（帕秋莉手册） =====
                 .then(Commands.literal("guide")
                         .executes(ctx -> com.zhushen.space.common.GuideBook.give(ctx.getSource().getPlayerOrException()) ? 1 : 0)
@@ -379,6 +422,23 @@ public class ModCommands {
         src.sendSuccess(() -> Component.literal("已重置 " + p.getName().getString() + " 的加点与全部购买"
                 + (refund ? "（已退还 " + score + " 积分及对应支线 / XP）" : "（不退款）")), true);
         p.sendSystemMessage(Component.literal("§e你的加点与全部购买已被重置，请重新建卡。"));
+        return 1;
+    }
+
+    private static int quickHealGrant(CommandSourceStack src, ServerPlayer p, String source, int level, int seconds) {
+        QuickHealManager.grant(p, source, level, seconds * 20);
+        src.sendSuccess(() -> Component.literal("已给予 " + p.getName().getString() + " 快速医疗 " + level
+                + "（来源 " + source + (seconds > 0 ? "，" + seconds + " 秒" : "，直到移除") + "）"), true);
+        return 1;
+    }
+
+    private static int quickHealInfo(CommandSourceStack src, ServerPlayer p) {
+        var act = QuickHealManager.active(p);
+        double[] rg = QuickHealManager.regrowProgress(p);
+        long wait = RestManager.longRestReadyIn(p);
+        src.sendSuccess(() -> Component.literal(p.getName().getString() + " 快速医疗：" + (act.isEmpty() ? "无" : act)
+                + "；断肢再生进度 " + String.format("%.1f/%.0f", rg[0], rg[1])
+                + "；长休" + (wait <= 0 ? "可用" : "冷却 " + (wait + 19) / 20 + " 秒")), false);
         return 1;
     }
 }

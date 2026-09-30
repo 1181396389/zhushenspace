@@ -38,8 +38,8 @@ import java.util.UUID;
 /**
  * 意志力池（独立于所有能量池，不参与主能量池判定，也不会被太极化劲封印）。
  * <p>
- * 上限 = 决心加点；决心满 5 点时每点传奇点数额外 +3 上限（决心传奇只扩充意志力池，不再扩充任何能量池）。
- * 恢复：睡觉跳过夜晚时回满。
+ * 上限 = 决心 + 沉着；决心满 5 点时每点传奇点数额外 +3 上限（决心传奇只扩充意志力池，不再扩充任何能量池）。
+ * 恢复：长休时回满（每 24 小时一次，见 RestManager）。
  * <p>
  * 用法（每次支付 1 点意志力）：
  * <ol>
@@ -99,11 +99,11 @@ public final class WillpowerManager {
 
     // ===== 池容量 =====
 
-    /** 按决心重算意志力池上限（由 EnergyManager.syncLegendaryPools 调用，调用方负责同步） */
+    /** 按决心 + 沉着重算意志力池上限（由 EnergyManager.syncLegendaryPools 调用，调用方负责同步） */
     public static void recalc(ServerPlayer player, PlayerEnergyData data) {
         int[] p = player.getData(ModAttachments.PLAYER_ATTRIBUTES).points();
         int resolve = p[AttributeType.RESOLVE.ordinal()];
-        double max = resolve;
+        double max = resolve + p[AttributeType.COMPOSURE.ordinal()];
         if (resolve >= AttributeType.MAX_POINTS) {
             max += AttributeType.legendaryCount(p) * CAPACITY_PER_LEGENDARY;
         }
@@ -369,15 +369,9 @@ public final class WillpowerManager {
 
     // ===== 恢复 / 生命周期 =====
 
-    @SubscribeEvent
-    public static void onSleepFinished(SleepFinishedTimeEvent event) {
-        for (var entity : event.getLevel().players()) {
-            if (!(entity instanceof ServerPlayer player)) continue;
-            if (player.getData(ModAttachments.PLAYER_ENERGY).restore(POOL_ID, Double.MAX_VALUE) > 0) {
-                player.displayClientMessage(Component.translatable("msg.zhushenspace.willpower.sleep"), false);
-                EnergyManager.sync(player);
-            }
-        }
+    /** 长休：意志力回满（由 RestManager 调用，每 24 小时一次；调用方负责同步）。返回是否有恢复 */
+    public static boolean refill(ServerPlayer player) {
+        return player.getData(ModAttachments.PLAYER_ENERGY).restore(POOL_ID, Double.MAX_VALUE) > 0;
     }
 
     @SubscribeEvent

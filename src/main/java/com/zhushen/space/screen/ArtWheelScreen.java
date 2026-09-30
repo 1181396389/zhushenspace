@@ -52,9 +52,13 @@ public class ArtWheelScreen extends Screen {
         ENTRIES.add(poolEntry("screen.zhushenspace.wheel.spider", "chakra", PoolEffects.F_SPIDER, 12));
         ENTRIES.add(poolEntry("screen.zhushenspace.wheel.water", "chakra", PoolEffects.F_WATER, 13));
         ENTRIES.add(poolEntry("screen.zhushenspace.wheel.sight", "dao", PoolEffects.F_SIGHT, 14));
+        // 休息（所有人可用）：短休不限次数；长休每 24 小时一次（也可睡床）。休息中再次点击取消
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.rest"),
                 () -> tr(ClientArtData.flag(PoolEffects.F_REST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),
-                () -> anyPool(), b -> art(15, 0, 0), null));
+                () -> true, b -> art(15, 0, 0), null));
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.long_rest"),
+                () -> tr(ClientArtData.flag(PoolEffects.F_REST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),
+                () -> true, b -> art(16, 0, 0), null));
         // 留手：点击开关，滚轮 ±5%
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.holdback"),
                 () -> ClientArtData.holdback() < 0 ? tr("screen.zhushenspace.wheel.off") : ClientArtData.holdback() + "%",
