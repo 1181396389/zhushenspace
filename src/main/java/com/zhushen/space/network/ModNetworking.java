@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("15"); // 协议版本：完整不良状态
+        PayloadRegistrar registrar = event.registrar("16"); // 协议版本：休息状态 HUD
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -139,6 +139,10 @@ public class ModNetworking {
         registrar.playToClient(MeditatePosePayload.TYPE, MeditatePosePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientMeditation.handle(payload.entityId(), payload.ticks())));
+
+        registrar.playToClient(RestStatePayload.TYPE, RestStatePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientRest.handle(payload.kind(), payload.ticks(), payload.result())));
 
         // ===== 主神空间进度（货币 / 流派） =====
         registrar.playToClient(SyncProgressPayload.TYPE, SyncProgressPayload.STREAM_CODEC,

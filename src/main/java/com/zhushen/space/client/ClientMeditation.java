@@ -75,7 +75,7 @@ public final class ClientMeditation {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
         long[] st = ACTIVE.get(mc.player.getId());
-        if (st == null) return;
+        if (st == null || ClientRest.active()) return; // 休息期间由休息 HUD 显示
         long elapsed = ZsAnim.nowMs() - st[0];
         if (elapsed > st[1] + 1000) { // 兜底：丢包时超时自动结束
             ACTIVE.remove(mc.player.getId());

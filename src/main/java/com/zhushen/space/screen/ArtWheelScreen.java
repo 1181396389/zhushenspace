@@ -110,9 +110,18 @@ public class ArtWheelScreen extends Screen {
     }
 
     private final long openedAt = System.currentTimeMillis();
-    /** 指针（撞针）当前角度，平滑跟随选中的弹膛 */
-    private double needle = Double.NaN;
     private int lastHover = -1;
+    /** 指针（撞针）角度，平滑跟随选中的弹膛 */
+    private double needle = Double.NaN;
+    /** 开场转轮时已经发出的棘轮声次数 */
+    private int ratchet;
+    /** 击发闪光：弹膛序号与时刻 */
+    private int flashIdx = -1;
+    private long flashAt;
+
+    private static final int PLATE_H = 22;
+    /** 光源方向：左上 */
+    private static final double LIGHT = -Math.PI * 3 / 4;
 
     public ArtWheelScreen() { super(Component.translatable("screen.zhushenspace.wheel")); }
 
@@ -126,105 +135,65 @@ public class ArtWheelScreen extends Screen {
     }
 
     // ===== 左轮弹巢布局 =====
-    // 弹巢（圆柱）外半径 R；弹膛（每个条目）沿半径 rc 均匀分布，弹膛半径 cr；中心是退壳星与选中条目的说明。
+    // 弹巢（圆柱）外半径 R；弹膛（每个条目一个）沿半径 rc 均匀分布，弹膛半径 cr；
+    // 中心是退壳星与指针，弹巢下方的铭牌显示选中条目的名称与状态。
 
-    /** 布局：{弹膛半径, 弹膛所在圆半径}；条目多或屏幕小时自动缩小弹膛 */
+    /** {弹膛半径, 弹膛所在圆半径}；条目多或屏幕小时自动缩小 */
     private int[] layout(int n) {
         int m = Math.max(6, n);
-        int max = Math.min(width, height) / 2 - 16; // 弹膛外缘不超出屏幕
+        int budget = Math.min(width / 2, (height - PLATE_H - 16) / 2) - 16; // rc + cr + 外缘
         int cr = 24;
-        int rc = (int) Math.ceil(m * (cr * 2 + 5) / (2 * Math.PI));
-        if (rc + cr > max) {
-            cr = Math.max(12, (int) ((max - 5.0 * m / (2 * Math.PI)) / (1 + m / Math.PI)));
-            rc = (int) Math.ceil(m * (cr * 2 + 5) / (2 * Math.PI));
+        int rc = (int) Math.ceil(m * (cr * 2 + 6) / (2 * Math.PI));
+        if (rc + cr > budget) {
+            cr = Math.max(12, (int) ((budget - 6.0 * m / (2 * Math.PI)) / (1 + m / Math.PI)));
+            rc = (int) Math.ceil(m * (cr * 2 + 6) / (2 * Math.PI));
         }
-        rc = Math.max(rc, cr + 28);
+        rc = Math.max(rc, cr + 30);
         return new int[]{cr, rc};
     }
 
-    private int chamberR(int n) { return layout(n)[0]; }
-
-    private int ringR(int n) { return layout(n)[1]; }
+    private int centerY() {
+        return (height - PLATE_H - 8) / 2 + 2;
+    }
 
     private double angleOf(int i, int n) {
         return -Math.PI / 2 + i * (Math.PI * 2 / n);
     }
 
-    /** 开场转轮动画的旋转偏移（像甩开弹巢后旋转、逐渐停下） */
-    private double spin() {
-        float t = Math.min(1f, (System.currentTimeMillis() - openedAt) / 420f);
-        float e = 1f - (1f - t) * (1f - t) * (1f - t);
-        return (1f - e) * Math.PI * 0.9;
+    /** 开场转轮：像甩出弹巢后拨动，转过几个弹膛后减速停下 */
+    private double spin(int n) {
+        float t = Math.min(1f, (System.currentTimeMillis() - openedAt) / 520f);
+        float e = 1f - (float) Math.pow(1f - t, 3);
+        return (1f - e) * (Math.PI * 2 / Math.max(1, n)) * 5;
     }
 
-    /** 按鼠标方向选择弹膛：离中心超过退壳星即可选中，不必精确点在弹膛上 */
+    /** 按鼠标方向选择弹膛：离开中心退壳星即可选中，不必精确点在弹膛上 */
     private int hovered(double mx, double my, int n) {
         if (n == 0) return -1;
-        double dx = mx - width / 2.0, dy = my - height / 2.0;
+        int[] l = layout(n);
+        double dx = mx - width / 2.0, dy = my - centerY();
         double dist = Math.sqrt(dx * dx + dy * dy);
-        int rc = ringR(n), cr = chamberR(n);
-        if (dist < Math.max(18, rc - cr - 14) || dist > rc + cr + 40) return -1;
+        if (dist < Math.max(14, l[1] - l[0] - 12) * 0.7 || dist > l[1] + l[0] + 60) return -1;
         double a = Math.atan2(dy, dx) + Math.PI / 2;
         double step = Math.PI * 2 / n;
-        int i = (int) Math.floor((a + step / 2) / step);
-        return Math.floorMod(i, n);
+        return Math.floorMod((int) Math.floor((a + step / 2) / step), n);
     }
 
-    private static void disc(GuiGraphics g, int cx, int cy, int r, int color) {
-        for (int dy = -r; dy <= r; dy++) {
-            int dx = (int) Math.sqrt(Math.max(0, r * r - dy * dy));
-            g.fill(cx - dx, cy + dy, cx + dx + 1, cy + dy + 1, color);
-        }
-    }
-
-    /** 圆环（外半径 ro，内半径 ri） */
-    private static void ring(GuiGraphics g, int cx, int cy, int ro, int ri, int color) {
-        for (int dy = -ro; dy <= ro; dy++) {
-            int xo = (int) Math.sqrt(Math.max(0, ro * ro - dy * dy));
-            if (Math.abs(dy) >= ri) {
-                g.fill(cx - xo, cy + dy, cx + xo + 1, cy + dy + 1, color);
-            } else {
-                int xi = (int) Math.sqrt(Math.max(0, ri * ri - dy * dy));
-                g.fill(cx - xo, cy + dy, cx - xi, cy + dy + 1, color);
-                g.fill(cx + xi + 1, cy + dy, cx + xo + 1, cy + dy + 1, color);
-            }
-        }
-    }
-
-    /** 金属质感圆盘：由外到内逐层变亮，左上方带高光 */
-    private static void metalDisc(GuiGraphics g, int cx, int cy, int r, int dark, int light, float a) {
-        int steps = Math.min(10, Math.max(4, r / 6));
-        for (int k = 0; k < steps; k++) {
-            float t = k / (float) (steps - 1);
-            int rr = Math.round(r * (1f - t * 0.55f));
-            disc(g, cx, cy, rr, fade(lerp(dark, light, t * 0.8f), a));
-        }
-        // 高光：偏左上的淡色圆
-        disc(g, cx - r / 4, cy - r / 4, Math.max(2, r / 3), fade(0x18FFFFFF, a));
-    }
-
-    private static int lerp(int c1, int c2, float t) {
-        int a1 = c1 >>> 24, r1 = c1 >> 16 & 0xFF, g1 = c1 >> 8 & 0xFF, b1 = c1 & 0xFF;
-        int a2 = c2 >>> 24, r2 = c2 >> 16 & 0xFF, g2 = c2 >> 8 & 0xFF, b2 = c2 & 0xFF;
-        return (Math.round(a1 + (a2 - a1) * t) << 24) | (Math.round(r1 + (r2 - r1) * t) << 16)
-                | (Math.round(g1 + (g2 - g1) * t) << 8) | Math.round(b1 + (b2 - b1) * t);
-    }
-
-    private static int fade(int argb, float a) {
-        int al = Math.round((argb >>> 24) * Math.max(0f, Math.min(1f, a)));
-        return (al << 24) | (argb & 0xFFFFFF);
+    private static void sound(net.minecraft.sounds.SoundEvent e, float pitch, float vol) {
+        net.minecraft.client.Minecraft.getInstance().getSoundManager().play(
+                net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(e, pitch, vol));
     }
 
     @Override
     public void renderBackground(GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, width, height, 0x70000008);
+        g.fill(0, 0, width, height, 0x58000006);
     }
 
-    private void drawScaled(GuiGraphics g, String text, int cx, int y, float scale, int color) {
+    private void text(GuiGraphics g, String s, float cx, float y, float scale, int color, boolean shadow) {
         g.pose().pushPose();
         g.pose().translate(cx, y, 0);
         g.pose().scale(scale, scale, 1f);
-        g.drawString(font, text, -font.width(text) / 2, 0, color, true);
+        g.drawString(font, s, -font.width(s) / 2, 0, color, shadow);
         g.pose().popPose();
     }
 
@@ -233,91 +202,166 @@ public class ArtWheelScreen extends Screen {
         super.render(g, mx, my, pt);
         List<Entry> es = visible();
         int n = es.size();
+        if (n == 0) return;
         long now = System.currentTimeMillis();
-        float in = Math.min(1f, (now - openedAt) / 180f);
-        float ease = 1f - (1f - in) * (1f - in);
-        int cx = width / 2, cy = height / 2;
-        int cr = chamberR(n), rc = ringR(n);
-        int R = (int) ((rc + cr + 9) * (0.85f + 0.15f * ease));
+        float in = Math.min(1f, (now - openedAt) / 200f);
+        float ease = 1f - (1f - in) * (1f - in) * (1f - in);
+        float cx = width / 2f, cy = centerY();
+        int[] l = layout(n);
+        float cr = l[0], rc = l[1];
+        float R = rc + cr + 9;
+        float scale = 0.82f + 0.18f * ease;
         int hv = hovered(mx, my, n);
         if (hv != lastHover) {
-            if (hv >= 0) ZsTheme.click(1.8f);
+            if (hv >= 0) sound(net.minecraft.sounds.SoundEvents.LEVER_CLICK, 1.9f, 0.18f);
             lastHover = hv;
         }
-        double spin = spin();
+        double spin = spin(n);
+        int ticks = (int) Math.floor(spin / (Math.PI * 2 / n));
+        if (now - openedAt < 520 && ticks != ratchet) {
+            ratchet = ticks;
+            sound(net.minecraft.sounds.SoundEvents.LEVER_CLICK, 2.0f, 0.10f);
+        }
 
-        // --- 弹巢本体：外缘暗边 + 金属渐变 ---
-        disc(g, cx, cy, R + 3, fade(0xE0050507, ease));
-        metalDisc(g, cx, cy, R, 0xF0202228, 0xF05A5E68, ease);
-        ring(g, cx, cy, R, R - 2, fade(0xFF0C0D10, ease));
-        ring(g, cx, cy, R - 3, R - 4, fade(0x40FFFFFF, ease));
-        // 外缘凹槽（弹膛之间的减重槽）
+        g.pose().pushPose();
+        g.pose().translate(cx, cy, 0);
+        g.pose().scale(scale, scale, 1f);
+        g.pose().translate(-cx, -cy, 0);
+
+        // ---------- 弹巢本体 ----------
+        ZsShapes.glow(g, cx + 2, cy + 4, R - 2, 16, ZsShapes.fade(0xA0000000, ease));      // 投影
+        ZsShapes.disc(g, cx, cy, R, ZsShapes.fade(0xFF4A4F59, ease), ZsShapes.fade(0xFF1E2126, ease));
+        // 车削纹：若干极细的同心圆
+        for (int k = 0; k < 7; k++) {
+            float rr = R * (0.30f + 0.095f * k);
+            ZsShapes.ring(g, cx, cy, rr, rr + 0.5f, ZsShapes.fade(0x16FFFFFF, ease), ZsShapes.fade(0x05FFFFFF, ease));
+        }
+        // 外缘倒角（受光）与内侧暗线
+        ZsShapes.litRing(g, cx, cy, R - 3.5f, R, ZsShapes.fade(0xFF121418, ease), ZsShapes.fade(0xFF9EA4B0, ease), LIGHT, false);
+        ZsShapes.ring(g, cx, cy, R - 4.4f, R - 3.5f, ZsShapes.fade(0x00000000, ease), ZsShapes.fade(0x70000000, ease));
+        // 减重槽：弹膛之间靠近外缘的凹槽
         for (int i = 0; i < n; i++) {
             double a = angleOf(i, n) + Math.PI / n + spin;
-            int fx = cx + (int) Math.round(Math.cos(a) * (R - 1));
-            int fy = cy + (int) Math.round(Math.sin(a) * (R - 1));
-            disc(g, fx, fy, Math.max(4, cr / 3), fade(0xF0121317, ease));
-            disc(g, fx - (int) Math.round(Math.cos(a)), fy - (int) Math.round(Math.sin(a)), Math.max(2, cr / 3 - 2), fade(0x30FFFFFF, ease));
+            float cs = (float) Math.cos(a), sn = (float) Math.sin(a);
+            float r0 = rc + cr * 0.55f, r1 = R - 5.5f;
+            if (r1 <= r0 + 1) continue;
+            float w = Math.max(2.2f, cr * 0.22f);
+            ZsShapes.line(g, cx + cs * r0, cy + sn * r0, cx + cs * r1, cy + sn * r1, w, ZsShapes.fade(0xE00E1013, ease), ZsShapes.fade(0xE00E1013, ease));
+            ZsShapes.disc(g, cx + cs * r0, cy + sn * r0, w / 2, ZsShapes.fade(0xE00E1013, ease));
+            ZsShapes.disc(g, cx + cs * r1, cy + sn * r1, w / 2, ZsShapes.fade(0xE00E1013, ease));
+            // 槽壁高光（背光一侧）
+            float ox = -sn * w * 0.35f, oy = cs * w * 0.35f;
+            float lit = (float) ((Math.cos(a + Math.PI / 2 - LIGHT) + 1) / 2);
+            ZsShapes.line(g, cx + cs * r0 + ox, cy + sn * r0 + oy, cx + cs * r1 + ox, cy + sn * r1 + oy, 0.7f,
+                    ZsShapes.fade(0x50FFFFFF, ease * lit), ZsShapes.fade(0x50FFFFFF, ease * lit));
         }
 
-        // --- 弹膛 ---
+        // ---------- 弹膛与子弹 ----------
         for (int i = 0; i < n; i++) {
             double a = angleOf(i, n) + spin;
-            int px = cx + (int) Math.round(Math.cos(a) * rc * (0.6f + 0.4f * ease));
-            int py = cy + (int) Math.round(Math.sin(a) * rc * (0.6f + 0.4f * ease));
+            float px = cx + (float) Math.cos(a) * rc, py = cy + (float) Math.sin(a) * rc;
             boolean sel = hv == i;
-            // 膛口：深色倒角
-            disc(g, px, py, cr + 2, fade(0xFF0A0A0C, ease));
-            disc(g, px, py, cr, fade(sel ? 0xFF3A2A12 : 0xFF141418, ease));
-            // 子弹底火（弹壳底面）：黄铜圆盘 + 底火
-            int br = cr - 3;
-            int brass = sel ? 0xFFF3C766 : 0xFF9C7A3C, brassDark = sel ? 0xFFB07A22 : 0xFF5E4822;
-            disc(g, px, py, br, fade(brassDark, ease));
-            disc(g, px - 1, py - 1, br - 2, fade(brass, ease));
-            ring(g, px, py, br - 4, br - 5, fade(sel ? 0x90FFF2C0 : 0x40000000, ease));
-            disc(g, px, py, Math.max(2, br / 4), fade(sel ? 0xFFFFE9A8 : 0xFF7A6030, ease));
+            float dim = hv >= 0 && !sel ? 0.78f : 1f;
+            // 膛口：深孔 + 凹面倒角
+            ZsShapes.disc(g, px, py, cr + 1.2f, ZsShapes.fade(0xFF050506, ease), ZsShapes.fade(0xFF0B0C0E, ease));
+            ZsShapes.litRing(g, px, py, cr - 0.4f, cr + 1.6f, ZsShapes.fade(0xFF0A0B0D, ease), ZsShapes.fade(0xFF7A808B, ease), LIGHT, true);
+            // 子弹底面：黄铜（选中时弹出并发亮）
+            float br = (cr - 2.6f) * (sel ? 1.04f : 0.97f);
+            int hi = sel ? 0xFFFFE7A6 : 0xFFD6AE5E, mid = sel ? 0xFFF0C25C : 0xFFA9823A, lo = sel ? 0xFF9C6A1C : 0xFF5C4520;
+            ZsShapes.disc(g, px, py, br, ZsShapes.fade(ZsShapes.lerp(hi, mid, 0.35f), ease * dim), ZsShapes.fade(lo, ease * dim));
+            ZsShapes.disc(g, px - br * 0.22f, py - br * 0.22f, br * 0.55f, ZsShapes.fade(0x40FFFFFF, ease * dim), ZsShapes.fade(0x00FFFFFF, 0));
+            ZsShapes.litRing(g, px, py, br - 1.4f, br, ZsShapes.fade(lo, ease * dim), ZsShapes.fade(hi, ease * dim), LIGHT, false);
+            ZsShapes.ring(g, px, py, br * 0.80f - 0.5f, br * 0.80f, ZsShapes.fade(0x00000000, ease), ZsShapes.fade(0x55000000, ease * dim));
             if (sel) {
-                // 选中：发光描边
-                float pulse = (float) (0.6 + 0.4 * Math.sin(now / 140.0));
-                ring(g, px, py, cr + 4, cr + 2, fade(0xFFFFD27A, ease * pulse));
+                float pulse = (float) (0.65 + 0.35 * Math.sin(now / 150.0));
+                ZsShapes.glow(g, px, py, cr + 1.6f, 6f, ZsShapes.fade(0xC0FFC45A, ease * pulse));
             }
-            // 文字：名称 / 状态
-            Entry e = es.get(i);
-            String label = e.label().get(), value = e.value().get();
-            float ls = Math.min(1f, (br * 2f - 2) / Math.max(1, font.width(label)));
-            float vs = Math.min(0.8f, (br * 2f - 4) / Math.max(1, font.width(value)));
-            drawScaled(g, label, px, py - (int) (8 * ls) + 1, ls, sel ? 0xFF2A1A06 : 0xFFF1EBDD);
-            drawScaled(g, value, px, py + 2, vs, sel ? 0xFF4A2A00 : 0xFFE8C77E);
+            if (i == flashIdx && now - flashAt < 320) {
+                float t = (now - flashAt) / 320f;
+                ZsShapes.ring(g, px, py, cr * (0.4f + t), cr * (0.4f + t) + 2.5f * (1 - t),
+                        ZsShapes.fade(0xFFFFF4D0, 1 - t), ZsShapes.fade(0x00FFF4D0, 0));
+                ZsShapes.disc(g, px, py, br * (1 - t), ZsShapes.fade(0xA0FFFFFF, 1 - t), ZsShapes.fade(0x00FFFFFF, 0));
+            }
         }
 
-        // --- 中心：转轴与退壳星 ---
-        int hub = Math.max(16, rc - cr - 10);
-        disc(g, cx, cy, hub, fade(0xF0121317, ease));
-        metalDisc(g, cx, cy, hub - 2, 0xF0262830, 0xF04C505A, ease);
-        // 指针（撞针方向）：平滑转向选中的弹膛
+        // ---------- 中心：退壳星 + 转轴 ----------
+        float hub = Math.max(12, rc - cr - 7);
+        ZsShapes.disc(g, cx, cy, hub + 2.5f, ZsShapes.fade(0xFF101215, ease), ZsShapes.fade(0xFF15171B, ease));
+        ZsShapes.litRing(g, cx, cy, hub + 1f, hub + 2.5f, ZsShapes.fade(0xFF0B0C0E, ease), ZsShapes.fade(0xFF5E636D, ease), LIGHT, true);
+        double starRot = -Math.PI / 2 + spin * 0.6;
+        ZsShapes.star(g, cx + 0.8f, cy + 1.2f, hub, hub * 0.6f, 6, starRot, ZsShapes.fade(0x80000000, ease), ZsShapes.fade(0x40000000, ease));
+        ZsShapes.star(g, cx, cy, hub, hub * 0.6f, 6, starRot, ZsShapes.fade(0xFF8C929E, ease), ZsShapes.fade(0xFF3C4048, ease));
+        ZsShapes.star(g, cx - hub * 0.06f, cy - hub * 0.06f, hub * 0.72f, hub * 0.44f, 6, starRot,
+                ZsShapes.fade(0x30FFFFFF, ease), ZsShapes.fade(0x00FFFFFF, 0));
+
+        // 指针（撞针）：黄铜锥形，平滑转向选中的弹膛
         if (hv >= 0) {
-            double target = angleOf(hv, n);
+            double target = angleOf(hv, n) + spin;
             if (Double.isNaN(needle)) needle = target;
-            double diff = Math.atan2(Math.sin(target - needle), Math.cos(target - needle));
-            needle += diff * 0.35;
-            for (int k = hub - 6; k < hub + 3; k++) {
-                int nx = cx + (int) Math.round(Math.cos(needle) * k), ny = cy + (int) Math.round(Math.sin(needle) * k);
-                disc(g, nx, ny, 1, fade(0xFFFFD27A, ease));
-            }
+            needle += Math.atan2(Math.sin(target - needle), Math.cos(target - needle)) * 0.3;
+            float cs = (float) Math.cos(needle), sn = (float) Math.sin(needle);
+            float tip = rc - cr - 3.5f, base = hub * 0.2f, w = Math.max(2.4f, hub * 0.2f);
+            float bx = cx + cs * base, by = cy + sn * base, tx = cx + cs * tip, ty = cy + sn * tip;
+            ZsShapes.glow(g, tx, ty, 1f, 5f, ZsShapes.fade(0x90FFC45A, ease));
+            ZsShapes.tri(g, tx, ty, ZsShapes.fade(0xFFFFF0C0, ease),
+                    bx - sn * w, by + cs * w, ZsShapes.fade(0xFFB8862E, ease), bx + sn * w, by - cs * w, ZsShapes.fade(0xFFE6BE62, ease));
         }
-        // 说明文字
+        // 中心销：带一字槽的螺丝
+        float pin = Math.max(3.5f, hub * 0.3f);
+        ZsShapes.disc(g, cx, cy, pin, ZsShapes.fade(0xFF9AA0AB, ease), ZsShapes.fade(0xFF3A3E46, ease));
+        ZsShapes.litRing(g, cx, cy, pin - 1f, pin, ZsShapes.fade(0xFF22252A, ease), ZsShapes.fade(0xFFD0D5DE, ease), LIGHT, false);
+        double slot = starRot + Math.PI / 4;
+        ZsShapes.line(g, cx - (float) Math.cos(slot) * pin * 0.7f, cy - (float) Math.sin(slot) * pin * 0.7f,
+                cx + (float) Math.cos(slot) * pin * 0.7f, cy + (float) Math.sin(slot) * pin * 0.7f, Math.max(0.8f, pin * 0.22f),
+                ZsShapes.fade(0xE0181A1E, ease), ZsShapes.fade(0xE0181A1E, ease));
+
+        // ---------- 弹膛上的字（刻在弹壳底面上） ----------
+        for (int i = 0; i < n; i++) {
+            double a = angleOf(i, n) + spin;
+            float px = cx + (float) Math.cos(a) * rc, py = cy + (float) Math.sin(a) * rc;
+            boolean sel = hv == i;
+            float br = (cr - 2.6f) * (sel ? 1.04f : 0.97f);
+            Entry e = es.get(i);
+            String label = e.label().get(), value = e.value().get();
+            float ls = Math.min(sel ? 0.95f : 0.85f, (br * 1.8f) / Math.max(1, font.width(label)));
+            float vs = Math.min(0.7f, (br * 1.5f) / Math.max(1, font.width(value)));
+            int a8 = (int) (255 * ease * (hv >= 0 && !sel ? 0.8f : 1f));
+            if (a8 < 8) continue;
+            text(g, label, px, py - 8 * ls + 0.5f, ls, (a8 << 24) | (sel ? 0x1E1204 : 0x2A1C08), false);
+            text(g, value, px, py + 1.5f, vs, (a8 << 24) | (sel ? 0x5A3100 : 0x4E3610), false);
+        }
+        g.pose().popPose();
+
+        // ---------- 铭牌 ----------
+        float plateY = cy + R * scale + 8;
+        String title, sub, hint;
         if (hv >= 0) {
             Entry e = es.get(hv);
-            String label = e.label().get();
-            float s1 = Math.min(1.25f, (hub * 2f - 10) / Math.max(1, font.width(label)));
-            drawScaled(g, label, cx, cy - (int) (10 * s1), s1, 0xFFFFE9B8);
-            String value = e.value().get();
-            float s2 = Math.min(1f, (hub * 2f - 10) / Math.max(1, font.width(value)));
-            drawScaled(g, value, cx, cy + 3, s2, 0xFFE8C77E);
+            title = e.label().get();
+            sub = e.value().get();
+            hint = Component.translatable(e.scroll() != null ? "screen.zhushenspace.wheel.hint_scroll" : "screen.zhushenspace.wheel.hint_click").getString();
         } else {
-            String hint = Component.translatable("screen.zhushenspace.wheel.hint").getString();
-            float s1 = Math.min(0.9f, (hub * 2f - 8) / Math.max(1, font.width(hint)));
-            drawScaled(g, hint, cx, cy - 3, s1, 0xFFBBB2C8);
+            title = Component.translatable("screen.zhushenspace.wheel").getString();
+            sub = "";
+            hint = Component.translatable("screen.zhushenspace.wheel.hint_aim").getString();
+        }
+        int tw = font.width(title) + (sub.isEmpty() ? 0 : font.width("  " + sub));
+        float hs = 0.62f;
+        float pw = Math.max(tw, font.width(hint) * hs) + 26;
+        float px0 = cx - pw / 2;
+        ZsShapes.roundRect(g, px0, plateY, pw, PLATE_H, 5, ZsShapes.fade(0xE6262A31, ease), ZsShapes.fade(0xE60F1114, ease));
+        ZsShapes.roundRectOutline(g, px0, plateY, pw, PLATE_H, 5, 0.8f, ZsShapes.fade(0x90C9A45C, ease));
+        ZsShapes.line(g, px0 + 6, plateY + 1.2f, px0 + pw - 6, plateY + 1.2f, 0.5f, ZsShapes.fade(0x40FFFFFF, ease), ZsShapes.fade(0x40FFFFFF, ease));
+        // 两侧铆钉
+        for (float rx : new float[]{px0 + 6, px0 + pw - 6}) {
+            ZsShapes.disc(g, rx, plateY + PLATE_H / 2f, 1.8f, ZsShapes.fade(0xFFE0C27A, ease), ZsShapes.fade(0xFF6A5024, ease));
+        }
+        int a8 = (int) (255 * ease);
+        if (a8 >= 8) {
+            float tx = cx - tw / 2f;
+            g.drawString(font, title, (int) tx, (int) plateY + 3, (a8 << 24) | 0xF3EDE0, true);
+            if (!sub.isEmpty()) g.drawString(font, "  " + sub, (int) tx + font.width(title), (int) plateY + 3, (a8 << 24) | 0xE8C77E, true);
+            text(g, hint, cx, plateY + 13.5f, hs, (a8 << 24) | 0x9D96A8, false);
         }
     }
 
@@ -327,7 +371,11 @@ public class ArtWheelScreen extends Screen {
         int hv = hovered(mx, my, es.size());
         if (hv < 0) return super.mouseClicked(mx, my, button);
         es.get(hv).click().accept(button);
-        ZsTheme.click(1.2f);
+        flashIdx = hv;
+        flashAt = System.currentTimeMillis();
+        // 击发：扳机的金属撞击声
+        sound(net.minecraft.sounds.SoundEvents.IRON_TRAPDOOR_CLOSE, 1.6f, 0.35f);
+        sound(net.minecraft.sounds.SoundEvents.LEVER_CLICK, 1.2f, 0.4f);
         return true;
     }
 

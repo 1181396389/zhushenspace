@@ -70,6 +70,8 @@ public final class RestManager {
         Vec3 pos;
         /** 睡床（不禁步、不播放静坐姿态，醒来即中止） */
         boolean bed;
+        /** 是否播放了盘坐姿态（仅长休且未倒地） */
+        boolean posed;
     }
 
     private static final Map<UUID, Rest> RESTS = new HashMap<>();
@@ -153,8 +155,11 @@ public final class RestManager {
         RESTS.put(p.getUUID(), r);
         if (!bed) {
             p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, r.duration, LOCK_AMPLIFIER, false, false));
-            // 长休：盘坐动作；短休：只显示进度，不套用打坐动作（负数 = 仅进度）
-            sendPose(p, kind == Kind.LONG ? r.duration : -r.duration);
+            // 短休：不套用任何身体动作，只显示专属的休息 HUD；
+            // 长休：盘坐动作（倒地时保持躺姿，不在趴着的模型上叠加盘坐动作）
+            r.posed = kind == Kind.LONG && !StatusManager.prone(p);
+            if (r.posed) sendPose(p, r.duration);
+            sendState(p, kind == Kind.LONG ? 2 : 1, r.duration, 0);
             p.displayClientMessage(Component.translatable(kind == Kind.LONG
                     ? "msg.zhushenspace.rest.long_start" : "msg.zhushenspace.rest.short_start"), true);
         }
@@ -167,7 +172,8 @@ public final class RestManager {
         if (r == null) return;
         if (!r.bed) {
             unlock(p);
-            sendPose(p, 0);
+            if (r.posed) sendPose(p, 0);
+            sendState(p, 0, 0, 2);
         }
         if (messageKey != null) p.displayClientMessage(Component.translatable(messageKey), true);
         ArtManager.sync(p);
@@ -177,6 +183,10 @@ public final class RestManager {
     private static void unlock(ServerPlayer p) {
         MobEffectInstance e = p.getEffect(MobEffects.MOVEMENT_SLOWDOWN);
         if (e != null && e.getAmplifier() == LOCK_AMPLIFIER) p.removeEffect(MobEffects.MOVEMENT_SLOWDOWN);
+    }
+
+    private static void sendState(ServerPlayer p, int kind, int ticks, int result) {
+        PacketDistributor.sendToPlayer(p, new com.zhushen.space.network.RestStatePayload((byte) kind, ticks, (byte) result));
     }
 
     private static void sendPose(ServerPlayer p, int ticks) {
@@ -189,7 +199,8 @@ public final class RestManager {
         Rest r = RESTS.remove(p.getUUID());
         if (r != null && !r.bed) {
             unlock(p);
-            sendPose(p, 0);
+            if (r.posed) sendPose(p, 0);
+            sendState(p, 0, 0, 1);
         }
         if (!p.isAlive()) return;
         if (kind == Kind.LONG && !canLongRest(p, bed)) kind = Kind.SHORT; // 24 小时内已长休：降为短休

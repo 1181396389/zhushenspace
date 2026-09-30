@@ -9,6 +9,7 @@ import com.zhushen.space.network.ArtActionPayload;
 import com.zhushen.space.network.SyncConditionPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import com.zhushen.space.screen.ZsShapes;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -400,13 +401,6 @@ public final class ClientCondition {
     private static long lastBarMs, lastChangeMs;
     private static float barAlpha = 1f;
 
-    private static final String[] ICON_BOLT = {
-            "...##..", "..##...", ".##....", ".#####.", "...##..", "..##...", ".##...."};
-    private static final String[] ICON_DROP = {
-            "...#...", "..###..", ".##o##.", "##o####", "#######", "#######", ".#####."};
-    private static final String[] ICON_MOON = {
-            "..####.", ".###...", "###....", "###....", "###....", ".###...", "..####."};
-
     /**
      * 快捷栏右侧的三条横向生存条：体力（上）/ 水分（中）/ 精力（下）。
      * 平滑变化 + 失去部分的残影；偏低时闪烁描边；体力透支时变红并出现流动斜纹；
@@ -432,10 +426,10 @@ public final class ClientCondition {
 
         int rowH = 7, bw = width - 9 - 14;
         boolean ex = exhausted();
-        drawBar(g, font, x0, bottom - rowH * 3 + 1, bw, 0, ICON_BOLT, ex ? 0xFFE0463C : 0xFFF2C84B, ex ? 0xFF8A1E1A : 0xFFB5781E,
+        drawBar(g, font, x0, bottom - rowH * 3 + 1, bw, 0, 0, ex ? 0xFFE0463C : 0xFFF2C84B, ex ? 0xFF8A1E1A : 0xFFB5781E,
                 target[0] < 0.2f || ex, ex, ms);
-        drawBar(g, font, x0, bottom - rowH * 2 + 1, bw, 1, ICON_DROP, 0xFF5CC3FF, 0xFF1F5FB8, target[1] < 0.15f, false, ms);
-        drawBar(g, font, x0, bottom - rowH + 1, bw, 2, ICON_MOON, 0xFFB9A2FF, 0xFF5A40B0, target[2] < 0.15f, false, ms);
+        drawBar(g, font, x0, bottom - rowH * 2 + 1, bw, 1, 1, 0xFF5CC3FF, 0xFF1F5FB8, target[1] < 0.15f, false, ms);
+        drawBar(g, font, x0, bottom - rowH + 1, bw, 2, 2, 0xFFB9A2FF, 0xFF5A40B0, target[2] < 0.15f, false, ms);
     }
 
     private static int alpha(int argb, float a) {
@@ -443,59 +437,104 @@ public final class ClientCondition {
         return (al << 24) | (argb & 0xFFFFFF);
     }
 
-    private static void drawBar(GuiGraphics g, Font font, int x, int y, int bw, int idx, String[] icon, int top, int bot,
+    // ---- 矢量图标（以 (cx, cy) 为中心、半径 r） ----
+
+    private static void iconBolt(GuiGraphics g, float cx, float cy, float r, int c, int c2) {
+        ZsShapes.tri(g, cx + 0.40f * r, cy - r, c, cx - 0.62f * r, cy + 0.18f * r, c2, cx + 0.12f * r, cy + 0.18f * r, c2);
+        ZsShapes.tri(g, cx - 0.12f * r, cy - 0.18f * r, c, cx + 0.62f * r, cy - 0.18f * r, c, cx - 0.40f * r, cy + r, c2);
+    }
+
+    private static void iconDrop(GuiGraphics g, float cx, float cy, float r, int c, int c2) {
+        ZsShapes.drop(g, cx, cy, r, c, c2, c2 != c);
+    }
+
+    private static void iconMoon(GuiGraphics g, float cx, float cy, float r, int c, int c2) {
+        ZsShapes.crescent(g, cx, cy, r, c, c2);
+    }
+
+    /**
+     * 胶囊形生存条：玻璃槽 + 渐变填充（按屏幕像素平滑伸缩）+ 失去部分的残影 + 顶部玻璃高光 + 末端光点；
+     * 偏低时描边与图标脉动发红，体力透支时填充变红并出现流动斜纹。
+     */
+    private static void drawBar(GuiGraphics g, Font font, int x, int y, int bw, int idx, int icon, int top, int bot,
                                 boolean warn, boolean overexert, long ms) {
         float a = barAlpha;
         float pulse = warn ? (float) (0.5 + 0.5 * Math.sin(ms / 160.0)) : 0f;
-        // 图标（带 1 像素阴影）
-        int iconColor = warn ? blend(top, 0xFFFFFFFF, pulse * 0.6f) : top;
-        for (int r = 0; r < icon.length; r++) {
-            for (int c = 0; c < icon[r].length(); c++) {
-                char ch = icon[r].charAt(c);
-                if (ch == '.') continue;
-                g.fill(x + c + 1, y + r - 1 + 1, x + c + 2, y + r + 1, alpha(0xA0000000, a));
-                g.fill(x + c, y + r - 1, x + c + 1, y + r, alpha(ch == 'o' ? 0xFFFFFFFF : iconColor, a));
+        // 图标（带阴影）
+        int ic = ZsShapes.fade(warn ? blend(top, 0xFFFFFFFF, pulse * 0.6f) : top, a);
+        int ic2 = ZsShapes.fade(blend(top, bot, 0.6f), a);
+        int sh = ZsShapes.fade(0x90000000, a);
+        float icx = x + 3.5f, icy = y + 2.5f, ir = 3.4f;
+        for (int pass = 0; pass < 2; pass++) {
+            float ox = pass == 0 ? 0.6f : 0, oy = pass == 0 ? 0.6f : 0;
+            int c1 = pass == 0 ? sh : ic, c2 = pass == 0 ? sh : ic2;
+            switch (icon) {
+                case 0 -> iconBolt(g, icx + ox, icy + oy, ir, c1, c2);
+                case 1 -> iconDrop(g, icx + ox, icy + oy, ir, c1, c2);
+                default -> iconMoon(g, icx + ox, icy + oy, ir, c1, c2);
             }
         }
-        int bx = x + 9, by = y, bh = 5;
-        // 外框（圆角）与低值闪烁描边
-        int frame = warn ? blend(0xFF18121E, 0xFFFF5A4A, pulse) : 0xFF18121E;
-        g.fill(bx + 1, by - 1, bx + bw - 1, by, alpha(frame, a * 0.9f));
-        g.fill(bx + 1, by + bh, bx + bw - 1, by + bh + 1, alpha(frame, a * 0.9f));
-        g.fill(bx, by, bx + 1, by + bh, alpha(frame, a * 0.9f));
-        g.fill(bx + bw - 1, by, bx + bw, by + bh, alpha(frame, a * 0.9f));
-        int ix = bx + 1, iw = bw - 2;
-        g.fill(ix, by, ix + iw, by + bh, alpha(0x70000000, a));
-        // 残影
-        int tw = Math.round(iw * TRAIL[idx]), fw = Math.round(iw * DISP[idx]);
-        if (tw > fw) g.fill(ix + fw, by, ix + tw, by + bh, alpha(0x90FFFFFF, a * 0.55f));
-        // 填充：上亮下暗渐变 + 顶部高光
-        if (fw > 0) {
-            g.fillGradient(ix, by, ix + fw, by + bh, alpha(top, a), alpha(bot, a));
-            g.fill(ix, by, ix + fw, by + 1, alpha(0x55FFFFFF, a));
+        float bx = x + 9, by = y, bh = 5, rr = bh / 2f;
+        // 槽：深色玻璃 + 细描边（偏低时脉动发红）
+        ZsShapes.roundRect(g, bx - 0.8f, by - 0.8f, bw + 1.6f, bh + 1.6f, rr + 0.8f,
+                ZsShapes.fade(0xC0100C16, a), ZsShapes.fade(0xC0221A2C, a));
+        ZsShapes.roundRect(g, bx, by, bw, bh, rr, ZsShapes.fade(0xB0000000, a), ZsShapes.fade(0x80181222, a));
+        if (warn) {
+            ZsShapes.roundRectOutline(g, bx - 0.8f, by - 0.8f, bw + 1.6f, bh + 1.6f, rr + 0.8f, 0.7f,
+                    ZsShapes.fade(0xFFFF5A4A, a * pulse));
+        }
+        float tw = bw * TRAIL[idx], fw = bw * DISP[idx];
+        // 残影：刚失去的部分以淡白色停留片刻再收回
+        if (tw > fw + 0.3f) capsule(g, bx, by, tw, bh, ZsShapes.fade(0xB0FFFFFF, a * 0.5f), ZsShapes.fade(0x80FFFFFF, a * 0.5f));
+        if (fw > 0.2f) {
+            capsule(g, bx, by, fw, bh, ZsShapes.fade(top, a), ZsShapes.fade(bot, a));
             if (overexert) {
-                // 体力透支：流动斜纹
-                int off = (int) ((ms / 60) % 6);
-                for (int px = 0; px < fw; px++)
-                    for (int k = 0; k < bh; k++)
-                        if ((px + k + off) % 6 < 2) g.fill(ix + px, by + k, ix + px + 1, by + k + 1, alpha(0x50000000, a));
+                // 体力透支：流动斜纹（裁剪在填充范围内）
+                g.flush();
+                g.enableScissor((int) Math.floor(bx), (int) Math.floor(by), (int) Math.ceil(bx + fw), (int) Math.ceil(by + bh));
+                float off = (ms % 900) / 900f * 6f;
+                for (float sx = bx - bh - 6 + off; sx < bx + fw; sx += 6) {
+                    ZsShapes.quad(g, sx, by + bh, ZsShapes.fade(0x60000000, a), sx + bh, by, ZsShapes.fade(0x60000000, a),
+                            sx + bh + 2.2f, by, ZsShapes.fade(0x60000000, a), sx + 2.2f, by + bh, ZsShapes.fade(0x60000000, a));
+                }
+                g.flush();
+                g.disableScissor();
             }
-            // 末端亮点
-            g.fill(ix + fw - 1, by, ix + fw, by + bh, alpha(0x60FFFFFF, a));
+            // 玻璃高光
+            if (fw > rr * 2) {
+                ZsShapes.line(g, bx + rr * 0.8f, by + 1.1f, bx + fw - rr * 0.8f, by + 1.1f, 0.9f,
+                        ZsShapes.fade(0x70FFFFFF, a), ZsShapes.fade(0x30FFFFFF, a));
+            }
+            // 末端光点
+            float ex = bx + Math.max(rr, fw - rr * 0.6f);
+            ZsShapes.glow(g, ex, by + bh / 2f, 0.6f, 2.4f, ZsShapes.fade(blend(top, 0xFFFFFFFF, 0.5f), a * 0.8f));
         }
         // 四分刻度
         for (int q = 1; q < 4; q++) {
-            int qx = ix + iw * q / 4;
-            g.fill(qx, by + 1, qx + 1, by + bh - 1, alpha(0x40000000, a));
+            float qx = bx + bw * q / 4f;
+            ZsShapes.line(g, qx, by + 1.2f, qx, by + bh - 1.2f, 0.5f, ZsShapes.fade(0x55000000, a), ZsShapes.fade(0x55000000, a));
         }
         // 数值（小字）
         String txt = overexert ? Component.translatable("hud.zhushenspace.survival.overexert").getString()
                 : Math.round(DISP[idx] * 100) + "%";
         g.pose().pushPose();
-        g.pose().translate(bx + bw + 2, by, 0);
+        g.pose().translate(bx + bw + 2.5f, by + 0.2f, 0);
         g.pose().scale(0.6f, 0.6f, 1f);
         g.drawString(font, txt, 0, 0, alpha(warn ? blend(0xFFD8D0E8, 0xFFFF6A5A, pulse) : 0xFFD8D0E8, a), true);
         g.pose().popPose();
+    }
+
+    /** 左端圆头的填充条：宽度小于高度时用裁剪截取胶囊左端，保证任何数值都是圆润的 */
+    private static void capsule(GuiGraphics g, float x, float y, float w, float h, int top, int bot) {
+        if (w >= h) {
+            ZsShapes.roundRect(g, x, y, w, h, h / 2f, top, bot);
+            return;
+        }
+        g.flush();
+        g.enableScissor((int) Math.floor(x), (int) Math.floor(y - 1), (int) Math.ceil(x + w), (int) Math.ceil(y + h + 1));
+        ZsShapes.roundRect(g, x, y, h, h, h / 2f, top, bot);
+        g.flush();
+        g.disableScissor();
     }
 
     private static int blend(int c1, int c2, float t) {

@@ -917,5 +917,15 @@
   "msg.zhushenspace.survival.weary_end": "A full sleep; no longer weary",
   "screen.zhushenspace.wheel.first_aid": "First Aid",
   "hud.zhushenspace.resting": "Short rest… %s%%",
-  "hud.zhushenspace.survival.overexert": "OUT"
+  "hud.zhushenspace.survival.overexert": "OUT",
+  "screen.zhushenspace.wheel.hint_click": "Click to use",
+  "screen.zhushenspace.wheel.hint_scroll": "Click to toggle · Scroll to adjust",
+  "screen.zhushenspace.wheel.hint_aim": "Point at a chamber · Release key to close",
+  "hud.zhushenspace.rest.short": "Short Rest",
+  "hud.zhushenspace.rest.long": "Long Rest",
+  "hud.zhushenspace.rest.done": "Rested",
+  "hud.zhushenspace.rest.broken": "Interrupted",
+  "hud.zhushenspace.rest.inhale": "Breathe in...",
+  "hud.zhushenspace.rest.exhale": "Breathe out...",
+  "hud.zhushenspace.rest.hint": "Moving, attacking or taking damage interrupts"
 }

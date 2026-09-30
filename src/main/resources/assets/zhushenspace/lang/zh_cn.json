@@ -917,5 +917,15 @@
   "msg.zhushenspace.survival.weary_end": "睡足了一觉，疲惫解除了",
   "screen.zhushenspace.wheel.first_aid": "急救",
   "hud.zhushenspace.resting": "短休中… %s%%",
-  "hud.zhushenspace.survival.overexert": "透支"
+  "hud.zhushenspace.survival.overexert": "透支",
+  "screen.zhushenspace.wheel.hint_click": "点击使用",
+  "screen.zhushenspace.wheel.hint_scroll": "点击开关 · 滚轮调整",
+  "screen.zhushenspace.wheel.hint_aim": "移动鼠标指向弹膛 · 松开按键关闭",
+  "hud.zhushenspace.rest.short": "短休",
+  "hud.zhushenspace.rest.long": "长休",
+  "hud.zhushenspace.rest.done": "休息完成",
+  "hud.zhushenspace.rest.broken": "已中断",
+  "hud.zhushenspace.rest.inhale": "吸气……",
+  "hud.zhushenspace.rest.exhale": "呼气……",
+  "hud.zhushenspace.rest.hint": "移动、攻击或受伤会中断休息"
 }
