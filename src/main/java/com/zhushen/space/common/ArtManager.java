@@ -521,9 +521,12 @@ public final class ArtManager {
     // ===== 施放 =====
 
     /** 施放技艺：返回 false 时不进入冷却 */
-    public static boolean cast(ServerPlayer p, SkillAbility a) {
+    public static boolean cast(ServerPlayer p, SkillAbility a) { return cast(p, a, -1); }
+
+    static boolean cast(ServerPlayer p, SkillAbility a, int chargeTicks) {
         ArtSkill s = ArtSkill.of(a);
         if (s == null || !data(p).owns(s)) return false;
+        if (ArtCharge.supports(s) && chargeTicks < 0) return false;
         String err = prereq(p, s);
         if (err != null) { deny(p, err); return false; }
         if (s.mode == ArtSkill.Mode.PICK && data(p).optionBits[s.ordinal()] == 0) { deny(p, "msg.zhushenspace.art.pick_first"); return false; }
@@ -540,29 +543,34 @@ public final class ArtManager {
         // 晕眩 / 欲眠 / 精神束缚 / 剧痛 / 沮丧 / 肢体妨害（姿势）的施法与心灵检定减值
         castBoost = boostFor(p, s) - StatusEffects.castPenalty(p, isSpell(s));
         boolean ok = switch (s) {
-            case SPIRIT_SLASH -> spiritSlash(p, s);
+            case SPIRIT_SLASH -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
             case SPIRIT_HEAL -> spiritHeal(p, s);
             case MIND_BLAST -> mindBlast(p, s);
             case MIND_SHOCK -> mindShock(p, s);
-            case HADOKEN -> hadoken(p, s);
+            case HADOKEN -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
             case BREATH_METHOD -> selfBuff(p, s, 10 * 60 * 20, ParticleTypes.END_ROD);
             case YAKSHA_FLIGHT -> yaksha(p, s);
             case MAGIC_BURST -> magicBurst(p, s);
             case MINOR_WARD -> selfBuff(p, s, 60 * 20, ParticleTypes.ENCHANT);
             case FIVE_ELEMENTS -> fiveElements(p, s);
-            case EIGHT_FORMATION -> eightFormation(p, s);
+            case EIGHT_FORMATION -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
             case IGNORE_ME -> ignoreMe(p, s);
             case BIO_LIGHTNING -> bioLightning(p, s);
             case NETHER_VIGOR -> netherVigor(p, s);
-            case WIND_SLASH -> windSlash(p, s);
+            case WIND_SLASH -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
             case BASIC_PALM -> selfBuff(p, s, 60 * 20, ParticleTypes.CLOUD);
             case REVIVE -> revive(p, s);
             case PHOENIX_FIRE -> phoenixFire(p, s);
-            case GREAT_FIREBALL -> greatFireball(p, s);
+            case GREAT_FIREBALL -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
         };
         castBoost = 0;
         if (ok && isSpell(s)) { announce(p, s); PoolEffects.onSpellCast(p, s); }
         return ok;
+    }
+
+    public static int formationColor(ServerPlayer p) {
+        int[] colors = {0xFFFF6D18, 0xFF80D8FF, 0xFFFFE76B, 0xFF9DEB63, 0xFFD9CEFF};
+        return colors[Math.max(0, Math.min(4, data(p).current[ArtSkill.EIGHT_FORMATION.ordinal()]))];
     }
 
     /** 能量加值：道术优先用道力 +3DP；其余按判定属性取适用能量池 +1DP */
@@ -591,24 +599,7 @@ public final class ArtManager {
     }
 
     /** 灵斩：以持握武器作为心灵检定的武器伤害，距离 = 决心 米 */
-    static boolean spiritSlash(ServerPlayer p, ArtSkill s) {
-        LivingEntity t = target(p, Math.max(2, attr(p, AttributeType.RESOLVE)));
-        if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
-        float w = heldWeapon(p);
-        int cap = mindValue(p) + Math.round(w);
-        float v = attackRoll(p, mindValue(p) + Math.round(w), 0, defense(p, t, 0, 0, false), cap, 0);
-        ArtFx.anim(p, "art_spirit_slash");
-        ArtFx.castSfx(p, s.pool, 0.6f);
-        ArtFx.slash(p, t, ArtFx.C_SPIRIT, 1.7f);
-        ArtFx.releaseSfx(p, s.pool, 0.8f);
-        if (v > 0) {
-            ArtFx.hit(p, t, ArtFx.C_SPIRIT, 0.8f);
-            ArtFx.hitSfx(p, t, s.pool, PlayerHealthData.Severity.B);
-        }
-        if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.B, 0, 0, false, DamageKind.PURE_ENERGY));
-        return true;
-    }
+
 
     /** 灵力治疗：6 点治疗，严重优先、然后冲击；潜行 = 自己 */
     static boolean spiritHeal(ServerPlayer p, ArtSkill s) {
@@ -669,30 +660,7 @@ public final class ArtManager {
     }
 
     /** 波动拳：远程肉搏攻击 50 米，力量 + 肉搏 + 天生武器 1，【高速8】 */
-    static boolean hadoken(ServerPlayer p, ArtSkill s) {
-        LivingEntity t = target(p, 50);
-        if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
-        if (!pay(p, s, s.cost)) return false;
-        int check = attr(p, AttributeType.STRENGTH) + skill(p, SkillType.BRAWL) + 1;
-        float v = attackRoll(p, check, 0, defense(p, t, 8, 0, false), check, 0);
-        ArtFx.anim(p, "art_hadoken");
-        ArtFx.castSfx(p, s.pool, 0.7f);
-        ArtFx.charge(p, ArtFx.C_NEILI, 0.45f, 4);
-        Vec3 end = ArtFx.center(t);
-        int travel = Math.max(2, (int) (p.getEyePosition().distanceTo(end) / 10.0));
-        // Only presentation is scheduled. Combat resolution below remains immediate.
-        ArtFx.delay(p, 4, () -> {
-            ArtFx.releaseSfx(p, s.pool, 0.9f);
-            ArtFx.projectile(p, end, ArtFx.C_NEILI, 0.5f, travel);
-        });
-        if (v > 0) ArtFx.delay(p, 4 + travel, () -> {
-            ArtFx.impactAt(p, end, ArtFx.C_NEILI, 1.0f);
-            ArtFx.hitSfxAt(p, end, s.pool, PlayerHealthData.Severity.B);
-        });
-        if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.B, 0, 0, true, DamageKind.BLUNT));
-        return true;
-    }
+
 
     /** 夜叉空行：自身 + 触及范围内准星所指玩家获得飞行 10 分钟（最多 决心 个目标） */
     static boolean yaksha(ServerPlayer p, ArtSkill s) {
@@ -738,26 +706,7 @@ public final class ArtManager {
     }
 
     /** 八阵图：远程法术攻击 20 米，【高速8】，元素由轮盘 / 选项切换 */
-    static boolean eightFormation(ServerPlayer p, ArtSkill s) {
-        LivingEntity t = target(p, 20);
-        if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
-        float v = attackRoll(p, spellCheck(p, s.pool), 0, defense(p, t, 8, 0, false), spellCap(p, s.pool, 3, 0), 0);
-        DamageKind[] ks = {DamageKind.FIRE, DamageKind.COLD, DamageKind.LIGHTNING, DamageKind.ACID, DamageKind.PURE_ENERGY};
-        int[] colors = {0xFF6D00, 0x80D8FF, 0xFFFF00, 0x76FF03, 0xFFFFFF};
-        int c = Math.min(4, data(p).current[s.ordinal()]);
-        ArtFx.anim(p, "art_formation");
-        ArtFx.castSfx(p, s.pool, 0.7f);
-        ArtFx.formation(p, p.position().add(0, 0.04, 0), p.getViewVector(1f), ArtFx.C_DAO, 1.6f);
-        ArtFx.formation(p, t.position().add(0, 0.04, 0), p.getViewVector(1f), 0xFF000000 | colors[c], 2.2f);
-        ArtFx.releaseSfx(p, s.pool, 0.9f);
-        if (v > 0) {
-            ArtFx.hit(p, t, 0xFF000000 | colors[c], 0.8f);
-            ArtFx.hitSfx(p, t, s.pool, PlayerHealthData.Severity.L);
-        }
-        if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, ks[c]));
-        return true;
-    }
+
 
     /** 无视我：10 分钟隐身，生物不锁定；互动即打破 */
     static boolean ignoreMe(ServerPlayer p, ArtSkill s) {
@@ -801,24 +750,7 @@ public final class ArtManager {
     }
 
     /** 风斩：白刃近战，目标措手不及，+传奇敏捷 DP，【击飞】 */
-    static boolean windSlash(ServerPlayer p, ArtSkill s) {
-        LivingEntity t = target(p, p.entityInteractionRange());
-        if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
-        if (!pay(p, s, s.cost)) return false;
-        float w = heldWeapon(p);
-        int check = attr(p, AttributeType.STRENGTH) + skill(p, SkillType.BLADE) + Math.round(w);
-        float def = defense(p, t, 0, 0, false);
-        def = Math.max(0, def - (float) DamageRules.naturalDefense(t)); // 措手不及：失去天生防御
-        int bonus = 3 * legendary(p, AttributeType.AGILITY);
-        float raw = (check - def) * roll(p) + bonus;
-        float v = holdback(p, Math.max(0, raw));
-        p.serverLevel().sendParticles(ParticleTypes.SWEEP_ATTACK, t.getX(), t.getY() + 1, t.getZ(), 3, 0.3, 0.3, 0.3, 0);
-        p.level().playSound(null, t.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1f, 0.8f);
-        if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.B, 0, 0, false, DamageKind.SLASH));
-        knockUp(p, t, v);
-        return true;
-    }
+
 
     /**
      * 【击飞】：距离（米）= 伤害 − max(体型调整+5, 耐力, 力量)；
@@ -873,29 +805,5 @@ public final class ArtManager {
     }
 
     /** 豪火球之术：前方 20 米锥形，威力 4，火焰；每个目标反射豁免 −6DP（−18） */
-    static boolean greatFireball(ServerPlayer p, ArtSkill s) {
-        if (!pay(p, s, s.cost)) return false;
-        int cap = spellCap(p, s.pool, 4 + PoolEffects.sageBoost(p, 4), 0);
-        float dmg = holdback(p, Math.max(0, Math.min(cap, (spellCheck(p, s.pool) + castBoost) * roll(p))));
-        Vec3 eye = p.getEyePosition(), look = p.getViewVector(1f);
-        ServerLevel sl = p.serverLevel();
-        ArtFx.anim(p, "art_fireball");
-        ArtFx.castSfx(p, s.pool, 0.8f);
-        ArtFx.cone(p, eye.add(look.scale(0.5)), look, ArtFx.C_CHAKRA, 20f);
-        ArtFx.releaseSfx(p, s.pool, 1.2f);
-        ArtFx.shakeSelf(p, 0.45f, 8);
-        if (dmg < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        // 20 米锥形范围效果：需要效果线；造成范围伤害（倒地的目标反射 +3）
-        for (LivingEntity t : AreaShape.cone(20).collect(sl, eye, look, p, false, null)) {
-            float v = dmg - Math.max(0, reflexSave(t, p, true) - 18);
-            if (v > 0) {
-                DamageRules.deal(t, p.damageSources().indirectMagic(p, p), v,
-                        spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.FIRE));
-                t.igniteForSeconds(3);
-                ArtFx.hit(p, t, ArtFx.C_CHAKRA, 1.2f);
-                ArtFx.hitSfx(p, t, s.pool, PlayerHealthData.Severity.L);
-            }
-        }
-        return true;
-    }
+
 }

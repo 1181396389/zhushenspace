@@ -44,16 +44,29 @@ public class CombatModeClient {
         return combatSince;
     }
 
+    private static int chargeKey = -1, chargeBar, chargeSlot, chargeNonce;
+    private static void finishCharge(boolean release) {
+        if (chargeKey < 0) return;
+        chargeKey = -1;
+        if (Minecraft.getInstance().getConnection() != null)
+            PacketDistributor.sendToServer(new com.zhushen.space.network.ChargeSkillPayload(chargeBar, chargeSlot,
+                    release ? 1 : 2, chargeNonce));
+    }
+
     // ===== 按键处理 =====
 
     @SubscribeEvent
     public static void onKey(InputEvent.Key event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.screen != null) return;
+        if (mc.player == null || mc.screen != null) { finishCharge(false); return; }
+        if (event.getKey() == chargeKey && event.getAction() == GLFW.GLFW_RELEASE) {
+            finishCharge(true); return;
+        }
 
         // Alt：切换战斗模式
         if (event.getKey() == ClientSetup.TOGGLE_COMBAT.getKey().getValue()
                 && event.getAction() == GLFW.GLFW_PRESS) {
+            finishCharge(false);
             combatMode = !combatMode;
             if (combatMode) {
                 combatSince = ZsAnim.nowMs();
@@ -68,6 +81,7 @@ public class CombatModeClient {
         // V：切换战斗预设技能栏（A/B），两栏共享已解锁技能
         if (combatMode && event.getKey() == ClientSetup.SWITCH_SKILL_BAR.getKey().getValue()
                 && event.getAction() == GLFW.GLFW_PRESS) {
+            finishCharge(false);
             ClientUiConfig.Data cfg = ClientUiConfig.get();
             cfg.activeBar = cfg.activeBar == 0 ? 1 : 0;
             ClientUiConfig.save();
@@ -82,7 +96,12 @@ public class CombatModeClient {
             int slot = event.getKey() - GLFW.GLFW_KEY_1;
             int bar = ClientUiConfig.get().activeBar;
             if (ClientSkillData.slotAbility(bar, slot) >= 0) {
-                PacketDistributor.sendToServer(new UseSkillPayload(bar, slot));
+                if (chargeKey >= 0) return;
+                var art = com.zhushen.space.data.ArtSkill.of(SkillAbility.values()[ClientSkillData.slotAbility(bar, slot)]);
+                if (com.zhushen.space.common.ArtCharge.supports(art)) {
+                    chargeKey = event.getKey(); chargeBar = bar; chargeSlot = slot; chargeNonce++;
+                    PacketDistributor.sendToServer(new com.zhushen.space.network.ChargeSkillPayload(bar, slot, 0, chargeNonce));
+                } else PacketDistributor.sendToServer(new UseSkillPayload(bar, slot));
             }
             return;
         }
@@ -94,9 +113,13 @@ public class CombatModeClient {
      */
     @SubscribeEvent
     public static void onClientTickPre(net.neoforged.neoforge.client.event.ClientTickEvent.Pre event) {
-        if (!combatMode) return;
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
+        if (chargeKey >= 0) {
+            if (mc.player == null || !combatMode || mc.screen != null || !mc.isWindowActive()
+                    || !mc.player.isAlive() || UnconsciousClient.isUnconscious(mc.player)) finishCharge(false);
+            else if (GLFW.glfwGetKey(mc.getWindow().getWindow(), chargeKey) == GLFW.GLFW_RELEASE) finishCharge(true);
+        }
+        if (!combatMode || mc.player == null) return;
         for (var key : mc.options.keyHotbarSlots) {
             while (key.consumeClick()) { }
         }

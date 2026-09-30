@@ -49,6 +49,10 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
 
     /** 内力吐息开关（仅在有内力池时生效） */
     private boolean breathEnabled;
+    // Only a pool created by the Tai Chi accessory may be removed by that accessory.
+    private boolean taiChiPool;
+    public boolean taiChiPool() { return taiChiPool; }
+    public void setTaiChiPool(boolean value) { taiChiPool = value; }
 
     /** 内力余量暂存：摘下饰品移除内力池时保存余量，重新装备时恢复（防止反复摘戴回满） */
     private double neiliCarryover;
@@ -164,10 +168,12 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
 
     public void removePool(String id) {
         pools.remove(id);
+        if ("neili".equals(id)) taiChiPool = false;
     }
 
     public void clearPools() {
         pools.clear();
+        taiChiPool = false;
     }
 
     /**
@@ -206,6 +212,7 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
         }
         tag.put("Pools", list);
         tag.putBoolean("BreathEnabled", breathEnabled);
+        tag.putBoolean("TaiChiPool", taiChiPool);
         tag.putDouble("NeiliCarryover", neiliCarryover);
         tag.putBoolean("HasNeiliCarryover", hasNeiliCarryover);
         return tag;
@@ -224,6 +231,7 @@ public class PlayerEnergyData implements INBTSerializable<CompoundTag> {
             pools.put(id, new Pool(poolTag.getDouble("Current"), poolTag.getDouble("Max"), base));
         }
         breathEnabled = tag.getBoolean("BreathEnabled");
+        taiChiPool = tag.getBoolean("TaiChiPool");
         neiliCarryover = tag.getDouble("NeiliCarryover");
         // 旧存档无此字段：只能按余量 > 0 推断
         hasNeiliCarryover = tag.contains("HasNeiliCarryover")

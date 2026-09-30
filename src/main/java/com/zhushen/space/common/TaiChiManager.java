@@ -237,32 +237,28 @@ public class TaiChiManager {
         PlayerEnergyData energy = player.getData(ModAttachments.PLAYER_ENERGY);
         boolean hasPool = energy.getPool(EnergyManager.POOL_NEILI) != null;
 
+        boolean independent = FeatEffects.has(player, FeatEffects.Pool.NEILI.feat);
+        // An independently granted (feat/command) pool does not belong to this accessory.
+        if (independent) energy.setTaiChiPool(false);
         if (equipped && !hasPool) {
-            // 装备饰品：发放内力池（容量 = 耐力 + 感知），并恢复上次摘下时的余量
             int[] pts = player.getData(ModAttachments.PLAYER_ATTRIBUTES).points();
             double max = pts[AttributeType.ENDURANCE.ordinal()] + pts[AttributeType.PERCEPTION.ordinal()];
             EnergyManager.grantPool(player, EnergyManager.POOL_NEILI, max);
-            // 曾经摘下过就恢复当时的余量（包括 0），仅首次装备才是满的。
-            // setAmount 内部按实际上限（含传奇加成）截断
-            if (energy.hasNeiliCarryover()) {
+            energy.setTaiChiPool(!independent);
+            if (!independent && energy.hasNeiliCarryover())
                 EnergyManager.setAmount(player, EnergyManager.POOL_NEILI, energy.neiliCarryover());
-            }
-            player.displayClientMessage(Component.translatable("msg.zhushenspace.taiji.equipped_on"), true);
-        } else if (!equipped && hasPool) {
-            // 卸下饰品：暂存内力余量后移除内力池（吐息随之一并关闭）
-            PlayerEnergyData.Pool pool = energy.getPool(EnergyManager.POOL_NEILI);
-            if (pool != null) {
-                energy.setNeiliCarryover(pool.current);
-            }
+        } else if (!equipped && hasPool && energy.taiChiPool() && !independent) {
+            energy.setNeiliCarryover(energy.getPool(EnergyManager.POOL_NEILI).current);
             EnergyManager.removePool(player, EnergyManager.POOL_NEILI);
-            // 清除预设槽位中的内力系/流派系技能（从预设栏与战斗 HUD 消失）
-            player.getData(ModAttachments.PLAYER_SKILLS).clearGatedSlots();
+            // Keep loadouts: availability is validated when a skill is actually used.
             SkillServer.sync(player);
-            player.displayClientMessage(Component.translatable("msg.zhushenspace.taiji.equipped_off"), true);
         }
+        // Record even the first observed state. Notify only on a real transition.
         if (equipped != wasEquipped) {
-            EQUIPPED_CACHE.put(player.getUUID(), equipped);
+            player.displayClientMessage(Component.translatable(equipped
+                    ? "msg.zhushenspace.taiji.equipped_on" : "msg.zhushenspace.taiji.equipped_off"), true);
         }
+        EQUIPPED_CACHE.put(player.getUUID(), equipped);
 
         // 太极护甲：装备饰品且徒手时 +6 护甲（真实护甲属性，护甲条可见）
         boolean armorDesired = equipped && isUnarmed(player);

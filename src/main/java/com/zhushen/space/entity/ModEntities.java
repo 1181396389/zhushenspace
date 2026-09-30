@@ -37,6 +37,12 @@ public class ModEntities {
                     .noSummon()
                     .build("severed_limb"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<com.zhushen.space.entity.art.ArtProjectile>> ART_PROJECTILE =
+            ENTITY_TYPES.register("art_projectile", () -> EntityType.Builder
+                    .<com.zhushen.space.entity.art.ArtProjectile>of(com.zhushen.space.entity.art.ArtProjectile::new, MobCategory.MISC)
+                    .sized(0.5f, 0.5f).clientTrackingRange(12).updateInterval(1).noSummon().fireImmune()
+                    .build("art_projectile"));
+
     @SubscribeEvent
     public static void onRegisterAttributes(EntityAttributeCreationEvent event) {
         event.put(T_VIRUS_ZOMBIE.get(), TVirusZombie.createAttributes().build());

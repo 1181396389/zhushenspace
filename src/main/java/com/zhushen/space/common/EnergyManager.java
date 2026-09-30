@@ -329,6 +329,7 @@ public class EnergyManager {
     /** 发放（或调整上限）能量池：不存在则创建并填满 */
     public static void grantPool(ServerPlayer player, String id, double max) {
         player.getData(ModAttachments.PLAYER_ENERGY).grantPool(id, max);
+        if (POOL_NEILI.equals(id)) player.getData(ModAttachments.PLAYER_ENERGY).setTaiChiPool(false);
         // 内力池容量由属性决定，发放后立即按属性重算
         if (POOL_NEILI.equals(id)) {
             syncLegendaryPools(player);

@@ -173,12 +173,23 @@ public class SkillManager {
     // ===== 技能使用 =====
 
     public static void useSkill(ServerPlayer player, int bar, int slot) {
+        useSkill(player, bar, slot, null, -1);
+    }
+
+    static void releaseCharged(ServerPlayer player, int bar, int slot, com.zhushen.space.data.ArtSkill expected, int ticks) {
+        useSkill(player, bar, slot, expected, Math.max(0, Math.min(ArtCharge.MAX_TICKS, ticks)));
+    }
+
+    private static void useSkill(ServerPlayer player, int bar, int slot, com.zhushen.space.data.ArtSkill expected, int chargeTicks) {
+        if (ArtCharge.charging(player)) return;
         if (bar < 0 || bar >= PlayerSkillData.BAR_COUNT) return;
         if (slot < 0 || slot >= 9) return;
         PlayerSkillData data = player.getData(ModAttachments.PLAYER_SKILLS);
         int abilityId = data.bar(bar)[slot];
         if (abilityId < 0 || abilityId >= SkillAbility.COUNT) return;
         SkillAbility ability = SkillAbility.values()[abilityId];
+        if (expected != null && expected.ability != ability) return;
+        if (ArtCharge.supports(com.zhushen.space.data.ArtSkill.of(ability)) && expected == null) return;
         State st = state(player);
         long now = System.currentTimeMillis();
         if (now < st.cooldownEndMs[abilityId]) return; // 冷却检查先行，避免先扣内力再退出
@@ -186,7 +197,7 @@ public class SkillManager {
             if (data.get(ability.owner().ordinal()) < ability.requiredLevel()) return;
         } else if (ability.isArtAbility()) {
             // 技艺：施放失败（条件不足 / 能量不足 / 无目标）不进入冷却
-            if (!ArtManager.cast(player, ability)) return;
+            if (!ArtManager.cast(player, ability, chargeTicks)) return;
         } else if (ability.isNeiliAbility()) {
             // 内力系：需拥有内力池（获得内力池时自动解锁）
             if (player.getData(ModAttachments.PLAYER_ENERGY)
@@ -301,7 +312,7 @@ public class SkillManager {
         }
 
         st.cooldownEndMs[abilityId] = now + ability.cooldownTicks() * 50L;
-        player.level().playSound(null, player.blockPosition(),
+        if (!ability.isArtAbility()) player.level().playSound(null, player.blockPosition(),
                 SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.7f, 1.4f);
         SkillServer.sync(player);
     }
