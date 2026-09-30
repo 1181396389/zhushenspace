@@ -224,11 +224,68 @@ public final class SurvivalManager {
         }
     }
 
-    /** 恢复精力（长休回满 / 短休少量） */
+    /** 恢复精力（长休回满 / 短休少量）；睡满一整觉（长休 / 睡床）时解除疲惫 */
     public static void restoreSleep(ServerPlayer p, float amount) {
         PlayerConditionData d = data(p);
         d.sleep = Math.min(MAX, d.sleep + amount);
+        if (amount >= MAX) clearDeprivation(p, false);
         StatusManager.sync(p);
+    }
+
+    // ===== 饥渴 / 疲惫 =====
+
+    /** 缺乏足够的食物与饮水（水分或饱食度偏低） */
+    private static boolean underfed(ServerPlayer p, PlayerConditionData d) {
+        return d.thirst < 25f || p.getFoodData().getFoodLevel() < 6;
+    }
+
+    /**
+     * 每 24 小时缺乏足够的食物饮水（饥渴）/ 没有睡满 8 小时（疲惫）：进行一次耐力检定，DC = 耐力；
+     * 每差 1 点成功数获得 1 点疲乏点数，并受到 1 点耐力（饥渴）/ 沉着（疲惫）伤害。
+     */
+    private static void deprivationCheck(ServerPlayer p, boolean starving) {
+        int end = CombatFormula.attr(p, AttributeType.ENDURANCE) + FeatEffects.attrBonus(p)[AttributeType.ENDURANCE.ordinal()];
+        int dc = Math.max(1, end);
+        int roll = end + PoolEffects.checkBonus(p, AttributeType.ENDURANCE) - StatusEffects.savePenalty(p, AttributeType.ENDURANCE);
+        int s = Math.max(0, Math.round(roll * DamageVariance.roll(p.getRandom())));
+        int fail = dc - s;
+        if (fail <= 0) {
+            p.displayClientMessage(Component.translatable(starving ? "msg.zhushenspace.survival.starving_resist"
+                    : "msg.zhushenspace.survival.weary_resist"), true);
+            return;
+        }
+        PlayerConditionData d = data(p);
+        // 同一来源的疲乏点数不可叠加：取最高并累积
+        String key = starving ? StatusManager.SRC_STARVING : StatusManager.SRC_WEARY;
+        int cur = d.nonStack[com.zhushen.space.data.StatusType.FATIGUE.ordinal()].getOrDefault(key, 0);
+        StatusManager.addKeyed(p, com.zhushen.space.data.StatusType.FATIGUE, cur + fail, false, null, null, 0, key, null);
+        if (starving) d.starveEnd += fail;
+        else d.wearyCom += fail;
+        AttributeApplier.apply(p);
+        p.displayClientMessage(Component.translatable(starving ? "msg.zhushenspace.survival.starving"
+                : "msg.zhushenspace.survival.weary", fail), false);
+    }
+
+    /** 饥渴（进食饮水后）/ 疲惫（睡满一觉后）立即解除，所造成的疲乏点数与属性伤害一并消失 */
+    private static void clearDeprivation(ServerPlayer p, boolean starving) {
+        PlayerConditionData d = data(p);
+        var map = d.nonStack[com.zhushen.space.data.StatusType.FATIGUE.ordinal()];
+        boolean had = starving ? d.deprivedTicks >= RestManager.DAY_TICKS || d.starveEnd > 0
+                : d.wearyTicks >= RestManager.DAY_TICKS || d.wearyCom > 0;
+        Integer removed = map.remove(starving ? StatusManager.SRC_STARVING : StatusManager.SRC_WEARY);
+        if (starving) {
+            d.deprivedTicks = 0;
+            d.starveEnd = 0;
+        } else {
+            d.wearyTicks = 0;
+            d.wearyCom = 0;
+        }
+        if (had || removed != null) {
+            AttributeApplier.apply(p);
+            StatusManager.changed(p);
+            p.displayClientMessage(Component.translatable(starving ? "msg.zhushenspace.survival.starving_end"
+                    : "msg.zhushenspace.survival.weary_end"), true);
+        }
     }
 
     // ===== 每 tick =====
@@ -295,6 +352,20 @@ public final class SurvivalManager {
     /** 每秒：各项需求的后果 */
     private static void effects(ServerPlayer p, PlayerConditionData d) {
         long t = p.level().getGameTime();
+        // 饥渴：缺乏足够食物饮水每满 24 小时检定一次；吃饱喝足后立即解除
+        if (underfed(p, d)) {
+            long before = d.deprivedTicks;
+            d.deprivedTicks += 20;
+            if (before / RestManager.DAY_TICKS < d.deprivedTicks / RestManager.DAY_TICKS) deprivationCheck(p, true);
+        } else if (d.deprivedTicks > 0 || d.starveEnd > 0) {
+            clearDeprivation(p, true);
+        }
+        // 疲惫：清醒时累计，每满 24 小时没有睡满一觉检定一次
+        if (!p.isSleeping() && !d.collapsed && !RestManager.isResting(p)) {
+            long before = d.wearyTicks;
+            d.wearyTicks += 20;
+            if (before / RestManager.DAY_TICKS < d.wearyTicks / RestManager.DAY_TICKS) deprivationCheck(p, false);
+        }
         // 缺水
         if (d.thirst < 10) {
             p.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0, true, false));

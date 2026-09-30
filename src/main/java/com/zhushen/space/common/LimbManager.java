@@ -110,7 +110,10 @@ public final class LimbManager {
 
     /** 某只手对应的手臂是否已断 */
     public static boolean handSevered(Player player, InteractionHand hand) {
-        return data(player).isSevered(armOf(player, hand));
+        LimbPart arm = armOf(player, hand);
+        if (data(player).isSevered(arm)) return true;
+        // 肢体残障（重度肢体妨害）：该肢体暂时无法使用
+        return player instanceof ServerPlayer sp && StatusEffects.limbDisabled(sp, arm);
     }
 
     public static LimbPart armOf(Player player, InteractionHand hand) {
@@ -396,13 +399,21 @@ public final class LimbManager {
             d.setEyeLost(PlayerLimbData.RIGHT_EYE | PlayerLimbData.LEFT_EYE, false);
             player.removeEffect(net.minecraft.world.effect.MobEffects.BLINDNESS);
         }
+        int regrown = 0;
         for (LimbPart p : LimbPart.values()) {
             if (part != null && p != part) continue;
+            if (d.isSevered(p)) regrown++;
             d.setDamage(p, 0);
             d.setSevered(p, false);
         }
         applyPenalties(player);
         sync(player);
+        // 肢体修复：对应的开放性创口随之愈合
+        var cd = StatusManager.data(player);
+        if (regrown > 0 && cd.openWounds > 0) {
+            cd.openWounds = Math.max(0, cd.openWounds - regrown);
+            StatusManager.changed(player);
+        }
     }
 
     /** 治疗联动：回复未断部位的血量（头优先，其次四肢），供 HealthManager 调用 */

@@ -306,17 +306,24 @@ public final class ArtManager {
     static int willSave(LivingEntity t) {
         if (t instanceof ServerPlayer sp) {
             if (mindImmune(sp)) return 999;
-            return Math.round((mindValue(sp) + PoolEffects.buddhaSave(sp) + PoolEffects.checkBonus(sp, AttributeType.RESOLVE, AttributeType.COMPOSURE))
-                    * DamageVariance.roll(sp.getRandom()));
+            return Math.max(0, Math.round((mindValue(sp) + PoolEffects.buddhaSave(sp) + PoolEffects.checkBonus(sp, AttributeType.RESOLVE, AttributeType.COMPOSURE))
+                    * DamageVariance.roll(sp.getRandom())) - StatusEffects.willMod(sp)); // 精神束缚：失去 1 点自然成功数
         }
         return 0; // 非玩家生物：意志数据待接入
     }
 
     static int reflexSave(LivingEntity t, Entity attacker) {
+        return reflexSave(t, attacker, false);
+    }
+
+    /** 反射豁免；area = 对抗范围效果（倒地 +3） */
+    static int reflexSave(LivingEntity t, Entity attacker, boolean area) {
         if (!DamageRules.canReflex(t, attacker)) return 0;
-        if (t instanceof ServerPlayer sp)
-            return Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS) + PoolEffects.checkBonus(sp, AttributeType.AGILITY)
-                    + StatusManager.reflexBonus(sp)) * DamageVariance.roll(sp.getRandom())); // 倒地：对抗范围伤害 +3
+        if (t instanceof ServerPlayer sp) {
+            if (!StatusEffects.canReflex(sp)) return 0; // 石化 / 昏迷 / 睡眠 / 冰封 / 无助
+            return Math.max(0, Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS) + PoolEffects.checkBonus(sp, AttributeType.AGILITY)
+                    + StatusManager.reflexBonus(sp, area)) * DamageVariance.roll(sp.getRandom())));
+        }
         var st = GrappleManager.stats(t);
         return st == null ? 0 : Math.round((st.agi() + st.athletics()) * DamageVariance.roll(t.getRandom()));
     }
@@ -520,6 +527,8 @@ public final class ArtManager {
         String err = prereq(p, s);
         if (err != null) { deny(p, err); return false; }
         if (s.mode == ArtSkill.Mode.PICK && data(p).optionBits[s.ordinal()] == 0) { deny(p, "msg.zhushenspace.art.pick_first"); return false; }
+        // 不良状态：无法行动 / 失能 / 厌世 / 沉默 / 瘫痪 / 双臂无法使用……
+        if (!StatusEffects.canCast(p, isSpell(s))) return false;
         if (s.pool == FeatEffects.Pool.SPIRIT) {
             // 灵力：启动检定 + 灵感疲劳（消耗/3），不直接扣能量
             if (isSpell(s) && !gesture(p)) return false;
@@ -528,7 +537,8 @@ public final class ArtManager {
             if (energy(p, s) < s.cost) { deny(p, "msg.zhushenspace.art.lack_energy"); return false; }
             if (isSpell(s) && !gesture(p)) return false;
         }
-        castBoost = boostFor(p, s);
+        // 晕眩 / 欲眠 / 精神束缚 / 剧痛 / 沮丧 / 肢体妨害（姿势）的施法与心灵检定减值
+        castBoost = boostFor(p, s) - StatusEffects.castPenalty(p, isSpell(s));
         boolean ok = switch (s) {
             case SPIRIT_SLASH -> spiritSlash(p, s);
             case SPIRIT_HEAL -> spiritHeal(p, s);
@@ -611,6 +621,11 @@ public final class ArtManager {
         if (t instanceof ServerPlayer sp) {
             PlayerHealthData h = sp.getData(ModAttachments.PLAYER_HEALTH);
             int healed = 0;
+            if (StatusEffects.bloodLoss(sp)) {
+                // 失血过多：冲击 / 严重伤害的治愈难度如同恶性伤害（3 点治疗量 1 处），恶性伤害无法治疗
+                pts /= 3;
+                reviveMode = false;
+            }
             if (reviveMode) {
                 int a = h.healSeverity(PlayerHealthData.Severity.A, pts / 3);
                 pts -= a * 3; healed += a;
@@ -748,12 +763,11 @@ public final class ArtManager {
 
     /** 黄泉活力：附于下一次近战（10 秒内）：附加成功 +1；增幅每点妖力 +3DP（上限 传奇风度 次） */
     static boolean netherVigor(ServerPlayer p, ArtSkill s) {
-        if (!pay(p, s, s.cost)) return false;
-        int amp = 0;
-        if (amplify(p)) {
-            int max = legendary(p, AttributeType.CHARM);
-            while (amp < max && EnergyManager.consume(p, s.pool.id, 1)) amp++;
-        }
+        // 增幅与基础能耗一同作为一次能耗支付
+        Amplify.Plan plan = Amplify.plan(energy(p, s) - s.cost, legendary(p, AttributeType.CHARM), i -> 1,
+                Amplify.mods(p, s), amplify(p));
+        if (!pay(p, s, s.cost + plan.cost())) return false;
+        int amp = plan.steps();
         VIGOR.put(p.getUUID(), amp);
         VIGOR_UNTIL.put(p.getUUID(), p.level().getGameTime() + 200);
         p.serverLevel().sendParticles(ParticleTypes.SOUL_FIRE_FLAME, p.getX(), p.getY() + 1, p.getZ(), 20, 0.4, 0.6, 0.4, 0.02);
@@ -820,13 +834,10 @@ public final class ArtManager {
     static boolean phoenixFire(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, 20);
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
-        if (!pay(p, s, s.cost)) return false;
-        int power = 3 + PoolEffects.sageBoost(p, 2);
-        if (amplify(p)) {
-            int max = legendary(p, AttributeType.PERCEPTION), n = 0;
-            while (n < max && EnergyManager.consume(p, s.pool.id, 1)) n++;
-            power += 2 * n;
-        }
+        Amplify.Plan plan = Amplify.plan(energy(p, s) - s.cost, legendary(p, AttributeType.PERCEPTION), i -> 1,
+                Amplify.mods(p, s), amplify(p));
+        if (!pay(p, s, s.cost + plan.cost())) return false; // 增幅与基础能耗一同作为一次能耗支付
+        int power = 3 + PoolEffects.sageBoost(p, 2) + 2 * plan.steps();
         float v = attackRoll(p, spellCheck(p, s.pool), 0, defense(p, t, 4, 0, false), spellCap(p, s.pool, power, 0), 0);
         beam(p, t.getEyePosition(), ParticleTypes.FLAME);
         p.level().playSound(null, p.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1f, 1.3f);
@@ -849,13 +860,9 @@ public final class ArtManager {
         }
         p.level().playSound(null, p.blockPosition(), SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 1.5f, 0.6f);
         if (dmg < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        for (LivingEntity t : p.level().getEntitiesOfClass(LivingEntity.class, p.getBoundingBox().inflate(20),
-                e -> e != p && e.isAlive())) {
-            Vec3 to = t.getBoundingBox().getCenter().subtract(eye);
-            double d = to.length();
-            if (d > 20 || d < 0.01) continue;
-            if (to.normalize().dot(look) < Math.cos(Math.toRadians(30))) continue;
-            float v = dmg - Math.max(0, reflexSave(t, p) - 18);
+        // 20 米锥形范围效果：需要效果线；造成范围伤害（倒地的目标反射 +3）
+        for (LivingEntity t : AreaShape.cone(20).collect(sl, eye, look, p, false, null)) {
+            float v = dmg - Math.max(0, reflexSave(t, p, true) - 18);
             if (v > 0) {
                 DamageRules.deal(t, p.damageSources().indirectMagic(p, p), v,
                         spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.FIRE));

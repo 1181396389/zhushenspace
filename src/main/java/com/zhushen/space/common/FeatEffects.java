@@ -109,6 +109,10 @@ public final class FeatEffects {
             b[AttributeType.STRENGTH.ordinal()] += v / 2;
             b[AttributeType.AGILITY.ordinal()] -= v / 2;
         }
+        // 属性伤害（饥渴 / 多系统器官功能衰竭 → 耐力，疲惫 → 沉着）
+        var cd = p.getData(com.zhushen.space.data.ModAttachments.PLAYER_CONDITION);
+        b[AttributeType.ENDURANCE.ordinal()] -= cd.starveEnd + cd.modsEnd;
+        b[AttributeType.COMPOSURE.ordinal()] -= cd.wearyCom;
         return b;
     }
 

@@ -133,16 +133,17 @@ public final class QuickHealManager {
         List<Integer> levels = new ArrayList<>(act.values());
         levels.sort(Integer::compare);
         int b = 0, l = 0, a = 0;
+        boolean bloodLoss = StatusEffects.bloodLoss(p); // 失血过多：B / L 如同 A 一样难治（3:1），A 无法治疗
         for (int lv : levels) {
             if (hp.b() + hp.l() > 0) {
-                int rem = lv;
+                int rem = bloodLoss ? lv / 3 : lv;
                 PlayerHealthData.Severity first = lFirst ? PlayerHealthData.Severity.L : PlayerHealthData.Severity.B;
                 PlayerHealthData.Severity second = lFirst ? PlayerHealthData.Severity.B : PlayerHealthData.Severity.L;
                 int t1 = hp.healSeverity(first, rem);
                 rem -= t1;
                 int t2 = hp.healSeverity(second, rem);
                 if (first == PlayerHealthData.Severity.B) { b += t1; l += t2; } else { l += t1; b += t2; }
-            } else if (lv >= ADVANCED_LEVEL && hp.a() > 0) {
+            } else if (!bloodLoss && lv >= ADVANCED_LEVEL && hp.a() > 0) {
                 a += hp.healSeverity(PlayerHealthData.Severity.A, 1);
             }
         }

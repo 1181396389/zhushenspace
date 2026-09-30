@@ -192,7 +192,8 @@ public final class CombatFormula {
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
             float wd = weaponDamage(p, event.getAmount());
             base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + wd - def - pen
-                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false);
+                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false, victim);
+            base = Math.max(0f, base) * StatusEffects.successFactor(p); // 肌肉痉挛：失去一半自然成功数
             base = Math.max(0f, base);
             event.setAmount(base);
             DamageCap.setMeleeBase(p, victim, base);
@@ -213,8 +214,8 @@ public final class CombatFormula {
             float wd = event.getAmount();
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * WeaponCategory.REQ_PENALTY
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true);
-            base = Math.max(0f, Math.min(base, wd + ath + str));
+                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
+            base = Math.max(0f, Math.min(base, wd + ath + str)) * StatusEffects.successFactor(p);
             event.setAmount(base);
         } else if (direct instanceof AbstractArrow arrow) {
             ItemStack weapon = arrow.getWeaponItem();
@@ -233,8 +234,8 @@ public final class CombatFormula {
             float wd = event.getAmount();
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * 2
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true);
-            base = Math.max(0f, Math.min(base, wd * 2 + ath + sp.strReq()));
+                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
+            base = Math.max(0f, Math.min(base, wd * 2 + ath + sp.strReq())) * StatusEffects.successFactor(p);
             event.setAmount(base);
         } else {
             return; // 其他弹射物（雪球等）保持原样

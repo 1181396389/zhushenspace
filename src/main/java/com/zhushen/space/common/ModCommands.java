@@ -149,13 +149,54 @@ public class ModCommands {
                                                                 .executes(ctx -> statusAdd(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
                                                                         StringArgumentType.getString(ctx, "type"), IntegerArgumentType.getInteger(ctx, "points"),
                                                                         StringArgumentType.getString(ctx, "kind"))))))))
+                        .then(Commands.literal("limb")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("part", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.LimbPart.values())
+                                                                .filter(com.zhushen.space.data.LimbPart::severable).map(com.zhushen.space.data.LimbPart::key), b))
+                                                .then(Commands.argument("points", IntegerArgumentType.integer(1, 999))
+                                                        .executes(ctx -> statusLimb(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
+                                                                StringArgumentType.getString(ctx, "part"), IntegerArgumentType.getInteger(ctx, "points")))))))
+                        .then(Commands.literal("state")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("condition", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.Condition.values()).map(t -> t.key), b))
+                                                .executes(ctx -> statusState(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
+                                                        StringArgumentType.getString(ctx, "condition"), 0))
+                                                .then(Commands.argument("seconds", IntegerArgumentType.integer(0, 86400))
+                                                        .executes(ctx -> statusState(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"),
+                                                                StringArgumentType.getString(ctx, "condition"), IntegerArgumentType.getInteger(ctx, "seconds")))))))
+                        .then(Commands.literal("unstate")
+                                .then(Commands.argument("player", EntityArgument.player())
+                                        .then(Commands.argument("condition", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.Condition.values()).map(t -> t.key), b))
+                                                .executes(ctx -> {
+                                                    var c = com.zhushen.space.data.Condition.byKey(StringArgumentType.getString(ctx, "condition"));
+                                                    if (c == null) { ctx.getSource().sendFailure(Component.literal("未知的固有不良状态")); return 0; }
+                                                    StatusManager.removeCondition(EntityArgument.getPlayer(ctx, "player"), c);
+                                                    ctx.getSource().sendSuccess(() -> Component.literal("已移除 ").append(Component.translatable(c.nameKey())), true);
+                                                    return 1;
+                                                }))))
                         .then(Commands.literal("clear")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> {
                                             StatusManager.clear(EntityArgument.getPlayer(ctx, "player"), null, true);
                                             ctx.getSource().sendSuccess(() -> Component.literal("已清除全部不良状态与毁灭性后果"), true);
                                             return 1;
-                                        })))
+                                        })
+                                        .then(Commands.argument("type", StringArgumentType.word())
+                                                .suggests((c, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(
+                                                        java.util.Arrays.stream(com.zhushen.space.data.StatusType.values()).map(t -> t.key), b))
+                                                .executes(ctx -> {
+                                                    var t = com.zhushen.space.data.StatusType.byKey(StringArgumentType.getString(ctx, "type"));
+                                                    if (t == null) { ctx.getSource().sendFailure(Component.literal("未知的不良状态类型")); return 0; }
+                                                    StatusManager.clear(EntityArgument.getPlayer(ctx, "player"), t, true);
+                                                    ctx.getSource().sendSuccess(() -> Component.literal("已清除 ").append(Component.translatable(t.nameKey())), true);
+                                                    return 1;
+                                                }))))
                         .then(Commands.literal("info")
                                 .then(Commands.argument("player", EntityArgument.player())
                                         .executes(ctx -> statusInfo(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))))))
@@ -517,17 +558,56 @@ public class ModCommands {
         return 1;
     }
 
+    private static int statusLimb(CommandSourceStack src, ServerPlayer p, String part, int points) {
+        var lp = com.zhushen.space.data.LimbPart.byKey(part);
+        if (lp == null || !lp.severable()) {
+            src.sendFailure(Component.literal("未知的肢体：" + part));
+            return 0;
+        }
+        int got = StatusManager.add(p, com.zhushen.space.data.StatusType.LIMB, points, false, src.getEntity(),
+                StatusManager.Source.NATURAL, 0, true, lp);
+        src.sendSuccess(() -> Component.literal("已给予 " + p.getName().getString() + " ").append(Component.translatable(lp.nameKey()))
+                .append(" 肢体妨害 " + got + "（当前 " + StatusManager.data(p).limb[lp.ordinal()] + "）"), true);
+        return 1;
+    }
+
+    private static int statusState(CommandSourceStack src, ServerPlayer p, String key, int seconds) {
+        var c = com.zhushen.space.data.Condition.byKey(key);
+        if (c == null) {
+            src.sendFailure(Component.literal("未知的固有不良状态：" + key));
+            return 0;
+        }
+        StatusManager.addCondition(p, c, seconds * 20, src.getEntity());
+        src.sendSuccess(() -> Component.literal("已使 " + p.getName().getString() + " 陷入 ").append(Component.translatable(c.nameKey()))
+                .append(seconds > 0 ? "（" + seconds + " 秒）" : "（直到解除）"), true);
+        return 1;
+    }
+
     private static int statusInfo(CommandSourceStack src, ServerPlayer p) {
         var d = StatusManager.data(p);
         StringBuilder sb = new StringBuilder(p.getName().getString()).append("：");
         for (com.zhushen.space.data.StatusType t : com.zhushen.space.data.StatusType.values()) {
+            if (t == com.zhushen.space.data.StatusType.LIMB) {
+                for (var lp : com.zhushen.space.data.LimbPart.values()) {
+                    if (!lp.severable() || d.limb[lp.ordinal()] <= 0) continue;
+                    sb.append(Component.translatable(lp.nameKey()).getString()).append(Component.translatable(t.nameKey()).getString())
+                            .append(' ').append(d.limb[lp.ordinal()]).append('/').append(StatusManager.heavyAt(p, t))
+                            .append('/').append(StatusManager.destructiveAt(p, t)).append("  ");
+                }
+                continue;
+            }
+            if (d.points(t) <= 0 && !d.isPermanent(t)) continue;
             sb.append(Component.translatable(t.nameKey()).getString()).append(' ').append(d.points(t)).append('/')
                     .append(StatusManager.heavyAt(p, t)).append('/').append(StatusManager.destructiveAt(p, t))
                     .append(d.isPermanent(t) ? "[毁灭]" : "").append("  ");
         }
+        sb.append("\n状态：");
+        for (var c : com.zhushen.space.data.Condition.values())
+            if (StatusEffects.has(p, c)) sb.append(Component.translatable(c.nameKey()).getString()).append(' ');
+        sb.append(" 开放性创口 ").append(d.openWounds);
         sb.append("\n水分 ").append(Math.round(d.thirst)).append(" 体力 ").append(Math.round(d.stamina)).append('/')
                 .append(Math.round(SurvivalManager.maxStamina(p))).append(" 精力 ").append(Math.round(d.sleep))
-                .append(d.prone ? " 倒地" : "").append(d.exhausted ? " 力竭" : "").append(d.collapsed ? " 昏睡" : "")
+                .append(d.prone ? " 倒地" : "").append(d.exhausted ? " 体力透支" : "").append(d.collapsed ? " 昏睡" : "")
                 .append(" 失去眼睛 ").append(LimbManager.eyesLost(p));
         src.sendSuccess(() -> Component.literal(sb.toString()), false);
         return 1;

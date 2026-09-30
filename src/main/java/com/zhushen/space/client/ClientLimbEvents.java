@@ -30,6 +30,11 @@ public final class ClientLimbEvents {
         return ClientLimbData.severed(player.getId(), armOf(player, hand));
     }
 
+    /** 断臂或肢体残障（重度肢体妨害）：该手无法互动 */
+    static boolean handUnusable(LocalPlayer player, InteractionHand hand) {
+        return handSevered(player, hand) || ClientCondition.limbDisabled(armOf(player, hand));
+    }
+
     /** 第一人称：断臂的手（连同手持物）不渲染 */
     @SubscribeEvent
     public static void onRenderHand(RenderHandEvent event) {
@@ -43,7 +48,7 @@ public final class ClientLimbEvents {
         LocalPlayer p = Minecraft.getInstance().player;
         if (p == null) return;
         InteractionHand hand = event.isAttack() ? InteractionHand.MAIN_HAND : event.getHand();
-        if (handSevered(p, hand)) {
+        if (handUnusable(p, hand)) {
             event.setCanceled(true);
             event.setSwingHand(false);
         }

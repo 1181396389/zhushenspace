@@ -116,10 +116,11 @@ final class TaczGunEvents {
         if (event.getHurtEntity() instanceof net.minecraft.server.level.ServerPlayer vp)
             def = Math.max(0f, def + com.zhushen.space.common.StatusManager.defenseMod(vp, true));
         float bonus = CombatFormula.attr(player, cat.attribute) + level - def - CombatFormula.professionPenalty(player, cat)
-                - com.zhushen.space.common.StatusManager.attackPenalty(player, true);
+                - com.zhushen.space.common.StatusManager.attackPenalty(player, true, event.getHurtEntity());
         event.setBaseAmount(Math.max(0f, event.getBaseAmount() + bonus / pellets));
         // 伤害浮动：面板伤害的 20%~100% 随机（每发子弹一次，先于爆头倍率与暴击 / 弱点）
-        event.setBaseAmount(event.getBaseAmount() * DamageVariance.roll(player.getRandom()));
+        event.setBaseAmount(event.getBaseAmount() * DamageVariance.roll(player.getRandom())
+                * com.zhushen.space.common.StatusEffects.successFactor(player)); // 肌肉痉挛
         // 开始本发子弹的结算上下文：暴击 / 弱点每发只判定一次，并与技能乘区合并封顶（C）
         GunDamage.beginHit(player, event.getHurtEntity(), factor, cap);
     }

@@ -124,6 +124,11 @@ public final class RestManager {
             return;
         }
         if (StatusManager.incapacitated(p)) return;
+        String block = StatusEffects.restBlock(p); // 多系统器官功能衰竭 / 狂躁 / 剧痛……：无法休息
+        if (block != null) {
+            p.displayClientMessage(Component.translatable(block), true);
+            return;
+        }
         if (!p.onGround() || p.isPassenger()) {
             p.displayClientMessage(Component.translatable("msg.zhushenspace.rest.not_ground"), true);
             return;
@@ -209,7 +214,15 @@ public final class RestManager {
                 parts.add(Component.translatable("energy.zhushenspace.willpower").getString() + "+");
             }
             p.setData(ModAttachments.LAST_LONG_REST, worldClock(p));
+            // 多系统器官功能衰竭造成的耐力伤害只能通过长休恢复
+            if (StatusManager.data(p).modsEnd > 0) {
+                parts.add(Component.translatable("attribute.zhushenspace.endurance").getString() + "+" + StatusManager.data(p).modsEnd);
+                StatusManager.data(p).modsEnd = 0;
+                AttributeApplier.apply(p);
+            }
         }
+        // 不良状态：以关键抵抗属性进行豁免，每 1 点成功数移除 1 点不良状态点数
+        parts.addAll(StatusManager.restSaves(p));
         // 体力回满；长休精力回满
         StatusManager.data(p).stamina = SurvivalManager.maxStamina(p);
         StatusManager.data(p).exhausted = false;
@@ -246,7 +259,7 @@ public final class RestManager {
         // 睡床自动进入休息（24 小时内可长休则为长休，否则为短休）
         if (server.getTickCount() % 20 == 0) {
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                if (p.isSleeping() && !RESTS.containsKey(p.getUUID())) {
+                if (p.isSleeping() && !RESTS.containsKey(p.getUUID()) && StatusEffects.restBlock(p) == null) {
                     start(p, canLongRest(p, true) ? Kind.LONG : Kind.SHORT, true);
                 }
             }
@@ -287,6 +300,7 @@ public final class RestManager {
     public static void onSleepFinished(SleepFinishedTimeEvent event) {
         for (Player entity : event.getLevel().players()) {
             if (!(entity instanceof ServerPlayer p) || !p.isSleeping()) continue;
+            if (StatusEffects.restBlock(p) != null) continue;
             complete(p, canLongRest(p, true) ? Kind.LONG : Kind.SHORT, true);
         }
     }

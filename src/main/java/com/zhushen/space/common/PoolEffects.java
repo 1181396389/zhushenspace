@@ -68,7 +68,8 @@ public final class PoolEffects {
 
     /** 两项属性检定（成功数） */
     static int check(ServerPlayer p, AttributeType a, AttributeType b) {
-        return Math.max(0, Math.round((attr(p, a) + attr(p, b) - StatusManager.checkPenalty(p, a, b)) * DamageVariance.roll(p.getRandom())));
+        return Math.max(0, Math.round((attr(p, a) + attr(p, b) - StatusManager.checkPenalty(p, a, b)) * DamageVariance.roll(p.getRandom())
+                * StatusEffects.successFactor(p, a, b)));
     }
 
     public static int flags(ServerPlayer p) {
@@ -155,6 +156,11 @@ public final class PoolEffects {
     public static void action(ServerPlayer p, int a) {
         UUID id = p.getUUID();
         long now = p.level().getGameTime();
+        // 无法行动（昏迷 / 睡眠 / 石化 / 冰封 / 精神奴役……）时只能尝试爬起
+        if (a != 21 && a != 18 && StatusEffects.incapacitated(p)) {
+            p.displayClientMessage(Component.translatable("msg.zhushenspace.status.cant_act"), true);
+            return;
+        }
         switch (a) {
             case 10 -> { PlayerArtData d = ArtManager.data(p); d.boost = !d.boost; }
             case 11 -> { // 魔力感知
@@ -184,6 +190,7 @@ public final class PoolEffects {
             case 19 -> StatusManager.extinguish(p);                   // 扑灭火焰
             case 20 -> SurvivalManager.drinkFromSource(p);            // 潜行空手右键水面：喝生水
             case 21 -> StatusManager.standUp(p);                      // 跳跃键：爬起来
+            case 22 -> StatusManager.firstAid(p);                     // 急救：止血（对自己或触及范围内的目标）
             default -> {}
         }
         ArtManager.sync(p);
@@ -236,6 +243,8 @@ public final class PoolEffects {
         long now = p.level().getGameTime();
         if (REST_END.containsKey(p.getUUID())) return;
         if (!anyPool(p)) { ArtManager.deny(p, "msg.zhushenspace.art.no_pool"); return; }
+        String block = StatusEffects.restBlock(p);
+        if (block != null) { p.displayClientMessage(Component.translatable(block), true); return; }
         long cd = REST_CD.getOrDefault(p.getUUID(), 0L);
         if (cd > now) {
             p.displayClientMessage(Component.translatable("msg.zhushenspace.pool.meditate_cd", (cd - now + 19) / 20), true);

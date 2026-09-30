@@ -136,6 +136,11 @@ public final class WillpowerManager {
 
     public static void handleAction(ServerPlayer player, int action) {
         if (!player.isAlive()) return;
+        // 狂躁 / 歇斯底里 / 无法行动：无法使用意志力
+        if (!StatusEffects.canUseWillpower(player)) {
+            player.displayClientMessage(Component.translatable("msg.zhushenspace.status.no_willpower"), true);
+            return;
+        }
         State s = state(player);
         long t = now(player);
         if (action == ACTION_PRIMARY) {

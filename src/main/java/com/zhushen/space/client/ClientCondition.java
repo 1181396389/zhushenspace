@@ -2,6 +2,8 @@ package com.zhushen.space.client;
 
 import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.common.SurvivalManager;
+import com.zhushen.space.data.Condition;
+import com.zhushen.space.data.LimbPart;
 import com.zhushen.space.data.StatusType;
 import com.zhushen.space.network.ArtActionPayload;
 import com.zhushen.space.network.SyncConditionPayload;
@@ -56,6 +58,9 @@ public final class ClientCondition {
     private static int[] points = new int[StatusType.COUNT], tiers = new int[StatusType.COUNT],
             heavy = new int[StatusType.COUNT], destr = new int[StatusType.COUNT];
     private static int permanent;
+    private static long conditions;
+    private static int limbDisabled, openWounds;
+    private static float breath = -1f;
     private static int lastTinnitusTier;
 
     public static void update(SyncConditionPayload p) {
@@ -70,6 +75,10 @@ public final class ClientCondition {
         if (p.heavy().length == StatusType.COUNT) heavy = p.heavy();
         if (p.destructive().length == StatusType.COUNT) destr = p.destructive();
         permanent = p.permanent();
+        conditions = p.conditions();
+        limbDisabled = p.limbDisabled();
+        openWounds = p.openWounds();
+        breath = p.breath();
         int tin = tier(StatusType.TINNITUS);
         if (tin > lastTinnitusTier && tin > 0) {
             // 耳鸣：一声尖锐的长鸣（UI 声道，不受衰减影响）
@@ -87,6 +96,10 @@ public final class ClientCondition {
     public static int tier(StatusType t) { return tiers[t.ordinal()]; }
     public static int points(StatusType t) { return points[t.ordinal()]; }
     public static boolean permanent(StatusType t) { return (permanent & t.bit()) != 0; }
+    public static boolean noSprint() { return (flags & 64) != 0; }
+    public static boolean immobile() { return (flags & 128) != 0; }
+    public static boolean has(Condition c) { return (conditions & c.bit()) != 0; }
+    public static boolean limbDisabled(LimbPart part) { return (limbDisabled & part.bit()) != 0; }
 
     private static boolean active(LocalPlayer p) {
         return has && p != null && !p.isCreative() && !p.isSpectator();
@@ -101,8 +114,10 @@ public final class ClientCondition {
     public static void onMovementInput(MovementInputUpdateEvent event) {
         if (!(event.getEntity() instanceof LocalPlayer p) || !active(p)) return;
         var in = event.getInput();
-        // 力竭：无法冲刺（前进力度压到冲刺门槛以下，走路也会慢一些）
-        if (exhausted() && in.forwardImpulse > 0.79f) in.forwardImpulse = 0.79f;
+        // 体力透支 / 力竭 / 反胃 / 失衡：无法冲刺（前进力度压到冲刺门槛以下，走路也会慢一些）
+        if ((exhausted() || noSprint()) && in.forwardImpulse > 0.79f) in.forwardImpulse = 0.79f;
+        // 无法移动（定身 / 冰封 / 浮空 / 禁锢……）：不能跳
+        if (immobile()) in.jumping = false;
         // 倒地：不能跳（按跳跃键 = 爬起来）
         if (prone() && !freeMover()) in.jumping = false;
     }
@@ -112,7 +127,7 @@ public final class ClientCondition {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (!active(p)) return;
-        if (exhausted() && p.isSprinting()) p.setSprinting(false);
+        if ((exhausted() || noSprint()) && p.isSprinting()) p.setSprinting(false);
         boolean jump = mc.options.keyJump.isDown();
         if (prone() && !freeMover() && jump && !lastJump && !standing() && mc.screen == null
                 && System.currentTimeMillis() - lastStandReq > 500) {
@@ -163,8 +178,9 @@ public final class ClientCondition {
         SoundInstance s = event.getSound();
         if (s == null || !active(p) || s.getSource() == SoundSource.MASTER) return;
         float vol;
-        if (permanent(StatusType.TINNITUS)) vol = 0f;
-        else if (tier(StatusType.TINNITUS) >= StatusType.Tier.HEAVY.ordinal()) vol = 0.15f;
+        boolean unlocatable = false;
+        if (permanent(StatusType.TINNITUS) || has(Condition.DEAF)) vol = 0f;              // 耳聋：听不见
+        else if (has(Condition.HEARING_IMPAIRED)) { vol = 0.35f; unlocatable = true; }    // 听觉障碍：无法定位声源
         else if (tier(StatusType.TINNITUS) >= StatusType.Tier.LIGHT.ordinal()) vol = 0.6f;
         else return;
         if (vol <= 0f) {
@@ -172,24 +188,30 @@ public final class ClientCondition {
             return;
         }
         if (s instanceof TickableSoundInstance) return; // 持续音效（音乐唱片 / 矿车等）保持原样
-        event.setSound(new Muffled(s, vol));
+        event.setSound(new Muffled(s, vol, unlocatable && !s.isRelative()));
     }
 
-    /** 音量缩放的声音包装 */
-    private record Muffled(SoundInstance in, float factor) implements SoundInstance {
+    /** 音量缩放的声音包装；flat = 改为不带方位（听觉障碍：无法精确定位其他单位） */
+    private record Muffled(SoundInstance in, float factor, boolean flat) implements SoundInstance {
         @Override public ResourceLocation getLocation() { return in.getLocation(); }
         @Override public WeighedSoundEvents resolve(SoundManager m) { return in.resolve(m); }
         @Override public Sound getSound() { return in.getSound(); }
         @Override public SoundSource getSource() { return in.getSource(); }
         @Override public boolean isLooping() { return in.isLooping(); }
-        @Override public boolean isRelative() { return in.isRelative(); }
+        @Override public boolean isRelative() { return flat || in.isRelative(); }
         @Override public int getDelay() { return in.getDelay(); }
-        @Override public float getVolume() { return in.getVolume() * factor; }
         @Override public float getPitch() { return in.getPitch(); }
-        @Override public double getX() { return in.getX(); }
-        @Override public double getY() { return in.getY(); }
-        @Override public double getZ() { return in.getZ(); }
-        @Override public Attenuation getAttenuation() { return in.getAttenuation(); }
+        @Override public double getX() { return flat ? 0 : in.getX(); }
+        @Override public double getY() { return flat ? 0 : in.getY(); }
+        @Override public double getZ() { return flat ? 0 : in.getZ(); }
+        @Override public Attenuation getAttenuation() { return flat ? Attenuation.NONE : in.getAttenuation(); }
+        @Override public float getVolume() { return in.getVolume() * factor * (flat ? distanceFade() : 1f); }
+        private float distanceFade() {
+            LocalPlayer lp = Minecraft.getInstance().player;
+            if (lp == null || in.getAttenuation() == Attenuation.NONE) return 1f;
+            double d = Math.sqrt(lp.distanceToSqr(in.getX(), in.getY(), in.getZ()));
+            return (float) Math.max(0.05, 1.0 - d / 16.0);
+        }
         @Override public boolean canStartSilent() { return in.canStartSilent(); }
         @Override public boolean canPlaySound() { return in.canPlaySound(); }
     }
@@ -232,14 +254,17 @@ public final class ClientCondition {
 
         // --- 画面效果 ---
         int eyes = ClientLimbData.eyes();
-        boolean blind = (eyes & 3) == 3 || permanent(StatusType.DAZZLE);
+        boolean blind = (eyes & 3) == 3 || permanent(StatusType.DAZZLE) || has(Condition.BLIND);
         if (blind) g.fill(0, 0, w, h, 0xE0000000);
         else {
             if ((eyes & 1) != 0) sideShade(g, w, h, true);
             if ((eyes & 2) != 0) sideShade(g, w, h, false);
             int dz = tier(StatusType.DAZZLE);
-            if (dz >= StatusType.Tier.HEAVY.ordinal()) g.fill(0, 0, w, h, 0xB0101010);
-            else if (dz == StatusType.Tier.LIGHT.ordinal()) {
+            if (has(Condition.VISION_IMPAIRED)) {
+                // 视觉障碍：视野模糊发暗（周期性加重）
+                int a = 0x70 + (int) (0x30 * (0.5 + 0.5 * Math.sin(ms / 700.0)));
+                g.fill(0, 0, w, h, (a << 24) | 0x101010);
+            } else if (dz == StatusType.Tier.LIGHT.ordinal()) {
                 int a = 40 + (int) (30 * (0.5 + 0.5 * Math.sin(ms / 400.0)));
                 g.fill(0, 0, w, h, (a << 24) | 0xFFFFFF);
             }
@@ -261,8 +286,24 @@ public final class ClientCondition {
             g.drawCenteredString(font, Component.translatable("hud.zhushenspace.survival.collapsed"), w / 2, h / 2 - 4, 0xFFB0B0C0);
             return;
         }
-        if (incapacitated() && permanent(StatusType.FREEZE)) {
-            g.drawCenteredString(font, Component.translatable("hud.zhushenspace.status.frozen_solid"), w / 2, h / 2 + 20, 0xFFBFE9FF);
+        // 无法行动的固有不良状态：画面与提示
+        Condition big = null;
+        for (Condition c : new Condition[]{Condition.BANISHED, Condition.PETRIFIED, Condition.FROZEN, Condition.ETERNAL_SLEEP,
+                Condition.UNCONSCIOUS, Condition.ASLEEP, Condition.ENSLAVED, Condition.HELPLESS, Condition.STUNNED}) {
+            if (has(c)) { big = c; break; }
+        }
+        if (big != null) {
+            switch (big) {
+                case ETERNAL_SLEEP, UNCONSCIOUS, ASLEEP -> g.fill(0, 0, w, h, 0xF0000000);
+                case PETRIFIED -> g.fill(0, 0, w, h, 0x90707070);
+                case BANISHED -> g.fill(0, 0, w, h, 0xA0200030);
+                case ENSLAVED -> g.fill(0, 0, w, h, 0x50600080);
+                default -> { }
+            }
+            g.drawCenteredString(font, Component.translatable("hud.zhushenspace.condition." + big.key), w / 2, h / 2 + 20, 0xFFE0D0FF);
+        }
+        if (breath == 0f && p.isEyeInFluid(FluidTags.WATER)) {
+            g.drawCenteredString(font, Component.translatable("hud.zhushenspace.breath.out"), w / 2, h / 2 + 32, 0xFF80C0FF);
         }
 
         // --- 生存条（快捷栏右侧：水分 / 体力 / 精力） ---
@@ -279,12 +320,30 @@ public final class ClientCondition {
                     x0, y, 0xFFFFD27F, true);
             y -= 10;
         }
+        // 固有不良状态（不含已由点数行显示的）
+        StringBuilder conds = new StringBuilder();
+        for (Condition c : Condition.values()) {
+            if (!has(c)) continue;
+            if (conds.length() > 0) conds.append(' ');
+            conds.append(Component.translatable(c.nameKey()).getString());
+            if (c == Condition.OPEN_WOUND && openWounds > 1) conds.append('×').append(openWounds);
+        }
+        if (conds.length() > 0) {
+            String line = conds.toString();
+            while (line.length() > 0) {
+                String part = font.plainSubstrByWidth(line, 150);
+                if (part.isEmpty()) break;
+                g.drawString(font, part, x0, y, 0xFFFF7A7A, true);
+                y -= 10;
+                line = line.substring(part.length()).trim();
+            }
+        }
         for (StatusType t : StatusType.values()) {
             boolean perm = permanent(t);
             int tr = tier(t);
             if (tr == 0 && !perm) continue;
             int color = perm || tr >= 3 ? 0xFFFF4040 : tr == 2 ? 0xFFFF9A3C : 0xFFFFE070;
-            Component name = perm ? Component.translatable(t.tierKey(StatusType.Tier.DESTRUCTIVE))
+            Component name = points(t) <= 0 ? Component.translatable(t.tierKey(StatusType.Tier.DESTRUCTIVE))
                     : Component.translatable("hud.zhushenspace.status.line", Component.translatable(t.tierKey(StatusType.Tier.values()[tr])),
                     points(t), heavy[t.ordinal()], destr[t.ordinal()]);
             g.drawString(font, name, x0, y, color, true);
@@ -323,6 +382,10 @@ public final class ClientCondition {
         has = false;
         flags = 0;
         permanent = 0;
+        conditions = 0;
+        limbDisabled = 0;
+        openWounds = 0;
+        breath = -1f;
         points = new int[StatusType.COUNT];
         tiers = new int[StatusType.COUNT];
         thirst = sleep = 100;

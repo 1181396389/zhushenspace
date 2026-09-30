@@ -130,6 +130,17 @@ public class HealthManager {
             return;
         }
         PlayerHealthData data = player.getData(ModAttachments.PLAYER_HEALTH);
+        if (StatusEffects.bloodLoss(player)) {
+            // 失血过多：冲击 / 严重伤害如同恶性伤害一样难以治愈（3 点治疗量 1 处），恶性伤害无法治疗
+            int n = Math.round(event.getAmount()) / 3;
+            if (n <= 0) return;
+            n -= data.healSeverity(PlayerHealthData.Severity.B, n);
+            data.healSeverity(PlayerHealthData.Severity.L, n);
+            normalize(player);
+            sync(player);
+            checkWake(player, data);
+            return;
+        }
         data.heal(Math.round(event.getAmount()));
         LimbManager.heal(player, Math.round(event.getAmount())); // 未断部位同步回复（头优先）
         normalize(player);

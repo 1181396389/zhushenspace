@@ -70,7 +70,8 @@ public final class CheckRules {
     /** 非攻击检定 */
     public static Result check(ServerPlayer p, Kind k, Expression sub, int mod) {
         int cap = cap(p, k, sub);
-        mod += boost(p, k);
+        mod += boost(p, k) - (k == Kind.MIND ? StatusEffects.castPenalty(p, false)
+                : StatusEffects.checkPenalty(p, AttributeType.CHARM));
         float raw = (cap + mod) * DamageVariance.roll(p.getRandom());
         return new Result(Math.max(0, Math.min(cap, raw)), cap, raw);
     }
@@ -90,7 +91,8 @@ public final class CheckRules {
         int cap = cap(p, k, sub);
         mod += boost(p, k);
         float def = CombatFormula.defense(target, p.damageSources().playerAttack(p));
-        float raw = (cap + mod - def - StatusManager.attackPenalty(p, false)) * DamageVariance.roll(p.getRandom());
+        float raw = (cap + mod - def - StatusManager.attackPenalty(p, false, target))
+                * DamageVariance.roll(p.getRandom());
         return new Result(Math.max(0, Math.min(cap, raw)), cap, raw);
     }
 

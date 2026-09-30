@@ -73,6 +73,10 @@ public class ArtWheelScreen extends Screen {
                 () -> String.valueOf(com.zhushen.space.client.ClientCondition.points(com.zhushen.space.data.StatusType.BURN)),
                 () -> com.zhushen.space.client.ClientCondition.points(com.zhushen.space.data.StatusType.BURN) > 0,
                 b -> art(19, 0, 0), null));
+        // 急救（止血 / 处理开放性创口）：对准星处触及范围内的目标，否则对自己
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.first_aid"),
+                () -> String.valueOf(com.zhushen.space.client.ClientCondition.points(com.zhushen.space.data.StatusType.BLEED)),
+                () -> true, b -> art(22, 0, 0), null));
         // 留手：点击开关，滚轮 ±5%
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.holdback"),
                 () -> ClientArtData.holdback() < 0 ? tr("screen.zhushenspace.wheel.off") : ClientArtData.holdback() + "%",
