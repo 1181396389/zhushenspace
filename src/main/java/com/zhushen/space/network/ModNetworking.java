@@ -136,6 +136,9 @@ public class ModNetworking {
         registrar.playToClient(PlayerAnimPayload.TYPE, PlayerAnimPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientAnims.handle(payload.entityId(), payload.name())));
+        // 技艺几何特效（无粒子）：服务端广播一次，客户端本地逐帧推进
+        registrar.playToClient(FxEventPayload.TYPE, FxEventPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientArtFx.handle(payload)));
         registrar.playToClient(MeditatePosePayload.TYPE, MeditatePosePayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientMeditation.handle(payload.entityId(), payload.ticks())));

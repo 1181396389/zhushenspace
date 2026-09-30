@@ -106,5 +106,437 @@
         "attenuation_distance": 16
       }
     ]
+  },
+  "art_spirit_cast": {
+    "subtitle": "subtitles.zhushenspace.art_spirit_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_spirit_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_spirit_release": {
+    "subtitle": "subtitles.zhushenspace.art_spirit_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_spirit_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_spirit_hit": {
+    "subtitle": "subtitles.zhushenspace.art_spirit_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_spirit_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_spirit_impact": {
+    "subtitle": "subtitles.zhushenspace.art_spirit_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_spirit_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_mind_cast": {
+    "subtitle": "subtitles.zhushenspace.art_mind_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_mind_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_mind_release": {
+    "subtitle": "subtitles.zhushenspace.art_mind_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_mind_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_mind_hit": {
+    "subtitle": "subtitles.zhushenspace.art_mind_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_mind_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_mind_impact": {
+    "subtitle": "subtitles.zhushenspace.art_mind_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_mind_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_psychic_cast": {
+    "subtitle": "subtitles.zhushenspace.art_psychic_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_psychic_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_psychic_release": {
+    "subtitle": "subtitles.zhushenspace.art_psychic_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_psychic_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_psychic_hit": {
+    "subtitle": "subtitles.zhushenspace.art_psychic_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_psychic_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_psychic_impact": {
+    "subtitle": "subtitles.zhushenspace.art_psychic_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_psychic_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_yokai_cast": {
+    "subtitle": "subtitles.zhushenspace.art_yokai_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_yokai_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_yokai_release": {
+    "subtitle": "subtitles.zhushenspace.art_yokai_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_yokai_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_yokai_hit": {
+    "subtitle": "subtitles.zhushenspace.art_yokai_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_yokai_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_yokai_impact": {
+    "subtitle": "subtitles.zhushenspace.art_yokai_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_yokai_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_buddha_cast": {
+    "subtitle": "subtitles.zhushenspace.art_buddha_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_buddha_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_buddha_release": {
+    "subtitle": "subtitles.zhushenspace.art_buddha_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_buddha_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_buddha_hit": {
+    "subtitle": "subtitles.zhushenspace.art_buddha_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_buddha_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_buddha_impact": {
+    "subtitle": "subtitles.zhushenspace.art_buddha_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_buddha_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_magic_cast": {
+    "subtitle": "subtitles.zhushenspace.art_magic_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_magic_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_magic_release": {
+    "subtitle": "subtitles.zhushenspace.art_magic_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_magic_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_magic_hit": {
+    "subtitle": "subtitles.zhushenspace.art_magic_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_magic_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_magic_impact": {
+    "subtitle": "subtitles.zhushenspace.art_magic_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_magic_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_dao_cast": {
+    "subtitle": "subtitles.zhushenspace.art_dao_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_dao_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_dao_release": {
+    "subtitle": "subtitles.zhushenspace.art_dao_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_dao_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_dao_hit": {
+    "subtitle": "subtitles.zhushenspace.art_dao_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_dao_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_dao_impact": {
+    "subtitle": "subtitles.zhushenspace.art_dao_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_dao_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_neili_cast": {
+    "subtitle": "subtitles.zhushenspace.art_neili_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_neili_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_neili_release": {
+    "subtitle": "subtitles.zhushenspace.art_neili_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_neili_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_neili_hit": {
+    "subtitle": "subtitles.zhushenspace.art_neili_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_neili_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_neili_impact": {
+    "subtitle": "subtitles.zhushenspace.art_neili_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_neili_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_chakra_cast": {
+    "subtitle": "subtitles.zhushenspace.art_chakra_cast",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_chakra_cast",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_chakra_release": {
+    "subtitle": "subtitles.zhushenspace.art_chakra_release",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_chakra_release",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_chakra_hit": {
+    "subtitle": "subtitles.zhushenspace.art_chakra_hit",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_chakra_hit",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "art_chakra_impact": {
+    "subtitle": "subtitles.zhushenspace.art_chakra_impact",
+    "sounds": [
+      {
+        "name": "zhushenspace:art_chakra_impact",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 32
+      }
+    ]
   }
 }

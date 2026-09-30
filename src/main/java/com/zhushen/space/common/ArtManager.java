@@ -597,8 +597,14 @@ public final class ArtManager {
         float w = heldWeapon(p);
         int cap = mindValue(p) + Math.round(w);
         float v = attackRoll(p, mindValue(p) + Math.round(w), 0, defense(p, t, 0, 0, false), cap, 0);
-        beam(p, t.getEyePosition(), dust(0x9FE8FF));
-        p.level().playSound(null, t.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 1f, 1.5f);
+        ArtFx.anim(p, "art_spirit_slash");
+        ArtFx.castSfx(p, s.pool, 0.6f);
+        ArtFx.slash(p, t, ArtFx.C_SPIRIT, 1.7f);
+        ArtFx.releaseSfx(p, s.pool, 0.8f);
+        if (v > 0) {
+            ArtFx.hit(p, t, ArtFx.C_SPIRIT, 0.8f);
+            ArtFx.hitSfx(p, t, s.pool, PlayerHealthData.Severity.B);
+        }
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
         hit(p, t, v, spec(PlayerHealthData.Severity.B, 0, 0, false, DamageKind.PURE_ENERGY));
         return true;
@@ -669,8 +675,20 @@ public final class ArtManager {
         if (!pay(p, s, s.cost)) return false;
         int check = attr(p, AttributeType.STRENGTH) + skill(p, SkillType.BRAWL) + 1;
         float v = attackRoll(p, check, 0, defense(p, t, 8, 0, false), check, 0);
-        beam(p, t.getEyePosition(), dust(0x4FC3FF));
-        p.level().playSound(null, p.blockPosition(), SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 0.8f, 1.6f);
+        ArtFx.anim(p, "art_hadoken");
+        ArtFx.castSfx(p, s.pool, 0.7f);
+        ArtFx.charge(p, ArtFx.C_NEILI, 0.45f, 4);
+        Vec3 end = ArtFx.center(t);
+        int travel = Math.max(2, (int) (p.getEyePosition().distanceTo(end) / 10.0));
+        // Only presentation is scheduled. Combat resolution below remains immediate.
+        ArtFx.delay(p, 4, () -> {
+            ArtFx.releaseSfx(p, s.pool, 0.9f);
+            ArtFx.projectile(p, end, ArtFx.C_NEILI, 0.5f, travel);
+        });
+        if (v > 0) ArtFx.delay(p, 4 + travel, () -> {
+            ArtFx.impactAt(p, end, ArtFx.C_NEILI, 1.0f);
+            ArtFx.hitSfxAt(p, end, s.pool, PlayerHealthData.Severity.B);
+        });
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
         hit(p, t, v, spec(PlayerHealthData.Severity.B, 0, 0, true, DamageKind.BLUNT));
         return true;
@@ -727,7 +745,15 @@ public final class ArtManager {
         DamageKind[] ks = {DamageKind.FIRE, DamageKind.COLD, DamageKind.LIGHTNING, DamageKind.ACID, DamageKind.PURE_ENERGY};
         int[] colors = {0xFF6D00, 0x80D8FF, 0xFFFF00, 0x76FF03, 0xFFFFFF};
         int c = Math.min(4, data(p).current[s.ordinal()]);
-        beam(p, t.getEyePosition(), dust(colors[c]));
+        ArtFx.anim(p, "art_formation");
+        ArtFx.castSfx(p, s.pool, 0.7f);
+        ArtFx.formation(p, p.position().add(0, 0.04, 0), p.getViewVector(1f), ArtFx.C_DAO, 1.6f);
+        ArtFx.formation(p, t.position().add(0, 0.04, 0), p.getViewVector(1f), 0xFF000000 | colors[c], 2.2f);
+        ArtFx.releaseSfx(p, s.pool, 0.9f);
+        if (v > 0) {
+            ArtFx.hit(p, t, 0xFF000000 | colors[c], 0.8f);
+            ArtFx.hitSfx(p, t, s.pool, PlayerHealthData.Severity.L);
+        }
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
         hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, ks[c]));
         return true;
@@ -853,12 +879,11 @@ public final class ArtManager {
         float dmg = holdback(p, Math.max(0, Math.min(cap, (spellCheck(p, s.pool) + castBoost) * roll(p))));
         Vec3 eye = p.getEyePosition(), look = p.getViewVector(1f);
         ServerLevel sl = p.serverLevel();
-        for (int i = 1; i <= 20; i++) {
-            Vec3 c = eye.add(look.scale(i));
-            double r = i * 0.45;
-            sl.sendParticles(ParticleTypes.FLAME, c.x, c.y, c.z, 6 + i, r * 0.5, r * 0.5, r * 0.5, 0.02);
-        }
-        p.level().playSound(null, p.blockPosition(), SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 1.5f, 0.6f);
+        ArtFx.anim(p, "art_fireball");
+        ArtFx.castSfx(p, s.pool, 0.8f);
+        ArtFx.cone(p, eye.add(look.scale(0.5)), look, ArtFx.C_CHAKRA, 20f);
+        ArtFx.releaseSfx(p, s.pool, 1.2f);
+        ArtFx.shakeSelf(p, 0.45f, 8);
         if (dmg < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
         // 20 米锥形范围效果：需要效果线；造成范围伤害（倒地的目标反射 +3）
         for (LivingEntity t : AreaShape.cone(20).collect(sl, eye, look, p, false, null)) {
@@ -867,6 +892,8 @@ public final class ArtManager {
                 DamageRules.deal(t, p.damageSources().indirectMagic(p, p), v,
                         spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.FIRE));
                 t.igniteForSeconds(3);
+                ArtFx.hit(p, t, ArtFx.C_CHAKRA, 1.2f);
+                ArtFx.hitSfx(p, t, s.pool, PlayerHealthData.Severity.L);
             }
         }
         return true;
