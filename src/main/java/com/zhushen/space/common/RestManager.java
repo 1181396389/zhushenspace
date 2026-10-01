@@ -135,6 +135,11 @@ public final class RestManager {
             p.displayClientMessage(Component.translatable("msg.zhushenspace.rest.not_ground"), true);
             return;
         }
+        if (kind == Kind.LONG && TrialManager.inTrialWorld(p)) {
+            // 新手试炼：长休需要真实的 8 小时并占用 24 小时冷却，试炼里只演示短休
+            p.displayClientMessage(Component.translatable("msg.zhushenspace.trial.no_long_rest"), true);
+            return;
+        }
         if (kind == Kind.LONG) {
             long wait = longRestReadyIn(p);
             if (wait > 0) {
@@ -149,6 +154,7 @@ public final class RestManager {
         Rest r = new Rest();
         r.kind = kind;
         r.duration = kind == Kind.LONG ? LONG_TICKS : SHORT_TICKS;
+        if (!bed && kind == Kind.SHORT && TrialManager.inTrialWorld(p)) r.duration = TrialManager.REST_TICKS; // 试炼：短休缩短
         r.end = now(p) + r.duration;
         r.pos = p.position();
         r.bed = bed;
@@ -252,6 +258,7 @@ public final class RestManager {
         p.level().playSound(null, p.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS,
                 0.8f, kind == Kind.LONG ? 0.8f : 1.2f);
         p.serverLevel().sendParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + 1, p.getZ(), 20, 0.4, 0.6, 0.4, 0.05);
+        TrialManager.onRest(p); // 新手试炼：休息关目标
     }
 
     /** tick → 「H:MM」（现实标准小时）+ 真实分秒 */

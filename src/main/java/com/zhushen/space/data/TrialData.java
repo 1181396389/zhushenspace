@@ -19,6 +19,8 @@ import org.jetbrains.annotations.Nullable;
  */
 public class TrialData implements INBTSerializable<CompoundTag> {
     public static final int NONE = 0, ACTIVE = 1, DONE = 2, SKIPPED = 3;
+    /** 试炼内容版本：关卡编号变化时递增，旧版本进行中的试炼在登录时还原并请玩家重新进入 */
+    public static final int VERSION = 2;
 
     public int status = NONE;
     /** 进入本次试炼前的状态（中途退出时恢复为它，或记为已跳过） */
@@ -33,6 +35,10 @@ public class TrialData implements INBTSerializable<CompoundTag> {
     public int template = -1;
     public int slot = -1;
     public int deaths;
+    /** 本次试炼统计：受伤次数 / 技能使用次数 / 击败敌人数 */
+    public int hits, skills, kills;
+    /** 本次试炼开始时的内容版本 */
+    public int ver;
     public long startTick;
     /** 伤势关的伤势是否已施加 */
     public boolean woundsApplied;
@@ -43,6 +49,9 @@ public class TrialData implements INBTSerializable<CompoundTag> {
     public long bestTicks;
     public long lastTicks;
     public int lastDeaths;
+    public int lastHits, lastSkills, lastKills;
+    /** 上次完成是否刷新了最快纪录 */
+    public boolean lastBest;
     @Nullable public GlobalPos returnPos;
     public float returnYaw;
     @Nullable public CompoundTag backup;
@@ -68,6 +77,14 @@ public class TrialData implements INBTSerializable<CompoundTag> {
         t.putLong("Best", bestTicks);
         t.putLong("Last", lastTicks);
         t.putInt("LastDeaths", lastDeaths);
+        t.putInt("Hits", hits);
+        t.putInt("Skills", skills);
+        t.putInt("Kills", kills);
+        t.putInt("Ver", ver);
+        t.putInt("LastHits", lastHits);
+        t.putInt("LastSkills", lastSkills);
+        t.putInt("LastKills", lastKills);
+        t.putBoolean("LastBest", lastBest);
         if (returnPos != null) {
             t.putString("RetDim", returnPos.dimension().location().toString());
             t.putLong("RetPos", returnPos.pos().asLong());
@@ -95,6 +112,14 @@ public class TrialData implements INBTSerializable<CompoundTag> {
         bestTicks = t.getLong("Best");
         lastTicks = t.getLong("Last");
         lastDeaths = t.getInt("LastDeaths");
+        hits = t.getInt("Hits");
+        skills = t.getInt("Skills");
+        kills = t.getInt("Kills");
+        ver = t.getInt("Ver");
+        lastHits = t.getInt("LastHits");
+        lastSkills = t.getInt("LastSkills");
+        lastKills = t.getInt("LastKills");
+        lastBest = t.getBoolean("LastBest");
         returnPos = null;
         if (t.contains("RetDim")) {
             ResourceLocation rl = ResourceLocation.tryParse(t.getString("RetDim"));

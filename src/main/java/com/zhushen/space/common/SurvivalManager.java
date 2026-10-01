@@ -179,13 +179,14 @@ public final class SurvivalManager {
     public static void drink(ServerPlayer p, float amount, boolean raw) {
         PlayerConditionData d = data(p);
         d.thirst = Math.max(0, Math.min(MAX, d.thirst + amount));
-        if (raw && p.getRandom().nextFloat() < RAW_WATER_SICK) {
+        if (raw && !TrialManager.inTrialWorld(p) && p.getRandom().nextFloat() < RAW_WATER_SICK) { // 试炼里的水是干净的
             p.addEffect(new MobEffectInstance(MobEffects.HUNGER, 600, 0));
             p.addEffect(new MobEffectInstance(MobEffects.CONFUSION, 200, 0));
             d.thirst = Math.max(0, d.thirst - 10f);
             p.displayClientMessage(Component.translatable("msg.zhushenspace.survival.sick_water"), false);
         }
         StatusManager.sync(p);
+        TrialManager.onDrink(p); // 新手试炼：休息关目标
     }
 
     /** 喝完 / 吃完物品：按物品补充水分 */

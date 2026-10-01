@@ -129,15 +129,8 @@ public class GodPanelScreen extends Screen {
     private static final int PM_BTN = 11;
 
     // ===== 预设页状态 =====
-    /** 两套战斗预设栏（A/B），两栏共享已解锁技能 */
-    private final int[][] slots = new int[2][9];
-    private int dragging = -1;
-    private int dragFromSlot = -1;
-    private int dragFromBar = -1;
-    /** 太极拳文件夹是否展开 */
-    private boolean taiChiFolderOpen = false;
-    /** 技能区滚动偏移（行） */
-    private int chipScroll = 0;
+    /** 战斗预设页（两柄剑栏 + 技能库，拖拽 / 交换 / 右键卸下 / 筛选搜索 / 撤销），在 init 中创建 */
+    private PresetTab presetTab;
 
     // ===== 商城页状态 =====
     /** 当前查看详情的流派序号（-1 = 卡片列表） */
@@ -184,9 +177,6 @@ public class GodPanelScreen extends Screen {
         attrList.freeFn = skillList.freeFn = () -> buildCheck().free;
         loadFeats();
         buildRev = ClientBuildData.revision;
-        for (int b = 0; b < slots.length; b++) {
-            System.arraycopy(ClientSkillData.bar(b), 0, slots[b], 0, 9);
-        }
     }
 
     /** 当前选项卡对应的加点列表（非加点页返回 null） */
@@ -264,6 +254,7 @@ public class GodPanelScreen extends Screen {
 
     @Override
     protected void init() {
+        if (presetTab == null) presetTab = new PresetTab(font);
         com.zhushen.space.client.ClientTrial.notePanel(); // 新手试炼：「打开主神面板」目标
         if (openedAt < 0) {
             openedAt = tabChangedAt = ZsAnim.nowMs();
@@ -451,8 +442,7 @@ public class GodPanelScreen extends Screen {
             case SKILLS -> renderXytHeader(g, mouseX, mouseY);
             case ATTRIBUTES -> renderSgHeader(g, mouseX, mouseY);
             case PRESET -> {
-                List<FormattedCharSequence> lines = font.split(
-                        Component.translatable("screen.zhushenspace.preset.hint"), panelW - 16);
+                List<FormattedCharSequence> lines = font.split(PresetTab.hint(), panelW - 16);
                 int y = panelY + 22;
                 for (int i = 0; i < lines.size() && i < 2; i++) {
                     g.drawString(font, lines.get(i), panelX + 8, y, BladeBar.IRON_SUB, true);
@@ -1452,7 +1442,7 @@ public class GodPanelScreen extends Screen {
         g.disableScissor();
         // 顶部标签行 / 说明文字区压暗保证可读；技能芯片区略压暗
         g.fillGradient(x, top, x + w, panelY + HEADER_HEIGHT + 6, 0xCC120806, 0x33120806);
-        int chipTop = barY(1) + BAR_H + 6;
+        int chipTop = presetTab.libraryTop(listTop);
         g.fillGradient(x, chipTop, x + w, top + h, 0x44120806, 0xAA120806);
     }
 
@@ -1462,234 +1452,7 @@ public class GodPanelScreen extends Screen {
     }
 
     private void renderPresetTab(GuiGraphics g, int mouseX, int mouseY) {
-        // 悬停提示延后到所有格子/芯片绘制完之后统一绘制（优先级最高，避免被边框遮挡）
-        List<FormattedCharSequence> hoverTip = null;
-        // 剑冢背景已在 renderPanel 中铺满面板（位于标签行之下）
-
-        // 两套预设栏（A/B），共享已解锁技能
-        for (int bar = 0; bar < slots.length; bar++) {
-            int sy = slotsY(bar);
-            boolean activeBar = com.zhushen.space.client.ClientUiConfig.get().activeBar == bar;
-            BladeBar.draw(g, font, barX(), barY(bar), BAR_SCALE, BladeBar.Sword.ofBar(bar), bar == 0 ? "A" : "B",
-                    activeBar);
-            for (int slot = 0; slot < 9; slot++) {
-                int sx = slotX(slot);
-                int abilityId = slots[bar][slot];
-                boolean has = abilityId >= 0 && abilityId < SkillAbility.COUNT;
-                boolean hoverSlot = over(mouseX, mouseY, sx, sy, SLOT_SIZE, SLOT_SIZE);
-                // 拖拽中悬停的目标槽：火光提示可放置
-                BladeBar.socket(g, has ? SkillAbility.values()[abilityId].iconTexture() : null,
-                        sx, sy, SLOT_SIZE, 0, 0, hoverSlot);
-                if (has) {
-                    SkillAbility ability = SkillAbility.values()[abilityId];
-                    if (dragging == -1 && over(mouseX, mouseY, sx, sy, SLOT_SIZE, SLOT_SIZE)) {
-                        hoverTip = buildAbilityTooltip(ability);
-                    }
-                }
-                // 键位角标（缩小，右下角）
-                g.pose().pushPose();
-                g.pose().translate(sx + SLOT_SIZE - 5, sy + SLOT_SIZE - 6, 200);
-                g.pose().scale(0.6f, 0.6f, 1);
-                g.drawString(font, String.valueOf(slot + 1), 0, 0, BladeBar.EMBER_HOT, true);
-                g.pose().popPose();
-            }
-        }
-
-        // 已解锁技能芯片区（太极拳收纳在文件夹中，支持翻页）
-        int chipW = (panelW - 24) / 2;
-        int chipTop = barY(1) + BAR_H + 10;
-        int chipsBottom = listBottom - 14;
-        BladeBar.separator(g, panelX + 10, panelX + panelW - 10, chipTop - 5);
-        int visibleRows = Math.max(1, (chipsBottom - chipTop) / (CHIP_H + 4));
-        int totalRows = chipRowCount();
-        chipScroll = Mth.clamp(chipScroll, 0, Math.max(0, totalRows - visibleRows));
-
-        g.enableScissor(panelX + 1, chipTop, panelX + panelW - 1, chipsBottom);
-        for (ChipPos pos : layoutChips(chipTop, chipW)) {
-            if (pos.item().ability() == null) {
-                // 太极拳文件夹（独占一行）
-                renderFolderChip(g, mouseX, mouseY, pos.cx(), pos.cy(), panelW - 16);
-            } else {
-                List<FormattedCharSequence> tip =
-                        renderChip(g, mouseX, mouseY, pos.item(), pos.cx(), pos.cy(), chipW);
-                if (tip != null) hoverTip = tip;
-            }
-        }
-        g.disableScissor();
-
-        // 翻页指示（内容超出一页时显示）
-        if (totalRows > visibleRows) {
-            String page = (chipScroll / visibleRows + 1) + "/" + (int) Math.ceil(totalRows / (double) visibleRows);
-            int pgY = chipsBottom + 2;
-            BladeBar.button(g, font, mouseX, mouseY, panelX + panelW / 2 - 48, pgY, 14, 12, Component.literal("<"));
-            BladeBar.button(g, font, mouseX, mouseY, panelX + panelW / 2 + 34, pgY, 14, 12, Component.literal(">"));
-            g.drawCenteredString(font, Component.translatable("screen.zhushenspace.preset.page", page),
-                    panelX + panelW / 2, pgY + 2, BladeBar.IRON_SUB);
-        }
-
-        // 宝具名显示开关（右下角）
-        {
-            boolean on = com.zhushen.space.client.ClientUiConfig.get().showSwordNames;
-            Component lbl = Component.translatable(on ? "screen.zhushenspace.preset.names_on" : "screen.zhushenspace.preset.names_off");
-            int w = font.width(lbl) + 10, nx = panelX + panelW - 8 - w, ny = listBottom - 12;
-            BladeBar.button(g, font, mouseX, mouseY, nx, ny, w, 12, lbl);
-            if (over(mouseX, mouseY, nx, ny, w, 12)) hoverTip = List.of(
-                    Component.translatable("screen.zhushenspace.preset.names_tip").getVisualOrderText());
-        }
-
-        // 拖拽中的技能跟随鼠标
-        if (dragging >= 0) {
-            // 拖拽：图标跟随鼠标，外圈金色呼吸光
-            float p = ZsAnim.pulse(800);
-            g.pose().pushPose();
-            g.pose().translate(0, 0, 300);
-            g.fill(mouseX - 12, mouseY - 12, mouseX + 12, mouseY + 12, ZsAnim.withAlpha(BladeBar.EMBER, 0.25f + 0.3f * p));
-            g.renderOutline(mouseX - 12, mouseY - 12, 24, 24, BladeBar.EMBER_HOT);
-            g.blit(SkillAbility.values()[dragging].iconTexture(), mouseX - 10, mouseY - 10, 20, 20,
-                    0f, 0f, 32, 32, 32, 32);
-            g.pose().popPose();
-        }
-
-        // 悬停提示最后绘制：位于所有格子、芯片背景与边框之上，且不受芯片区剪裁影响
-        if (hoverTip != null) {
-            g.renderTooltip(font, hoverTip, mouseX, mouseY);
-        }
-    }
-
-    /** 芯片条目：ability = null 表示太极拳文件夹行 */
-    private record ChipItem(SkillAbility ability, boolean enabled, boolean locked) {
-    }
-
-    /** 芯片布局位置（渲染与点击共用同一布局，保证对齐） */
-    private record ChipPos(ChipItem item, int cx, int cy) {
-    }
-
-    /** 构建技能芯片列表：基础技能 + 太极拳文件夹（展开时列出已购/未购招式） */
-    private List<ChipItem> buildChipItems() {
-        List<ChipItem> items = new ArrayList<>();
-        boolean hasPool = ClientEnergyData.hasPool(ClientEnergyData.NEILI_ID);
-        for (SkillAbility ability : SkillAbility.unlocked(ClientSkillData.points(), hasPool, false)) {
-            items.add(new ChipItem(ability, true, false));
-        }
-        for (ArtSkill art : ArtSkill.values()) {
-            if (ClientArtData.owns(art)) items.add(new ChipItem(art.ability, ClientEnergyData.hasPool(art.pool.id), false));
-        }
-        if (ClientProgressData.taiChiUnlocked()) {
-            items.add(new ChipItem(null, false, false));
-            if (taiChiFolderOpen) {
-                for (SkillAbility ability : SkillAbility.values()) {
-                    if (!"tai_chi".equals(ability.gate())) continue;
-                    if (ability == SkillAbility.EIGHT_POWERS) continue; // 被动，不可拖入预设
-                    if (ability == SkillAbility.COILING_SILK) continue; // 被动，不可拖入预设
-                    boolean purchased = ClientProgressData.skillPurchased(0, ability.ordinal());
-                    items.add(new ChipItem(ability, purchased && hasPool, !purchased));
-                }
-            }
-        }
-        return items;
-    }
-
-    /** 计算芯片布局（含滚动偏移），渲染与点击共用 */
-    private List<ChipPos> layoutChips(int chipTop, int chipW) {
-        List<ChipPos> list = new ArrayList<>();
-        int row = 0, col = 0;
-        for (ChipItem item : buildChipItems()) {
-            if (item.ability() == null) {
-                if (col > 0) { row++; col = 0; } // 文件夹独占一行：前一行未满时先换行
-                list.add(new ChipPos(item, panelX + 8, chipY(row, chipTop)));
-                row++;
-                col = 0;
-            } else {
-                list.add(new ChipPos(item, panelX + 8 + col * (chipW + 8), chipY(row, chipTop)));
-                if (++col == 2) {
-                    col = 0;
-                    row++;
-                }
-            }
-        }
-        return list;
-    }
-
-    /** 芯片区总行数（文件夹独占一行，其余每行 2 个） */
-    private int chipRowCount() {
-        int rows = 0, col = 0;
-        for (ChipItem item : buildChipItems()) {
-            if (item.ability() == null) {
-                if (col > 0) rows++;
-                rows++;
-                col = 0;
-            } else if (++col == 2) {
-                col = 0;
-                rows++;
-            }
-        }
-        return rows + (col > 0 ? 1 : 0);
-    }
-
-    /** 芯片行绘制 y（含滚动偏移） */
-    private int chipY(int row, int chipTop) {
-        return chipTop + row * (CHIP_H + 4) - chipScroll * (CHIP_H + 4);
-    }
-
-    /** 太极拳文件夹芯片（展开/收起，显示已购进度） */
-    private void renderFolderChip(GuiGraphics g, int mouseX, int mouseY, int cx, int cy, int w) {
-        long total = 0, count = 0;
-        for (SkillAbility ability : SkillAbility.values()) {
-            if ("tai_chi".equals(ability.gate())
-                    && ability != SkillAbility.EIGHT_POWERS
-                    && ability != SkillAbility.COILING_SILK) {
-                total++;
-                if (ClientProgressData.skillPurchased(0, ability.ordinal())) count++;
-            }
-        }
-        String label = Component.translatable(taiChiFolderOpen
-                        ? "screen.zhushenspace.preset.folder_open" : "screen.zhushenspace.preset.folder_closed",
-                Component.translatable("school.zhushenspace.tai_chi"), count, total).getString();
-        boolean hover = over(mouseX, mouseY, cx, cy, w, CHIP_H);
-        BladeBar.plate(g, cx, cy, w, CHIP_H, hover, false);
-        ZsAnim.TAIJI.draw(g, cx + 4, cy + 3, 14, 14);
-        g.drawCenteredString(font, label, cx + w / 2, cy + (CHIP_H - 8) / 2, BladeBar.IRON_TEXT);
-    }
-
-    /** 单个技能芯片（locked = 未购买置灰）。悬停时返回提示行，由调用方最后统一绘制 */
-    private List<FormattedCharSequence> renderChip(GuiGraphics g, int mouseX, int mouseY,
-                                                   ChipItem item, int cx, int cy, int chipW) {
-        SkillAbility ability = item.ability();
-        boolean hover = over(mouseX, mouseY, cx, cy, chipW, CHIP_H);
-        BladeBar.plate(g, cx, cy, chipW, CHIP_H, hover, item.locked());
-        // 图标（12×12）+ 名称
-        g.blit(ability.iconTexture(), cx + 3, cy + 2, 16, 16, 0f, 0f, 32, 32, 32, 32);
-        if (item.locked()) {
-            g.fill(cx + 3, cy + 2, cx + 19, cy + 18, 0x8C0E1820); // 置灰遮罩
-        }
-        int textColor = item.locked() ? 0xFF6A5448 : BladeBar.IRON_TEXT;
-        String label = Component.translatable(ability.nameKey()).getString();
-        if (item.locked()) {
-            label += " ✕";
-        } else if (!item.enabled()) {
-            textColor = 0xFFC9A85C;
-        }
-        g.drawString(font, label, cx + 23, cy + (CHIP_H - 8) / 2, textColor, true);
-
-        if (hover && dragging == -1) {
-            List<FormattedCharSequence> lines = new ArrayList<>(buildAbilityTooltip(ability));
-            if (item.locked()) {
-                lines.addAll(font.split(Component.translatable("screen.zhushenspace.preset.locked"),
-                        TOOLTIP_WIDTH));
-            } else if (!item.enabled()) {
-                lines.addAll(font.split(Component.translatable("screen.zhushenspace.preset.unequipped"),
-                        TOOLTIP_WIDTH));
-            }
-            return lines;
-        }
-        return null;
-    }
-
-    private List<FormattedCharSequence> buildAbilityTooltip(SkillAbility ability) {
-        List<FormattedCharSequence> lines = new ArrayList<>();
-        lines.add(Component.translatable(ability.nameKey()).getVisualOrderText());
-        lines.addAll(font.split(Component.translatable(ability.descKey()), TOOLTIP_WIDTH));
-        return lines;
+        presetTab.render(g, mouseX, mouseY, panelX, panelW, listTop, listBottom);
     }
 
     // ===== 商城页 =====
@@ -2363,6 +2126,7 @@ public class GodPanelScreen extends Screen {
                 }
             }
         }
+        if (button != 0 && tab == Tab.PRESET && presetTab.mouseClicked(mouseX, mouseY, button)) return true;
         if (button == 0) {
             // 底部货币栏：点击打开货币界面（拖拽拼合/拆解）
             if (over(mouseX, mouseY, panelX + 4, panelY + panelH - 16, panelW - 8, 14)) {
@@ -2389,14 +2153,11 @@ public class GodPanelScreen extends Screen {
             for (int i = 0; i < 5; i++) {
                 if (over(mouseX, mouseY, tabX[i], panelY + 5, tabW[i], TAB_H)) {
                     switchTab(Tab.values()[i]);
-                    dragging = -1;
-                    dragFromSlot = -1;
-                    dragFromBar = -1;
+                    presetTab.reset();
                     detailSchool = -1;
                     detailArt = -1;
                     artPage = 0;
                     detailScroll = 0;
-                    chipScroll = 0;
                     return true;
                 }
             }
@@ -2409,7 +2170,7 @@ public class GodPanelScreen extends Screen {
                     if (handlePointClick(mouseX, mouseY, skillList)) return true;
                 }
                 case PRESET -> {
-                    if (handlePresetClick(mouseX, mouseY)) return true;
+                    if (presetTab.mouseClicked(mouseX, mouseY, 0)) return true;
                 }
                 case SHOP -> {
                     if (handleShopClick(mouseX, mouseY)) return true;
@@ -2420,87 +2181,10 @@ public class GodPanelScreen extends Screen {
         return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    /** 预设页按下：从已解锁列表拾取技能（未购/未生效的太极招式不可拖），或从格子中取出 */
-    private boolean handlePresetClick(double mouseX, double mouseY) {
-        {
-            var cfg = com.zhushen.space.client.ClientUiConfig.get();
-            Component lbl = Component.translatable(cfg.showSwordNames ? "screen.zhushenspace.preset.names_on" : "screen.zhushenspace.preset.names_off");
-            int w = font.width(lbl) + 10;
-            if (over(mouseX, mouseY, panelX + panelW - 8 - w, listBottom - 12, w, 12)) {
-                cfg.showSwordNames = !cfg.showSwordNames;
-                com.zhushen.space.client.ClientUiConfig.save();
-                playClick(cfg.showSwordNames ? 1.2f : 0.9f);
-                return true;
-            }
-        }
-        for (int bar = 0; bar < slots.length; bar++) {
-            for (int slot = 0; slot < 9; slot++) {
-                if (over(mouseX, mouseY, slotX(slot), slotsY(bar), SLOT_SIZE, SLOT_SIZE)) {
-                    if (slots[bar][slot] >= 0) {
-                        dragFromBar = bar;
-                        dragFromSlot = slot;
-                        dragging = slots[bar][slot];
-                        slots[bar][slot] = -1;
-                        playClick(1.1f);
-                        return true;
-                    }
-                }
-            }
-        }
-        int chipW = (panelW - 24) / 2;
-        int chipTop = barY(1) + BAR_H + 10;
-        int chipsBottom = listBottom - 14;
-        for (ChipPos pos : layoutChips(chipTop, chipW)) {
-            boolean folder = pos.item().ability() == null;
-            int w = folder ? panelW - 16 : chipW;
-            if (!over(mouseX, mouseY, pos.cx(), pos.cy(), w, CHIP_H)) continue;
-            // 滚动出可视区的芯片不响应点击
-            if (pos.cy() < chipTop || pos.cy() + CHIP_H > chipsBottom) continue;
-            if (folder) {
-                // 太极拳文件夹：展开 / 收起
-                taiChiFolderOpen = !taiChiFolderOpen;
-                chipScroll = 0;
-                playClick(1.1f);
-                return true;
-            }
-            if (pos.item().locked() || !pos.item().enabled()) continue; // 未购买或未装备饰品
-            dragging = pos.item().ability().ordinal();
-            dragFromSlot = -1;
-            dragFromBar = -1;
-            playClick(1.1f);
-            return true;
-        }
-        return false;
-    }
-
     @Override
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         domainGame.release(mouseX, mouseY, button);
-        if (button == 0 && dragging >= 0) {
-            boolean placed = false;
-            for (int bar = 0; bar < slots.length && !placed; bar++) {
-                for (int slot = 0; slot < 9; slot++) {
-                    if (over(mouseX, mouseY, slotX(slot), slotsY(bar), SLOT_SIZE, SLOT_SIZE)) {
-                        slots[bar][slot] = dragging;
-                        placed = true;
-                        playClick(1.0f);
-                        break;
-                    }
-                }
-            }
-            if (!placed && dragFromSlot >= 0 && dragFromBar >= 0) {
-                // 放回原格子
-                slots[dragFromBar][dragFromSlot] = dragging;
-            }
-            dragging = -1;
-            dragFromSlot = -1;
-            dragFromBar = -1;
-            // 两栏都会随本次释放同步（服务端逐栏校验，未改动的一栏原样回传）
-            for (int b = 0; b < slots.length; b++) {
-                PacketDistributor.sendToServer(new EquipSkillsPayload(b, slots[b]));
-            }
-            return true;
-        }
+        if (tab == Tab.PRESET && presetTab.mouseReleased(mouseX, mouseY, button)) return true;
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
@@ -2515,11 +2199,7 @@ public class GodPanelScreen extends Screen {
             clampScroll();
             return true;
         }
-        if (tab == Tab.PRESET) {
-            // 芯片区翻页（滚轮逐行滚动，渲染时按可视行数 clamp）
-            chipScroll = Math.max(0, chipScroll + dir);
-            return true;
-        }
+        if (tab == Tab.PRESET && presetTab.mouseScrolled(mouseX, mouseY, scrollY)) return true;
         if (tab == Tab.SHOP && (detailSchool >= 0 || detailArt >= 0)) {
             // 详情页像素级滚动（固定行高，向下滚动查看后续内容，上限在渲染时 clamp）
             detailScroll = Math.max(0, detailScroll + dir * 16);
@@ -2548,6 +2228,7 @@ public class GodPanelScreen extends Screen {
 
     @Override
     public boolean charTyped(char c, int modifiers) {
+        if (tab == Tab.PRESET && presetTab.charTyped(c)) return true;
         if (tab == Tab.FEATS && featSearchFocus) {
             if (c >= ' ' && featSearch.length() < 32) {
                 featSearch += c;
@@ -2575,6 +2256,7 @@ public class GodPanelScreen extends Screen {
             }
             return true; // 输入中屏蔽其他快捷键（含 E）
         }
+        if (tab == Tab.PRESET && !discardConfirm && keyCode != GLFW.GLFW_KEY_ESCAPE && presetTab.keyPressed(keyCode)) return true;
         if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_E) {
             back();
             return true;
@@ -2627,7 +2309,7 @@ public class GodPanelScreen extends Screen {
         if (tab == Tab.SHOP && detailArt >= 0) { detailArt = -1; detailScroll = 0; playClick(0.8f); return; }
         if (tab == Tab.SHOP && artPage > 0) { artPage--; playClick(0.8f); return; }
         if (tab == Tab.SHOP && detailSchool >= 0) { detailSchool = -1; playClick(0.8f); return; }
-        if (dragging >= 0) { dragging = -1; return; }
+        if (tab == Tab.PRESET && presetTab.back()) return;
         if (buildDirty()) { discardConfirm = true; playClick(0.6f); return; }
         forceClose();
     }

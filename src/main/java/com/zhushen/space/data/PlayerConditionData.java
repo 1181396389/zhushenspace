@@ -62,6 +62,8 @@ public class PlayerConditionData implements INBTSerializable<CompoundTag> {
 
     // ===== 倒地 / 闭气 =====
     public boolean prone;
+    /** 自愿卧倒（动作轮盘）：不存档；此时蛛行术不会让人保持站立 */
+    public boolean proneVoluntary;
     /** 已经闭气的时间（tick）与呼吸停止后经过的时间（tick） */
     public int breathTicks, apneaTicks;
 

@@ -1,6 +1,7 @@
 package com.zhushen.space.common;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -10,7 +11,15 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.monster.Husk;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.LadderBlock;
+import net.minecraft.world.level.block.VineBlock;
+import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -21,16 +30,26 @@ import java.util.UUID;
 
 /**
  * 新手试炼场景（代码生成，主神白色风格 + 发光边线，与大厅一致）。
- * 每名玩家一个实例：沿 +Z 排列 6 个房间，房间之间以浅蓝玻璃门分隔，完成当前房间目标后门打开。
+ * 每名玩家一个实例：沿 +Z 排列 10 个房间，房间之间以浅蓝玻璃门分隔，完成当前房间目标后门打开。
  * <pre>
  *   房间 i 内部：x ∈ [-6, 6]，y ∈ [65, 70]，z ∈ [16i, 16i + 14]；z = 16i + 15 为隔墙（门洞 x ∈ [-1, 1]，y ∈ [65, 67]）
+ *   0 苏醒 · 1 试用角色 · 2 移动与地形 · 3 战斗模式 · 4 防御 · 5 伤势与状态 · 6 能量池与技艺 · 7 综合战 · 8 休息与恢复 · 9 结算
  * </pre>
  */
 public final class TrialArena {
     private TrialArena() {}
 
-    public static final int ROOMS = 6, LEN = 16, HALF = 6, FLOOR = 64, TOP = 71;
-    public static final String TAG = "zs_trial", DUMMY_TAG = "zs_trial_dummy";
+    public static final int ROOMS = 10, LEN = 16, HALF = 6, FLOOR = 64, TOP = 71;
+    public static final String TAG = "zs_trial", DUMMY_TAG = "zs_trial_dummy", PUPPET_TAG = "zs_trial_puppet",
+            MOB_TAG = "zs_trial_mob", BOSS_TAG = "zs_trial_boss";
+
+    /** 房间序号（与 TrialManager 的关卡常量一致） */
+    public static final int R_AWAKE = 0, R_PICK = 1, R_TERRAIN = 2, R_COMBAT = 3, R_DEFENSE = 4, R_WOUNDS = 5,
+            R_ARTS = 6, R_BATTLE = 7, R_REST = 8, R_FINISH = 9;
+
+    /** 地形关：蛛网 + 灵魂沙带（z 偏移）、高墙（z 偏移，厚 2 格，高 4 格）、深沟（z 偏移，宽 2 格）、终点平台 */
+    public static final int T_SAND0 = 2, T_SAND1 = 4, T_WEB = 3, T_WALL0 = 7, T_WALL1 = 8, T_WALL_H = 4,
+            T_PIT0 = 10, T_PIT1 = 11, T_PLAT0 = 13;
 
     public static int baseX(int slot) { return 4096 + slot * 128; }
 
@@ -40,6 +59,12 @@ public final class TrialArena {
     public static AABB box(int slot) {
         int bx = baseX(slot);
         return new AABB(bx - HALF - 2, FLOOR - 8, -3, bx + HALF + 3, TOP + 4, ROOMS * LEN + 2);
+    }
+
+    /** 房间包围盒（只含房间内部） */
+    public static AABB roomBox(int slot, int room) {
+        int bx = baseX(slot), z = roomZ(room);
+        return new AABB(bx - HALF, FLOOR - 4, z, bx + HALF + 1, TOP, z + LEN - 1);
     }
 
     /** 检查点：房间入口处，面朝南（+Z） */
@@ -98,14 +123,14 @@ public final class TrialArena {
     private static void decorate(ServerLevel l, int slot) {
         int bx = baseX(slot);
         // 0 苏醒：四根石英灯柱
-        int z0 = roomZ(0);
+        int z0 = roomZ(R_AWAKE);
         for (int[] c : new int[][]{{-4, z0 + 3}, {4, z0 + 3}, {-4, z0 + 11}, {4, z0 + 11}}) {
             set(l, bx + c[0], FLOOR + 1, c[1], Blocks.QUARTZ_PILLAR);
             set(l, bx + c[0], FLOOR + 2, c[1], Blocks.QUARTZ_PILLAR);
             set(l, bx + c[0], FLOOR + 3, c[1], Blocks.SEA_LANTERN);
         }
         // 1 试用角色：中央光台 + 四座彩色角色台
-        int z1 = roomZ(1);
+        int z1 = roomZ(R_PICK);
         for (int x = -1; x <= 1; x++) for (int z = 5; z <= 7; z++) set(l, bx + x, FLOOR, z1 + z, Blocks.SEA_LANTERN);
         Block[] ped = {Blocks.RED_CONCRETE, Blocks.LIME_CONCRETE, Blocks.PURPLE_CONCRETE, Blocks.LIGHT_BLUE_CONCRETE};
         for (int k = 0; k < 4; k++) {
@@ -113,34 +138,105 @@ public final class TrialArena {
             set(l, bx + x, FLOOR + 1, z1 + 11, Blocks.QUARTZ_BLOCK);
             set(l, bx + x, FLOOR + 2, z1 + 11, ped[k]);
         }
-        // 2 战斗 / 4 技艺：假人站位标记
-        for (int r : new int[]{2, 4}) {
+        terrain(l, slot);
+        // 3 战斗 / 6 技艺：假人站位标记
+        for (int r : new int[]{R_COMBAT, R_ARTS}) {
             int z = roomZ(r) + 10;
             for (int x = -1; x <= 1; x++) for (int dz = -1; dz <= 1; dz++)
                 set(l, bx + x, FLOOR, z + dz, x == 0 && dz == 0 ? Blocks.TARGET : Blocks.RED_CONCRETE);
         }
-        // 3 伤势：四角红色警示灯
-        int z3 = roomZ(3);
-        for (int[] c : new int[][]{{-HALF, z3 + 1}, {HALF, z3 + 1}, {-HALF, z3 + 13}, {HALF, z3 + 13}})
-            set(l, bx + c[0], FLOOR, c[1], Blocks.SHROOMLIGHT);
-        // 5 结算：传送台
-        int z5 = roomZ(5) + 10;
+        // 4 防御：傀儡站位（橡木圆台）+ 两侧盾形标记
+        int z4 = roomZ(R_DEFENSE) + 9;
         for (int x = -1; x <= 1; x++) for (int dz = -1; dz <= 1; dz++)
-            set(l, bx + x, FLOOR, z5 + dz, x == 0 && dz == 0 ? Blocks.SEA_LANTERN : Blocks.LIGHT_BLUE_CONCRETE);
-        for (int[] c : new int[][]{{-2, -2}, {2, -2}, {-2, 2}, {2, 2}}) {
-            set(l, bx + c[0], FLOOR + 1, z5 + c[1], Blocks.QUARTZ_PILLAR);
-            set(l, bx + c[0], FLOOR + 2, z5 + c[1], Blocks.END_ROD);
+            set(l, bx + x, FLOOR, z4 + dz, x == 0 && dz == 0 ? Blocks.STRIPPED_OAK_LOG : Blocks.OAK_PLANKS);
+        for (int side : new int[]{-5, 5}) {
+            set(l, bx + side, FLOOR + 1, z4, Blocks.IRON_BLOCK);
+            set(l, bx + side, FLOOR + 2, z4, Blocks.LIGHT_BLUE_STAINED_GLASS);
         }
+        // 5 伤势：四角红色警示灯
+        int z5 = roomZ(R_WOUNDS);
+        for (int[] c : new int[][]{{-HALF, z5 + 1}, {HALF, z5 + 1}, {-HALF, z5 + 13}, {HALF, z5 + 13}})
+            set(l, bx + c[0], FLOOR, c[1], Blocks.SHROOMLIGHT);
+        // 7 综合战：四根掩体石柱 + 场地边缘红线
+        int z7 = roomZ(R_BATTLE);
+        for (int[] c : new int[][]{{-3, 6}, {3, 6}, {-3, 10}, {3, 10}}) {
+            for (int y = 1; y <= 3; y++) set(l, bx + c[0], FLOOR + y, z7 + c[1], y == 3 ? Blocks.CHISELED_QUARTZ_BLOCK : Blocks.QUARTZ_PILLAR);
+        }
+        for (int x = -HALF + 1; x <= HALF - 1; x++) set(l, bx + x, FLOOR, z7 + 3, Blocks.RED_CONCRETE);
+        // 8 休息：床（摆设）、营火、水池、地毯
+        int z8 = roomZ(R_REST);
+        set(l, bx - 5, FLOOR + 1, z8 + 11, Blocks.WHITE_BED.defaultBlockState()
+                .setValue(BedBlock.FACING, Direction.SOUTH).setValue(BedBlock.PART, BedPart.FOOT));
+        set(l, bx - 5, FLOOR + 1, z8 + 12, Blocks.WHITE_BED.defaultBlockState()
+                .setValue(BedBlock.FACING, Direction.SOUTH).setValue(BedBlock.PART, BedPart.HEAD));
+        set(l, bx + 5, FLOOR + 1, z8 + 12, Blocks.CAMPFIRE);
+        for (int x = 4; x <= 5; x++) for (int dz = 4; dz <= 5; dz++) {
+            set(l, bx + x, FLOOR - 1, z8 + dz, Blocks.WHITE_CONCRETE);
+            set(l, bx + x, FLOOR, z8 + dz, Blocks.WATER);
+        }
+        for (int x = -2; x <= 2; x++) for (int dz = 7; dz <= 9; dz++)
+            set(l, bx + x, FLOOR + 1, z8 + dz, (x + dz) % 2 == 0 ? Blocks.LIGHT_BLUE_CARPET : Blocks.WHITE_CARPET);
+        // 9 结算：传送台
+        int z9 = roomZ(R_FINISH) + 10;
+        for (int x = -1; x <= 1; x++) for (int dz = -1; dz <= 1; dz++)
+            set(l, bx + x, FLOOR, z9 + dz, x == 0 && dz == 0 ? Blocks.SEA_LANTERN : Blocks.LIGHT_BLUE_CONCRETE);
+        for (int[] c : new int[][]{{-2, -2}, {2, -2}, {-2, 2}, {2, 2}}) {
+            set(l, bx + c[0], FLOOR + 1, z9 + c[1], Blocks.QUARTZ_PILLAR);
+            set(l, bx + c[0], FLOOR + 2, z9 + c[1], Blocks.END_ROD);
+        }
+    }
+
+    /**
+     * 2 移动与地形：灵魂沙 + 一排蜘蛛网（困难地形）→ 挂着藤蔓的高墙（攀爬）→ 两格宽深沟（跳跃，
+     * 掉下去可以顺梯子爬回来）→ 抬高的终点平台。整条路线横贯房间，无法绕开。
+     */
+    private static void terrain(ServerLevel l, int slot) {
+        int bx = baseX(slot), z = roomZ(R_TERRAIN);
+        for (int x = -HALF; x <= HALF; x++) {
+            for (int dz = T_SAND0; dz <= T_SAND1; dz++) set(l, bx + x, FLOOR, z + dz, Blocks.SOUL_SAND);
+            set(l, bx + x, FLOOR + 1, z + T_WEB, Blocks.COBWEB);
+            for (int dz = T_WALL0; dz <= T_WALL1; dz++)
+                for (int y = 1; y <= T_WALL_H; y++)
+                    set(l, bx + x, FLOOR + y, z + dz, y == T_WALL_H ? Blocks.SMOOTH_QUARTZ : Blocks.WHITE_CONCRETE);
+            // 深沟：地面挖空，下方 3 格深，四周与底部封闭
+            set(l, bx + x, FLOOR - 3, z + T_PIT0 - 1, Blocks.WHITE_CONCRETE);
+            set(l, bx + x, FLOOR - 3, z + T_PIT1 + 1, Blocks.WHITE_CONCRETE);
+            for (int dz = T_PIT0; dz <= T_PIT1; dz++) {
+                set(l, bx + x, FLOOR - 3, z + dz, Blocks.LIGHT_BLUE_CONCRETE);
+                set(l, bx + x, FLOOR - 2, z + dz, Blocks.AIR);
+                set(l, bx + x, FLOOR - 1, z + dz, Blocks.AIR);
+                set(l, bx + x, FLOOR, z + dz, Blocks.AIR);
+            }
+            for (int y = FLOOR - 2; y <= FLOOR - 1; y++) {
+                set(l, bx + x, y, z + T_PIT0 - 1, Blocks.WHITE_CONCRETE);
+                set(l, bx + x, y, z + T_PIT1 + 1, Blocks.WHITE_CONCRETE);
+            }
+            // 终点平台（高 1 格，中央发光）
+            for (int dz = T_PLAT0; dz <= LEN - 2; dz++)
+                set(l, bx + x, FLOOR + 1, z + dz, x == 0 ? Blocks.SEA_LANTERN : Blocks.SMOOTH_QUARTZ);
+        }
+        for (int side : new int[]{-HALF - 1, HALF + 1})
+            for (int dz = T_PIT0; dz <= T_PIT1; dz++)
+                for (int y = FLOOR - 3; y <= FLOOR - 1; y++) set(l, bx + side, y, z + dz, Blocks.WHITE_CONCRETE);
+        // 藤蔓：贴在高墙北面（中间 3 列），一直到墙顶
+        for (int x = -1; x <= 1; x++)
+            for (int y = 1; y <= T_WALL_H; y++)
+                set(l, bx + x, FLOOR + y, z + T_WALL0 - 1, Blocks.VINE.defaultBlockState().setValue(VineBlock.SOUTH, true));
+        // 沟底梯子：贴在沟的北壁，爬回起跳一侧
+        for (int y = FLOOR - 2; y <= FLOOR; y++)
+            set(l, bx, y, z + T_PIT0, Blocks.LADDER.defaultBlockState().setValue(LadderBlock.FACING, Direction.SOUTH));
+        // 沟边警示线
+        for (int x = -HALF; x <= HALF; x++) set(l, bx + x, FLOOR, z + T_PIT0 - 1, Blocks.YELLOW_CONCRETE);
     }
 
     /** 是否站在结算传送台上 */
     public static boolean onExitPad(int slot, double x, double z) {
-        int z5 = roomZ(5) + 10;
-        return Math.abs(x - (baseX(slot) + 0.5)) <= 1.6 && Math.abs(z - (z5 + 0.5)) <= 1.6;
+        int z9 = roomZ(R_FINISH) + 10;
+        return Math.abs(x - (baseX(slot) + 0.5)) <= 1.6 && Math.abs(z - (z9 + 0.5)) <= 1.6;
     }
 
     public static boolean onPickPad(int slot, double x, double z) {
-        int z1 = roomZ(1);
+        int z1 = roomZ(R_PICK);
         return Math.abs(x - (baseX(slot) + 0.5)) <= 1.6 && z >= z1 + 5 && z < z1 + 8;
     }
 
@@ -169,9 +265,12 @@ public final class TrialArena {
     private static void labels(ServerLevel l, int slot, int gen) {
         int bx = baseX(slot);
         for (int i = 0; i < ROOMS; i++) {
-            text(l, gen, bx + 0.5, FLOOR + 4.2, roomZ(i) + 7.5,
+            // 地形关的标语挂在入口上方，避免被高墙挡住
+            double lz = i == R_TERRAIN ? roomZ(i) + 1.5 : roomZ(i) + 7.5;
+            double ly = i == R_TERRAIN ? FLOOR + 5.2 : FLOOR + 4.2;
+            text(l, gen, bx + 0.5, ly, lz,
                     Component.translatable("trial.zhushenspace.room." + i).withStyle(s -> s.withColor(0x2A9FD6).withBold(true)));
-            text(l, gen, bx + 0.5, FLOOR + 3.6, roomZ(i) + 7.5,
+            text(l, gen, bx + 0.5, ly - 0.6, lz,
                     Component.translatable("trial.zhushenspace.room." + i + ".sub").withStyle(s -> s.withColor(0x445566)));
         }
     }
@@ -200,6 +299,11 @@ public final class TrialArena {
         }
     }
 
+    /** 不会受伤死亡的教学实体（训练假人 / 木桩傀儡） */
+    public static boolean invulnerable(Entity e) {
+        return e.getTags().contains(DUMMY_TAG) || e.getTags().contains(PUPPET_TAG);
+    }
+
     /** 生成训练假人（无 AI、不会还手、受伤即回满） */
     public static UUID spawnDummy(ServerLevel l, int slot, int room, int gen) {
         Husk h = EntityType.HUSK.create(l);
@@ -217,8 +321,85 @@ public final class TrialArena {
         h.moveTo(baseX(slot) + 0.5, FLOOR + 1, roomZ(room) + 10.5, 180, 0);
         h.setYHeadRot(180);
         h.addTag(DUMMY_TAG);
+        h.addTag(TAG);
         h.addTag(TAG + "_" + gen);
         l.addFreshEntity(h);
         return h.getUUID();
+    }
+
+    /** 防御关的木桩傀儡：不会移动、不会死亡，由 TrialManager 控制出手节奏（伤害很低、不致死） */
+    public static UUID spawnPuppet(ServerLevel l, int slot, int gen) {
+        Zombie z = EntityType.ZOMBIE.create(l);
+        if (z == null) return null;
+        z.setNoAi(true);
+        z.setPersistenceRequired();
+        z.setCanPickUpLoot(false);
+        z.setCustomName(Component.translatable("entity.zhushenspace.trial_puppet"));
+        z.setCustomNameVisible(true);
+        z.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.OAK_LOG));
+        z.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.WOODEN_SWORD));
+        for (EquipmentSlot s : EquipmentSlot.values()) z.setDropChance(s, 0f);
+        var hp = z.getAttribute(Attributes.MAX_HEALTH);
+        if (hp != null) hp.setBaseValue(200);
+        var kb = z.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+        if (kb != null) kb.setBaseValue(1);
+        z.setHealth(z.getMaxHealth());
+        z.moveTo(baseX(slot) + 0.5, FLOOR + 1, roomZ(R_DEFENSE) + 9.5, 180, 0);
+        z.setYHeadRot(180);
+        z.addTag(PUPPET_TAG);
+        z.addTag(TAG);
+        z.addTag(TAG + "_" + gen);
+        l.addFreshEntity(z);
+        return z.getUUID();
+    }
+
+    /** 综合战的普通敌人：没有随机装备的成年僵尸，生命略低 */
+    public static UUID spawnMinion(ServerLevel l, int slot, int gen, int idx) {
+        Zombie z = EntityType.ZOMBIE.create(l);
+        if (z == null) return null;
+        z.setPersistenceRequired();
+        z.setCanPickUpLoot(false);
+        z.setBaby(false);
+        var hp = z.getAttribute(Attributes.MAX_HEALTH);
+        if (hp != null) hp.setBaseValue(14);
+        z.setHealth(z.getMaxHealth());
+        int[][] pos = {{-3, 12}, {0, 13}, {3, 12}};
+        int[] p = pos[Math.floorMod(idx, pos.length)];
+        z.moveTo(baseX(slot) + p[0] + 0.5, FLOOR + 1, roomZ(R_BATTLE) + p[1] + 0.5, 180, 0);
+        z.setYHeadRot(180);
+        z.addTag(MOB_TAG);
+        z.addTag(TAG);
+        z.addTag(TAG + "_" + gen);
+        l.addFreshEntity(z);
+        l.sendParticles(ParticleTypes.POOF, z.getX(), z.getY() + 1, z.getZ(), 12, 0.3, 0.6, 0.3, 0.02);
+        return z.getUUID();
+    }
+
+    /** 综合战的小头目：T 病毒丧尸（数值下调到新手可以应付的程度） */
+    public static UUID spawnBoss(ServerLevel l, int slot, int gen) {
+        var type = com.zhushen.space.entity.ModEntities.T_VIRUS_ZOMBIE.get();
+        var z = type.create(l);
+        if (z == null) return null;
+        z.setPersistenceRequired();
+        z.setCanPickUpLoot(false);
+        z.setCustomName(Component.translatable("entity.zhushenspace.trial_boss"));
+        z.setCustomNameVisible(true);
+        var hp = z.getAttribute(Attributes.MAX_HEALTH);
+        if (hp != null) hp.setBaseValue(32);
+        var dmg = z.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmg != null) dmg.setBaseValue(4);
+        var spd = z.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (spd != null) spd.setBaseValue(0.22);
+        z.setHealth(z.getMaxHealth());
+        z.moveTo(baseX(slot) + 0.5, FLOOR + 1, roomZ(R_BATTLE) + 12.5, 180, 0);
+        z.setYHeadRot(180);
+        z.addTag(BOSS_TAG);
+        z.addTag(MOB_TAG);
+        z.addTag(TAG);
+        z.addTag(TAG + "_" + gen);
+        l.addFreshEntity(z);
+        l.sendParticles(ParticleTypes.LARGE_SMOKE, z.getX(), z.getY() + 1, z.getZ(), 30, 0.5, 0.8, 0.5, 0.03);
+        l.playSound(null, z.blockPosition(), SoundEvents.ZOMBIE_VILLAGER_CURE, SoundSource.HOSTILE, 1f, 0.6f);
+        return z.getUUID();
     }
 }

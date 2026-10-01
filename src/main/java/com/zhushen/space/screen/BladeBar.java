@@ -55,8 +55,14 @@ public final class BladeBar {
         public int letterColor() { return letter; }
         /** 光效内焰：誓约胜利之剑为蓝白，乖离剑为赤白 */
         public int core() { return this == EXCALIBUR ? 0xFFCFE6FF : 0xFFFFB49A; }
-        public String trueName() { return this == EXCALIBUR ? "誓约胜利之剑" : "乖离剑"; }
-        public String romanName() { return this == EXCALIBUR ? "EXCALIBUR" : "EA"; }
+        /** 宝具真名（按语言显示） */
+        public net.minecraft.network.chat.Component trueName() {
+            return net.minecraft.network.chat.Component.translatable("blade.zhushenspace." + (this == EXCALIBUR ? "excalibur" : "ea"));
+        }
+        /** 真名下方拉开字距的罗马字 */
+        public String romanName() {
+            return net.minecraft.network.chat.Component.translatable("blade.zhushenspace." + (this == EXCALIBUR ? "excalibur" : "ea") + ".roman").getString();
+        }
 
         /** 栏位 → 剑：A（0）誓约胜利之剑，B（1）乖离剑 */
         public static Sword ofBar(int bar) {

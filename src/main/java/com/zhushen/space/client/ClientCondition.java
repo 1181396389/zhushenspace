@@ -71,6 +71,9 @@ public final class ClientCondition {
         staminaMax = Math.max(1, p.staminaMax());
         sleep = p.sleep();
         flags = p.flags();
+        // 倒地状态一到就立即趴下（不等下一次姿态计算），避免先站一下再趴
+        var lp = Minecraft.getInstance().player;
+        if (lp != null && proneActive(lp) && !lp.isPassenger() && !lp.isSleeping()) lp.setPose(Pose.SWIMMING);
         if (p.points().length == StatusType.COUNT) points = p.points();
         if (p.tiers().length == StatusType.COUNT) tiers = p.tiers();
         if (p.heavy().length == StatusType.COUNT) heavy = p.heavy();
@@ -102,12 +105,20 @@ public final class ClientCondition {
     public static boolean has(Condition c) { return (conditions & c.bit()) != 0; }
     public static boolean limbDisabled(LimbPart part) { return (limbDisabled & part.bit()) != 0; }
 
+    /**
+     * 本地玩家处于需要趴伏的倒地状态。创造模式也生效：服务端对创造模式同样强制趴伏，
+     * 以前客户端排除了创造模式，两边姿态不一致——提示「你卧倒了」但人还站着（或一闪就弹起来）。
+     */
+    public static boolean proneActive(net.minecraft.world.entity.player.Player p) {
+        return has && p != null && !p.isSpectator() && !p.getAbilities().flying && prone() && !freeMover();
+    }
+
     /** 强制趴伏（PlayerPoseMixin）：本地玩家看同步来的倒地 / 断腿；其他玩家保持服务端同步的趴伏姿态 */
     public static boolean keepCrawl(net.minecraft.world.entity.player.Player p) {
         Minecraft mc = Minecraft.getInstance();
         if (p == mc.player) {
             if (p.getAbilities().flying) return false;
-            if (has && !p.isCreative() && prone() && !freeMover()) return true;
+            if (proneActive(p)) return true;
             return ClientLimbData.severed(p.getId(), LimbPart.RIGHT_LEG) && ClientLimbData.severed(p.getId(), LimbPart.LEFT_LEG);
         }
         return p.getPose() == Pose.SWIMMING && !p.isInWater() && !p.isSwimming();
@@ -157,36 +168,38 @@ public final class ClientCondition {
 
     @SubscribeEvent
     public static void onMovementInput(MovementInputUpdateEvent event) {
-        if (!(event.getEntity() instanceof LocalPlayer p) || !active(p)) return;
+        if (!(event.getEntity() instanceof LocalPlayer p)) return;
         var in = event.getInput();
+        // 倒地：不能跳（按跳跃键 = 爬起来）
+        if (proneActive(p)) in.jumping = false;
+        if (!active(p)) return;
         // 体力透支 / 力竭 / 反胃 / 失衡：无法冲刺（前进力度压到冲刺门槛以下，走路也会慢一些）
         if ((exhausted() || noSprint()) && in.forwardImpulse > 0.79f) in.forwardImpulse = 0.79f;
         // 无法移动（定身 / 冰封 / 浮空 / 禁锢……）：不能跳
         if (immobile()) in.jumping = false;
-        // 倒地：不能跳（按跳跃键 = 爬起来）
-        if (prone() && !freeMover()) in.jumping = false;
     }
 
     @SubscribeEvent
     public static void onTickPre(ClientTickEvent.Pre event) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
-        if (!active(p)) return;
-        if ((exhausted() || noSprint()) && p.isSprinting()) p.setSprinting(false);
+        if (p == null) return;
         boolean jump = mc.options.keyJump.isDown();
-        if (prone() && !freeMover() && jump && !lastJump && !standing() && mc.screen == null
+        if (proneActive(p) && jump && !lastJump && !standing() && mc.screen == null
                 && System.currentTimeMillis() - lastStandReq > 500) {
             lastStandReq = System.currentTimeMillis();
             PacketDistributor.sendToServer(new ArtActionPayload(21, 0, 0));
         }
         lastJump = jump;
+        if (!active(p)) return;
+        if ((exhausted() || noSprint()) && p.isSprinting()) p.setSprinting(false);
     }
 
     /** 倒地：本地玩家同步趴伏（碰撞箱 / 视角高度与服务端一致） */
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!(event.getEntity() instanceof LocalPlayer p) || !active(p)) return;
-        if (prone() && !freeMover() && !p.isPassenger() && !p.isSleeping() && p.getPose() != Pose.SWIMMING) {
+        if (!(event.getEntity() instanceof LocalPlayer p)) return;
+        if (proneActive(p) && !p.isPassenger() && !p.isSleeping() && p.getPose() != Pose.SWIMMING) {
             p.setPose(Pose.SWIMMING);
         }
     }

@@ -201,7 +201,7 @@ public final class DrawFx {
             g.pose().pushPose();
             g.pose().translate(cx, ty, 0);
             g.pose().scale(1.5f, 1.5f, 1);
-            Component zh = Component.literal(sword.trueName());
+            Component zh = sword.trueName();
             g.drawCenteredString(font, zh, 0, 0, ZsAnim.withAlpha(sword.letterColor(), name));
             g.pose().popPose();
             String en = sword.romanName();

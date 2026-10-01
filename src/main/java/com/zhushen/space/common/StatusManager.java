@@ -506,9 +506,10 @@ public final class StatusManager {
         return data(p).prone;
     }
 
-    /** 有蛛行术 / 飞行能力时不受倒地的移动限制 */
+    /** 有蛛行术 / 飞行能力时不受倒地的移动限制（自愿卧倒时蛛行术不生效：玩家就是想趴下） */
     public static boolean freeMover(ServerPlayer p) {
-        return p.getAbilities().flying || p.isFallFlying() || (PoolEffects.flags(p) & PoolEffects.F_SPIDER) != 0;
+        return p.getAbilities().flying || p.isFallFlying()
+                || (PoolEffects.flags(p) & PoolEffects.F_SPIDER) != 0 && !data(p).proneVoluntary;
     }
 
     public static boolean standingUp(ServerPlayer p) {
@@ -518,6 +519,7 @@ public final class StatusManager {
     public static void setProne(ServerPlayer p, boolean prone, String msgKey) {
         PlayerConditionData d = data(p);
         STANDING.remove(p.getUUID());
+        if (!prone) d.proneVoluntary = false;
         if (d.prone == prone) return;
         d.prone = prone;
         if (!prone && p.getPose() == Pose.SWIMMING && !p.isInWater()) p.setPose(Pose.STANDING);
@@ -528,7 +530,11 @@ public final class StatusManager {
     /** 卧倒（自愿，立即） / 爬起来（一个移动动作） */
     public static void toggleProne(ServerPlayer p) {
         if (data(p).prone) standUp(p);
-        else if (!p.isPassenger() && !p.isSleeping()) setProne(p, true, "msg.zhushenspace.prone.down");
+        else if (!p.isPassenger() && !p.isSleeping()) {
+            data(p).proneVoluntary = true;
+            setProne(p, true, "msg.zhushenspace.prone.down");
+            if (!freeMover(p)) p.setPose(Pose.SWIMMING); // 立即趴下，不等下一次状态 tick
+        }
     }
 
     public static void standUp(ServerPlayer p) {
