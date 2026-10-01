@@ -14,6 +14,8 @@ import java.util.*;
 @EventBusSubscriber(modid = ZhuShenSpace.MODID)
 public final class ArtCharge {
     public static final int MAX_TICKS = 40;
+    /** 豪火球最短结印时间 */
+    public static final int MIN_FIRE_TICKS = 12;
     private record Charging(ServerPlayer player, int bar, int slot, ArtSkill skill, int start, int nonce,
                             net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
                             ArtProjectile seal) {}
@@ -49,21 +51,29 @@ public final class ArtCharge {
             int id = p.getData(ModAttachments.PLAYER_SKILLS).bar(packet.bar())[packet.slot()];
             if (id < 0 || id >= SkillAbility.COUNT) return;
             ArtSkill s = ArtSkill.of(SkillAbility.values()[id]);
-            if (!supports(s) || !ArtManager.data(p).owns(s) || ArtManager.prereq(p, s) != null
-                    || SkillManager.remainingCooldowns(p)[id] > 0 || ArtManager.energy(p, s) < s.cost) return;
+            if (!supports(s) || !ArtManager.data(p).owns(s)) return;
+            String err = ArtManager.prereq(p, s);
+            if (err != null) { ArtManager.deny(p, err); return; }
+            if (SkillManager.remainingCooldowns(p)[id] > 0) return;
+            if (ArtManager.energy(p, s) < s.cost) { ArtManager.deny(p, "msg.zhushenspace.art.lack_energy"); return; }
             Charging c = new Charging(p, packet.bar(), packet.slot(), s, p.getServer().getTickCount(), packet.nonce(), p.serverLevel().dimension(), null);
             if (!valid(c)) return;
             ArtProjectile seal = s == ArtSkill.EIGHT_FORMATION ? ArtProjectile.seal(p, ArtManager.formationColor(p)) : null;
             ACTIVE.put(p.getUUID(), new Charging(p, c.bar(), c.slot(), s, c.start(), c.nonce(), c.dimension(), seal));
             ArtFx.anim(p, s == ArtSkill.HADOKEN ? "art_charge_wave" : s == ArtSkill.GREAT_FIREBALL ? "art_charge_fire" : "art_charge_seal");
             ArtFx.castSfx(p, s.pool, 0.35f);
+            net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p,
+                    new com.zhushen.space.network.ChargeStatePayload(packet.nonce(), true, s.ordinal()));
         } else if (packet.action() == ChargeSkillPayload.RELEASE) {
             Charging c = ACTIVE.get(p.getUUID());
             if (c == null || c.nonce() != packet.nonce() || c.bar() != packet.bar() || c.slot() != packet.slot()) return;
             int held = Math.min(MAX_TICKS, Math.max(0, p.getServer().getTickCount() - c.start()));
             boolean canRelease = valid(c) && SkillManager.remainingCooldowns(p)[c.skill().ability.ordinal()] == 0;
             // Fire seals require a minimum windup; quick taps cancel without spending energy.
-            if (c.skill() == ArtSkill.GREAT_FIREBALL && held < 12) canRelease = false;
+            if (c.skill() == ArtSkill.GREAT_FIREBALL && held < MIN_FIRE_TICKS) {
+                canRelease = false;
+                ArtManager.deny(p, "msg.zhushenspace.art.charge_short");
+            }
             cancel(p);
             if (!canRelease) return;
             SkillManager.releaseCharged(p, c.bar(), c.slot(), c.skill(), held);
@@ -73,6 +83,8 @@ public final class ArtCharge {
         Charging c = ACTIVE.remove(p.getUUID());
         if (c == null) return;
         if (c.seal() != null) c.seal().discard();
+        if (!p.isRemoved()) net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p,
+                new com.zhushen.space.network.ChargeStatePayload(c.nonce(), false, c.skill().ordinal()));
         if (!p.isRemoved()) ArtFx.anim(p, "");
     }
     @SubscribeEvent public static void tick(ServerTickEvent.Post e) {

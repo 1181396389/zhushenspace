@@ -63,8 +63,8 @@ public final class ArtBallistics {
         if (mouthPath.getType() != net.minecraft.world.phys.HitResult.Type.MISS)
             origin = mouthPath.getLocation().add(Vec3.atLowerCornerOf(mouthPath.getDirection().getNormal()).scale(0.05));
         if (kind == ArtProjectile.SEAL) {
+            // 阵留在施法者面前（与蓄力时同一位置），三道激光从阵心射出；被墙挡住时阵贴在墙前
             ArtProjectile seal = ArtProjectile.seal(p, color);
-            seal.setPos(origin); // extend visually, but never spawn beams through a wall
             seal.releaseSeal(shot);
         } else ArtProjectile.launch(p, kind, color, size, origin, dir, speed, shot);
         return true;
@@ -81,6 +81,7 @@ public final class ArtBallistics {
                         && AreaShape.effectLine(p.serverLevel(), point, t, projectile)) damage(projectile, p, shot, t);
             }
         } else if (target != null) damage(projectile, p, shot, target);
+        else ArtFx.soundAt(p, point, com.zhushen.space.sound.ModSounds.artSfx(shot.skill().pool).impact().get(), 0.45f, 1.1f); // 打在方块上
     }
 
     private static void damage(ArtProjectile projectile, ServerPlayer p, Shot shot, LivingEntity t) {
@@ -97,7 +98,7 @@ public final class ArtBallistics {
             value = Math.min(shot.cap(), Math.max(0, (shot.check() - defense) * shot.roll() + shot.bonus())) * shot.charge();
         }
         value = Math.max(0, value) * shot.restraint();
-        if (value <= 0) return;
+        if (value <= 0) { p.displayClientMessage(net.minecraft.network.chat.Component.translatable("msg.zhushenspace.art.miss"), true); return; }
         DamageKind kind = switch (shot.skill()) {
             case WIND_SLASH -> DamageKind.SLASH;
             case HADOKEN -> DamageKind.BLUNT;

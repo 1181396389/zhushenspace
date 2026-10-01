@@ -963,5 +963,6 @@
   "subtitles.zhushenspace.art_chakra_cast": "查克拉起手",
   "subtitles.zhushenspace.art_chakra_release": "查克拉释放",
   "subtitles.zhushenspace.art_chakra_hit": "查克拉命中",
-  "subtitles.zhushenspace.art_chakra_impact": "查克拉重击"
+  "subtitles.zhushenspace.art_chakra_impact": "查克拉重击",
+  "msg.zhushenspace.art.charge_short": "结印时间不足，火球未成形"
 }

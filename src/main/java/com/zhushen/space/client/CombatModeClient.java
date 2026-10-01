@@ -48,6 +48,7 @@ public class CombatModeClient {
     private static void finishCharge(boolean release) {
         if (chargeKey < 0) return;
         chargeKey = -1;
+        ClientCharge.clientEnd();
         if (Minecraft.getInstance().getConnection() != null)
             PacketDistributor.sendToServer(new com.zhushen.space.network.ChargeSkillPayload(chargeBar, chargeSlot,
                     release ? 1 : 2, chargeNonce));

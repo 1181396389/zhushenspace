@@ -963,5 +963,6 @@
   "subtitles.zhushenspace.art_chakra_cast": "Chakra gathers",
   "subtitles.zhushenspace.art_chakra_release": "Chakra released",
   "subtitles.zhushenspace.art_chakra_hit": "Chakra strikes",
-  "subtitles.zhushenspace.art_chakra_impact": "Chakra impact"
+  "subtitles.zhushenspace.art_chakra_impact": "Chakra impact",
+  "msg.zhushenspace.art.charge_short": "Seal not held long enough — the fireball fizzles"
 }

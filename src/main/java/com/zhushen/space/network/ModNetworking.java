@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("16"); // 协议版本：休息状态 HUD
+        PayloadRegistrar registrar = event.registrar("17"); // 协议版本：蓄力状态
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -95,6 +95,9 @@ public class ModNetworking {
                     }
                 }));
 
+        registrar.playToClient(ChargeStatePayload.TYPE, ChargeStatePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientCharge.handle(payload.nonce(), payload.active(), payload.skill())));
         registrar.playToServer(ChargeSkillPayload.TYPE, ChargeSkillPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer player) com.zhushen.space.common.ArtCharge.handle(player, payload);

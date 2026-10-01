@@ -19,6 +19,9 @@ public class ArtProjectile extends Entity {
     private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Float> SIZE = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float> DISTANCE = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.FLOAT);
+    /** 施法者实体 id 与"蓄力中跟随施法者视线"标记：客户端据此逐帧把八卦阵钉在施法者面前，转头时不再拖影 / 抖动 */
+    private static final EntityDataAccessor<Integer> OWNER_ID = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> ANCHORED = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.BOOLEAN);
     private UUID owner;
     private ArtBallistics.Shot shot;
     private double traveled;
@@ -30,16 +33,20 @@ public class ArtProjectile extends Entity {
         super(type, level); setNoGravity(true); noPhysics = true;
     }
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(KIND, WAVE); b.define(COLOR, 0xFFA5F8E1); b.define(SIZE, 1f); b.define(DISTANCE, 0f);
+        b.define(KIND, WAVE); b.define(COLOR, 0xFFA5F8E1); b.define(SIZE, 1f); b.define(DISTANCE, 0f); b.define(OWNER_ID, -1); b.define(ANCHORED, false);
     }
     public int kind() { return entityData.get(KIND); }
     public int color() { return entityData.get(COLOR); }
     public float size() { return entityData.get(SIZE); }
+    public int ownerId() { return entityData.get(OWNER_ID); }
+    public boolean anchored() { return entityData.get(ANCHORED); }
+    /** 八卦阵离施法者眼睛的距离 */
+    public static final double SEAL_DISTANCE = 1.2;
     public float flightScale() { return growth(entityData.get(DISTANCE)); }
     private float growth(double d) { return kind() == FIREBALL ? 0.12f + 0.88f * (float)Math.min(1, d / 3) : 1; }
     private static ArtProjectile make(ServerPlayer p, int kind, int color, float size, Vec3 origin, Vec3 direction) {
         ArtProjectile e = new ArtProjectile(ModEntities.ART_PROJECTILE.get(), p.level());
-        e.owner = p.getUUID(); e.entityData.set(KIND, kind); e.entityData.set(COLOR, color); e.entityData.set(SIZE, size);
+        e.owner = p.getUUID(); e.entityData.set(OWNER_ID, p.getId()); e.entityData.set(KIND, kind); e.entityData.set(COLOR, color); e.entityData.set(SIZE, size);
         e.moveTo(origin.x, origin.y, origin.z,
                 (float) Math.toDegrees(Math.atan2(-direction.x, direction.z)),
                 (float) Math.toDegrees(-Math.asin(Math.max(-1, Math.min(1, direction.normalize().y)))));
@@ -53,10 +60,18 @@ public class ArtProjectile extends Entity {
     }
     public static ArtProjectile seal(ServerPlayer p, int color) {
         Vec3 dir = p.getViewVector(1);
-        ArtProjectile e = make(p, SEAL, color, 1.25f, p.getEyePosition().add(dir.scale(1.2)), dir);
+        ArtProjectile e = make(p, SEAL, color, 1.25f, sealPos(p, dir), dir);
+        e.entityData.set(ANCHORED, true);
         e.lifetime = 220; p.level().addFreshEntity(e); return e;
     }
-    public void releaseSeal(ArtBallistics.Shot shot) { this.shot = shot; this.lifetime = tickCount + 14; }
+    /** 施法者面前的阵位；被墙挡住时贴在墙面前，激光永远不会从墙后发出 */
+    public static Vec3 sealPos(ServerPlayer p, Vec3 dir) {
+        Vec3 eye = p.getEyePosition(), want = eye.add(dir.scale(SEAL_DISTANCE));
+        HitResult hit = p.level().clip(new ClipContext(eye, want, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
+        if (hit.getType() == HitResult.Type.MISS) return want;
+        return eye.add(dir.scale(Math.max(0.15, eye.distanceTo(hit.getLocation()) - 0.1)));
+    }
+    public void releaseSeal(ArtBallistics.Shot shot) { this.shot = shot; this.lifetime = tickCount + 14; entityData.set(ANCHORED, false); }
     public static void burst(ServerPlayer p, Vec3 at) {
         ArtProjectile e = make(p, BURST, 0xFFFFFFFF, 10f, at, new Vec3(0, 0, 1));
         e.lifetime = 14; p.level().addFreshEntity(e);
@@ -79,7 +94,7 @@ public class ArtProjectile extends Entity {
             if (shot == null) {
                 if (!ArtCharge.charging(p)) { discard(); return; }
                 Vec3 dir = p.getViewVector(1);
-                setPos(p.getEyePosition().add(dir.scale(1.2)));
+                setPos(sealPos(p, dir));
                 setYRot(p.getYRot()); setXRot(p.getXRot());
             } else {
                 int remaining = lifetime - tickCount;

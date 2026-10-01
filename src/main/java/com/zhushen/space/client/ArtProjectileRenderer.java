@@ -33,8 +33,27 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
     }
     @Override public void render(ArtProjectile e, float yaw, float partial, PoseStack stack, MultiBufferSource buffers, int light) {
         stack.pushPose();
-        stack.mulPose(new Quaternionf().rotationY((float)Math.toRadians(-e.getYRot())));
-        stack.mulPose(new Quaternionf().rotationX((float)Math.toRadians(e.getXRot())));
+        float yRot = e.getYRot(), xRot = e.getXRot(), sealScale = 1f, sealAlpha = 1f;
+        if (e.kind() == ArtProjectile.SEAL && e.anchored()) {
+            // 蓄力中的八卦阵：按施法者本帧（插值后）的视线放置，转头时紧贴在面前，不再拖影 / 抖动
+            net.minecraft.world.entity.Entity o = e.level().getEntity(e.ownerId());
+            if (o != null) {
+                net.minecraft.world.phys.Vec3 eye = o.getEyePosition(partial), dir = o.getViewVector(partial);
+                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                boolean firstPerson = o == mc.getCameraEntity() && mc.options.getCameraType().isFirstPerson();
+                // 第一人称：阵放远一些、缩小、半透明，不遮挡视野
+                double dist = firstPerson ? 2.2 : ArtProjectile.SEAL_DISTANCE;
+                if (firstPerson) { sealScale = 0.62f; sealAlpha = 0.7f; }
+                net.minecraft.world.phys.Vec3 want = eye.add(dir.scale(dist));
+                double px = net.minecraft.util.Mth.lerp(partial, e.xo, e.getX());
+                double py = net.minecraft.util.Mth.lerp(partial, e.yo, e.getY());
+                double pz = net.minecraft.util.Mth.lerp(partial, e.zo, e.getZ());
+                stack.translate(want.x - px, want.y - py, want.z - pz);
+                yRot = o.getViewYRot(partial); xRot = o.getViewXRot(partial);
+            }
+        }
+        stack.mulPose(new Quaternionf().rotationY((float)Math.toRadians(-yRot)));
+        stack.mulPose(new Quaternionf().rotationX((float)Math.toRadians(xRot)));
         // Newly spawned effects overlap the caster for the first flight tick; avoid a full-screen flash.
         if (e.tickCount < 1 && e.kind() != ArtProjectile.SEAL && e.kind() != ArtProjectile.BURST) { stack.popPose(); return; }
         float time = e.tickCount + partial;
@@ -50,9 +69,16 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
                 plane(stack.last(),vc,2.0f,1.35f,0.04f,e.kind()==ArtProjectile.SPIRIT?0xFFD0ECFF:0xFFFFFFFF,alpha);
             }
             case ArtProjectile.SEAL -> {
+                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                if (!e.anchored() && mc.getCameraEntity() != null && mc.getCameraEntity().getId() == e.ownerId()
+                        && mc.options.getCameraType().isFirstPerson()) {
+                    // 释放后的阵：第一人称同样推远、缩小，与蓄力时的观感一致
+                    stack.translate(0, 0, 1.0);
+                    sealScale = 0.62f; sealAlpha = 0.7f;
+                }
                 stack.mulPose(new Quaternionf().rotationZ(time*.008f));
                 float grow = Math.min(1, time/5);
-                plane(stack.last(),vc,e.size()*grow,e.size()*grow,0,e.color(),1);
+                plane(stack.last(),vc,e.size()*grow*sealScale,e.size()*grow*sealScale,0,e.color(),sealAlpha);
             }
             case ArtProjectile.WAVE -> sphere(stack.last(),vc,e.size(),e.size()*.7f,2.4f*e.size(),frame,0xFFFFFFFF,1,time,false);
             case ArtProjectile.LASER -> sphere(stack.last(),vc,.14f,.14f,2.4f,frame,e.color(),1,time,false);
@@ -60,7 +86,10 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
             case ArtProjectile.BURST -> {
                 float progress=Math.min(1,time/14f);
                 float r=1.3f+8.7f*(1-(float)Math.pow(1-progress,3));
-                sphere(stack.last(),vc,r,r,r,frame,0xFFFFFFFF,(1-progress)*.85f,time,true);
+                // 镜头在爆炸球内部时只留淡淡一层火光，避免整屏被橙色糊住
+                double camDist = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition().distanceTo(e.position());
+                float burstAlpha = (1-progress)*(camDist < r + 0.5 ? .22f : .85f);
+                sphere(stack.last(),vc,r,r,r,frame,0xFFFFFFFF,burstAlpha,time,true);
             }
         }
         stack.popPose();
