@@ -327,6 +327,8 @@ public final class StatusEffects {
         else if (ranged && LimbManager.eyesLost(p) == 1) pen += 4;
         // 恐惧：主动对恐惧目标发起的检定 −4
         if (target != null && light(p, StatusType.FEAR) && target.getUUID().equals(d.fearTarget)) pen += StatusManager.LIGHT_PENALTY;
+        // 冻寒骨爪「镇亡」（不死生物玩家，如亡灵种族）
+        pen += MagicSpells.attackCurse(p);
         return pen;
     }
 

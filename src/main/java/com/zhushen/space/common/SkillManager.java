@@ -265,7 +265,7 @@ public class SkillManager {
                 return;
             }
             case WARD_OFF, ROLL_BACK, PRESS, PUSH, PULL, SPLIT, ELBOW, SHOULDER -> {
-                // 太极八式：未开始（无目标）退还内力且不进冷却
+                // 太极八式：无目标时照常出招打空（useMove 返回 false 时退还内力且不进冷却）
                 if (!TaiChiManager.useMove(player, ability)) {
                     player.getData(ModAttachments.PLAYER_ENERGY).restore(
                             EnergyManager.POOL_NEILI, TaiChiManager.moveNeiliCost(player));

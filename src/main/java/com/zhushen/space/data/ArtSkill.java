@@ -33,7 +33,17 @@ public enum ArtSkill {
     BASIC_PALM(SkillAbility.BASIC_PALM, FeatEffects.Pool.NEILI, 4, 500, 1, Mode.NONE, 0),
     REVIVE(SkillAbility.REVIVE, FeatEffects.Pool.NEILI, 3, 1000, 3, Mode.NONE, 0),
     PHOENIX_FIRE(SkillAbility.PHOENIX_FIRE, FeatEffects.Pool.CHAKRA, 4, 500, 1, Mode.NONE, 0),
-    GREAT_FIREBALL(SkillAbility.GREAT_FIREBALL, FeatEffects.Pool.CHAKRA, 3, 1000, 3, Mode.NONE, 0);
+    GREAT_FIREBALL(SkillAbility.GREAT_FIREBALL, FeatEffects.Pool.CHAKRA, 3, 1000, 3, Mode.NONE, 0),
+    // ===== 魔法·专业法术（追加在末尾：已购 / 研发按序号保存） =====
+    /** 轰雷剑【塑能】【光】语言 · 触及 · 一个目标 · 1 轮 */
+    THUNDER_SWORD(SkillAbility.THUNDER_SWORD, FeatEffects.Pool.MAGIC, -1, 500, 1, Mode.NONE, 0),
+    /** 光亮术【咒法】【光】语言 · 触及 · 一件物品 · 10 分钟 */
+    LIGHT(SkillAbility.LIGHT, FeatEffects.Pool.MAGIC, -1, 500, 0, Mode.NONE, 0),
+    /** 照明术【咒法】【光】语言、姿势 · 触及 · 半径 10 米球形 · 10 分钟 */
+    ILLUMINATION(SkillAbility.ILLUMINATION, FeatEffects.Pool.MAGIC, -1, 500, 1, Mode.NONE, 0),
+    /** 冻寒骨爪【死灵】【暗】【水】语言、姿势 · 智力 米 · 一个目标 · 立即 */
+    FROST_CLAW(SkillAbility.FROST_CLAW, FeatEffects.Pool.MAGIC, -1, 500, 0, Mode.NONE, 0,
+            new Research("undead_bane", 6, 1), new Research("blight", 12, 1));
 
     /** 选项模式：NONE 无；PICK 购买后选定（首个免费，其余按 extraCost XP 研发，-1 = 不可再选）；CYCLE 随时切换（轮盘） */
     public enum Mode { NONE, PICK, CYCLE }
@@ -72,6 +82,18 @@ public enum ArtSkill {
     }
 
     public String key() { return ability.key(); }
+
+    /**
+     * 姿势成分（需要空出一只手、未被擒抱 / 措手不及）。所有法术都有语言成分（念出法术名，沉默时无法施放）；
+     * 只有语言成分的法术不检查姿势。
+     */
+    public boolean somatic() { return this != THUNDER_SWORD && this != LIGHT; }
+
+    /**
+     * 【锁定】：必须锁定目标（准星对准范围内的目标）才能施放。
+     * 「目标：一个目标」只表示能影响多少个对象，不要求锁定——无目标时照常施放并打空。
+     */
+    public boolean lockOn() { return false; }
 
     public String optionKey(int i) { return "art.zhushenspace." + name().toLowerCase(java.util.Locale.ROOT) + ".opt." + options[i]; }
 

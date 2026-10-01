@@ -894,14 +894,17 @@ public class TaiChiManager {
     /** ===== 八式 ===== */
 
     /**
-     * 执行一式：锁定视线目标 → 基础攻击 + 招式效果。
-     * 返回 false 表示未开始（无目标），不消耗内力、不进入冷却。
+     * 执行一式：视线目标 → 基础攻击 + 招式效果。
+     * 无需锁定：没有目标时照常出招（动作、消耗、冷却）并打空。
      */
     public static boolean useMove(ServerPlayer player, SkillAbility ability) {
         LivingEntity target = findTarget(player);
         if (target == null) {
-            player.displayClientMessage(Component.translatable("msg.zhushenspace.taiji.no_target"), true);
-            return false;
+            TaiChiFx.anim(player, "taiji_" + ability.name().toLowerCase(java.util.Locale.ROOT));
+            player.level().playSound(null, player.blockPosition(),
+                    net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_NODAMAGE, SoundSource.PLAYERS, 0.8f, 0.9f);
+            player.displayClientMessage(Component.translatable("msg.zhushenspace.art.whiff"), true);
+            return true;
         }
         // 动作：对应招式（第一人称双臂同步挥动）
         TaiChiFx.anim(player, "taiji_" + ability.name().toLowerCase(java.util.Locale.ROOT));

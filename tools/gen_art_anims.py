@@ -1,4 +1,4 @@
-"""生成全部 19 个技艺（5 个弹体技艺 + 14 个非弹体技艺）的 KosmX/GeckoLib 动作文件 art.json。
+"""生成全部 23 个技艺（5 个弹体技艺 + 14 个非弹体技艺 + 4 个魔法专业法术）的 KosmX/GeckoLib 动作文件 art.json。
 
 约定与 tools/gen_taiji_anims.py 一致：
   手臂/腿 x 负值 = 向前抬起；右臂 y 正 = 向内、z 正 = 向外；左臂镜像。
@@ -335,6 +335,51 @@ PH_BACK = P(PH_PUFF, torso=[7, 0, 0], head=[-11, 0, 0])
 seq("art_phoenix_fire", 1.1, [
     (0, NEUTRAL, LIN), (0.18, PH_IN, CUBIC), (0.25, PH_PUFF, EXPO), (0.32, PH_BACK, SINE), (0.38, PH_PUFF, EXPO),
     (0.45, PH_BACK, SINE), (0.52, PH_PUFF, EXPO), (0.75, PH_BACK, LIN), (1.1, NEUTRAL, SINE),
+])
+
+
+# =====================================================================
+# 魔法·专业法术（v3.3）
+# =====================================================================
+
+# 轰雷剑（斩击 6 tick = 0.3s）：举刃过顶、左手指尖沿刃身抹过（雷光随之爬满剑身）→ 右上至左下的斜斩
+TS_RAISE = P(right_arm=[-172, 4, 8], right_arm_bend=[20, 0], left_arm=[-160, -34, -2], left_arm_bend=[48, 0],
+             torso=[-10, 10, 0], head=[-14, -4, 0], body=[0, -0.5, 0], left_leg=[-10, 0, -4], right_leg=[8, 0, 4])
+TS_WIPE = P(TS_RAISE, left_arm=[-128, -52, -8], left_arm_bend=[18, 0], torso=[-12, 14, 2], head=[-16, -8, 0])
+TS_CUT = P(right_arm=[-36, 56, -20], right_arm_bend=[0, 0], left_arm=[-10, 0, -42], left_arm_bend=[8, 0],
+           torso=[26, -32, -6], head=[-14, 20, 0], body=[0, -4.5, 0], left_leg=[-34, 0, -8], right_leg=[24, 0, 10])
+seq("art_thunder_sword", 1.05, [
+    (0, NEUTRAL, LIN), (0.12, TS_RAISE, BACK), (0.24, TS_WIPE, QUART)] + shake(TS_WIPE, 0.25, 0.27, 0.02, 1.5, bones=("right_arm",)) + [
+    (0.31, TS_CUT, EXPO), (0.66, P(TS_CUT, torso=[28, -35, -6], right_arm=[-32, 60, -20]), LIN), (1.05, NEUTRAL, SINE),
+])
+
+# 光亮术（5 tick）：低声咏唱，把物品高举过头，仰望点亮的光
+LT_HOLD = P(right_arm=[-92, 14, 0], right_arm_bend=[70, 0], left_arm=[-30, -10, -6], head=[6, 0, 0], torso=[2, 0, 0])
+LT_RAISE = P(right_arm=[-176, 2, 6], right_arm_bend=[4, 0], left_arm=[-14, 0, -24], left_arm_bend=[10, 0],
+             torso=[-8, 0, 0], head=[-26, 0, 0], body=[0, 0.6, 0], left_leg=[-4, 0, -3], right_leg=[4, 0, 3])
+seq("art_light", 1.1, [
+    (0, NEUTRAL, LIN), (0.14, LT_HOLD, CUBIC), (0.26, LT_RAISE, BACK), (0.7, P(LT_RAISE, head=[-22, 0, 0], body=[0, 0.3, 0]), SINE),
+    (1.1, NEUTRAL, SINE),
+])
+
+# 照明术（6 tick）：双手合捧于胸前（光在掌中凝聚）→ 向上向外托起、展开，放出四枚光球
+IL_CUP = P(right_arm=[-62, 30, 0], left_arm=[-62, -30, 0], right_arm_bend=[70, 0], left_arm_bend=[70, 0],
+           torso=[6, 0, 0], head=[10, 0, 0], body=[0, -1, 0])
+IL_SPREAD = P(right_arm=[-148, -6, 36], left_arm=[-148, 6, -36], right_arm_bend=[12, 0], left_arm_bend=[12, 0],
+              torso=[-8, 0, 0], head=[-18, 0, 0], body=[0, 0.5, 0], left_leg=[-4, 0, -6], right_leg=[4, 0, 6])
+seq("art_illumination", 1.25, [
+    (0, NEUTRAL, LIN), (0.16, IL_CUP, CUBIC)] + shake(IL_CUP, 0.18, 0.24, 0.02, 1.2) + [
+    (0.32, IL_SPREAD, EXPO), (0.8, P(IL_SPREAD, right_arm=[-152, -6, 40], left_arm=[-152, 6, -40]), SINE), (1.25, NEUTRAL, SINE),
+])
+
+# 冻寒骨爪（4 tick = 0.2s）：沉身、右手五指成爪垂于身侧后方 → 由下而上反撩抓出，左手护胸
+FC_LOW = P(right_arm=[34, -10, 26], right_arm_bend=[60, 0], left_arm=[-64, -40, 0], left_arm_bend=[96, 0],
+           torso=[18, 22, 0], head=[-8, -16, 0], body=[0, -4, 0], left_leg=[-24, 0, -6], right_leg=[16, 0, 8])
+FC_RAKE = P(right_arm=[-128, 28, -10], right_arm_bend=[48, 0], left_arm=[-60, -44, 0], left_arm_bend=[100, 0],
+            torso=[-6, -20, 0], head=[-10, 14, 0], body=[0, -1.5, 0], left_leg=[-30, 0, -6], right_leg=[20, 0, 8])
+seq("art_frost_claw", 0.95, [
+    (0, NEUTRAL, LIN), (0.12, FC_LOW, BACK), (0.2, FC_RAKE, EXPO), (0.55, P(FC_RAKE, right_arm=[-124, 30, -10], torso=[-4, -18, 0]), LIN),
+    (0.95, NEUTRAL, SINE),
 ])
 
 

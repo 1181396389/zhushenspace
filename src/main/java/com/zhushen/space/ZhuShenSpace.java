@@ -62,6 +62,7 @@ public class ZhuShenSpace {
         ModSounds.register(modEventBus);
         ModAttachments.ATTACHMENTS.register(modEventBus);
         ModEntities.ENTITY_TYPES.register(modEventBus);
+        com.zhushen.space.data.ModComponents.COMPONENTS.register(modEventBus);
         modEventBus.addListener(this::addCreative);
         // 可选联动：TACZ 枪械（未安装时不加载任何 TACZ 类）
         com.zhushen.space.compat.TaczCompat.init();

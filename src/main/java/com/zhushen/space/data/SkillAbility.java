@@ -85,7 +85,12 @@ public enum SkillAbility {
     BASIC_PALM(null, 0, 60, "art", "art_basic_palm"),
     REVIVE(null, 0, 60, "art", "art_revive"),
     PHOENIX_FIRE(null, 0, 60, "art", "art_phoenix_fire"),
-    GREAT_FIREBALL(null, 0, 60, "art", "art_great_fireball");
+    GREAT_FIREBALL(null, 0, 60, "art", "art_great_fireball"),
+    // 魔法·专业法术（追加在末尾：技能栏按序号保存）
+    THUNDER_SWORD(null, 0, 60, "art", "art_thunder_sword"),
+    LIGHT(null, 0, 60, "art", "art_light"),
+    ILLUMINATION(null, 0, 60, "art", "art_illumination"),
+    FROST_CLAW(null, 0, 60, "art", "art_frost_claw");
 
     public static final String GATE_NEILI = "neili";
     public static final String GATE_TAI_CHI = "tai_chi";

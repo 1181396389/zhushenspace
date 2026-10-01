@@ -413,7 +413,8 @@ public final class Defense {
             amt = e.getAmount() - areaSave(v, att);
         } else if (att != null && att != v && !(att instanceof net.minecraft.world.entity.player.Player)
                 && !src.is(DamageTypeTags.BYPASSES_ARMOR)) {
-            amt = e.getAmount() - of(v, src, true);
+            // 冻寒骨爪「镇亡」：被诅咒的不死生物攻击检定 −6（亵渎）
+            amt = e.getAmount() - of(v, src, true) - MagicSpells.attackCurse(att);
         } else {
             return;
         }

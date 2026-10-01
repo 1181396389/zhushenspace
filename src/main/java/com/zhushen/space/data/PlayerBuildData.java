@@ -13,6 +13,8 @@ public class PlayerBuildData implements INBTSerializable<CompoundTag> {
 
     public int version = 0;
     public int totalXp = 0;
+    /** 花在技艺研发 / 额外选项上的 XP（从 totalXp 中占用，建卡界面看到的总 XP = totalXp − artXp） */
+    public int artXp = 0;
     public boolean created = false;
     public int[] attrXp = new int[AttributeType.COUNT];
     public int[] featMask = new int[FeatType.COUNT];
@@ -40,6 +42,7 @@ public class PlayerBuildData implements INBTSerializable<CompoundTag> {
         CompoundTag t = new CompoundTag();
         t.putInt("Version", version);
         t.putInt("TotalXp", totalXp);
+        t.putInt("ArtXp", artXp);
         t.putBoolean("Created", created);
         t.putIntArray("AttrXp", attrXp);
         CompoundTag feats = new CompoundTag();
@@ -57,6 +60,7 @@ public class PlayerBuildData implements INBTSerializable<CompoundTag> {
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag t) {
         version = t.getInt("Version");
         totalXp = t.getInt("TotalXp");
+        artXp = t.getInt("ArtXp");
         created = t.getBoolean("Created");
         int[] a = t.getIntArray("AttrXp");
         attrXp = new int[AttributeType.COUNT];

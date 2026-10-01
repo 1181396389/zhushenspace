@@ -202,8 +202,10 @@ public final class GrappleManager {
         if (t != null && g != null && sameGroup(p, t)) t = null; // 已互相擒抱不能再次发起
         if (t == null) {
             if (g != null) return takeLead(p, g);
-            msg(p, "msg.zhushenspace.grapple.no_target");
-            return false;
+            // 无需锁定：抓空也算一次动作
+            p.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+            msg(p, "msg.zhushenspace.art.whiff");
+            return true;
         }
         if (!canGrapple(t)) { msg(p, "msg.zhushenspace.grapple.invalid"); return false; }
         return attempt(p, t);

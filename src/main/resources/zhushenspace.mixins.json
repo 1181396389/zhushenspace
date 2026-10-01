@@ -6,6 +6,10 @@
   "mixins": [
     "PlayerPoseMixin"
   ],
+  "client": [
+    "client.DynLightLevelMixin",
+    "client.DynLightEntityMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

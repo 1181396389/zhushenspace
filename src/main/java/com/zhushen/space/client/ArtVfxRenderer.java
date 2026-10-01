@@ -160,6 +160,12 @@ public final class ArtVfxRenderer extends EntityRenderer<ArtVfx> {
             case ArtVfx.NETHER -> nether(c);
             case ArtVfx.PALM -> palm(c);
             case ArtVfx.REVIVE -> revive(c);
+            case ArtVfx.THUNDER_BLADE -> thunderBlade(c);
+            case ArtVfx.THUNDER_MARK -> thunderMark(c);
+            case ArtVfx.THUNDER_STRIKE -> thunderStrike(c);
+            case ArtVfx.LUMEN -> lumen(c);
+            case ArtVfx.LIGHT_ORBS -> lightOrbs(c);
+            case ArtVfx.FROST_CLAW -> frostClaw(c);
             default -> {}
         }
         stack.popPose();
@@ -169,6 +175,11 @@ public final class ArtVfxRenderer extends EntityRenderer<ArtVfx> {
             e.clientFxFired = true;
             ClientArtScreenFx.impact(0.55f);
             ClientCameraShake.trigger(1.3f, 10);
+        }
+        if (!e.clientFxFired && e.kind() == ArtVfx.THUNDER_STRIKE && t >= 1.5f) {
+            e.clientFxFired = true;
+            float k = clamp01(1f - cam.length() / 28f);
+            if (k > 0.05f) { ClientArtScreenFx.impact(0.6f * k); ClientCameraShake.trigger(1.3f * k, 9); }
         }
         if (!e.clientFxFired && e.kind() == ArtVfx.ELEMENT && e.variant() == 0 && t >= 4) {
             e.clientFxFired = true;
@@ -1404,6 +1415,360 @@ public final class ArtVfxRenderer extends EntityRenderer<ArtVfx> {
             sparkle(g, m, 0, 0, 1.3f * f + 0.2f, k * 0.1f, c.c(WHITE, f), c.c(col, 0f));
             ring(g, m, 0.3f + k * 0.3f, 0.4f + k * 0.3f, c.c(col, 0.9f * f), c.c(col, 0f), 36);
             c.pop();
+        }
+    }
+
+    // ═════════════════════════ 魔法·专业法术（v3 同画风） ═════════════════════════
+
+    /** 平面闪电符（Z 字形三折），中心 (cx,cy)、朝向 ang、尺寸 s */
+    private static void boltGlyph(VertexConsumer vc, Matrix4f m, float cx, float cy, float ang, float s, float w, int col) {
+        float[][] p = {{-0.35f, 1f}, {0.25f, 0.12f}, {-0.25f, -0.12f}, {0.35f, -1f}};
+        float ca = Mth.cos(ang), sa = Mth.sin(ang);
+        for (int i = 0; i < 3; i++) {
+            float x0 = cx + (p[i][0] * ca - p[i][1] * sa) * s, y0 = cy + (p[i][0] * sa + p[i][1] * ca) * s;
+            float x1 = cx + (p[i + 1][0] * ca - p[i + 1][1] * sa) * s, y1 = cy + (p[i + 1][0] * sa + p[i + 1][1] * ca) * s;
+            float hl = Mth.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)) * 0.5f + w;
+            bar(vc, m, (x0 + x1) * 0.5f, (y0 + y1) * 0.5f, (float) Math.atan2(y1 - y0, x1 - x0), hl, w, col);
+        }
+    }
+
+    // ───────────────────────── 轰雷剑：剑身聚雷 → 斜向雷光斩 ─────────────────────────
+
+    private void thunderBlade(C c) {
+        float t = c.t, h = c.h;
+        int col = c.col, deep = 0x3A6BFF;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float fpK = c.selfFP ? 0.4f : 1f;
+        int seed = (int) (t * 2f) * 41 + c.e.getId() * 13;
+        float flick = ((int) (t * 2f) % 3 == 1) ? 0.55f : 1f;
+        // 1) 聚雷：举剑，雷光自护手向剑尖爬满剑身，四周电弧向剑尖汇聚
+        if (t < 7.5f) {
+            float k = clamp01(t / 5f), a = clamp01((7.5f - t) / 1.5f) * fpK;
+            Vector3f hilt = c.bodyPt(-0.36f, h * 0.98f, 0.12f);
+            Vector3f tip = c.bodyPt(-0.3f, h * 0.98f + (c.variant == 1 ? 1.1f : 0.55f), -0.05f);
+            Vector3f cur = new Vector3f(hilt).lerp(tip, easeOut(k));
+            Vector3f[] blade = boltPts(hilt, cur, 6, 0.05f, seed);
+            ribLerp(g, c.m(), blade, 0.2f, 0.3f, c.c(col, 0.5f * a * flick), c.c(WHITE, 0.6f * a * flick), c.cam);
+            ribLerp(vc, c.m(), blade, 0.03f, 0.05f, c.c(WHITE, a), c.c(WHITE, a), c.cam);
+            for (int i = 0; i < 4; i++) {
+                float ang = hash(seed + i * 7) * TAU, rr = 1.3f - 1.0f * k;
+                Vector3f from = new Vector3f(cur).add(Mth.cos(ang) * rr, (hash(seed + i * 3) - 0.3f) * rr, Mth.sin(ang) * rr);
+                Vector3f[] arc = boltPts(from, cur, 5, 0.14f, seed + i * 31);
+                ribLerp(g, c.m(), arc, 0.012f, 0.07f, c.c(deep, 0f), c.c(col, 0.7f * a * flick), c.cam);
+                ribLerp(vc, c.m(), arc, 0.004f, 0.016f, c.c(WHITE, 0f), c.c(WHITE, 0.9f * a * flick), c.cam);
+            }
+            c.bb(cur);
+            Matrix4f m = c.m();
+            disc(g, m, 0, 0, 0.3f + 0.2f * k, c.c(WHITE, 0.8f * a), c.c(col, 0f), 18);
+            sparkle(g, m, 0, 0, 0.45f + 0.45f * k * flick, t * 0.5f, c.c(WHITE, a), c.c(col, 0f));
+            c.pop();
+        }
+        // 2) 雷光斩：右上 → 左下的新月刀光，雷纹沿刀弧窜动
+        if (t > 5f) {
+            float st = t - 5f;
+            float sw = easeOut(clamp01(st / 2.2f));
+            float fade = clamp01(1f - (st - 2.5f) / 4.5f);
+            if (fade <= 0) return;
+            float a = fade * (c.selfFP ? 0.7f : 1f);
+            float zf = c.selfFP ? 1.15f : 0.8f, yc = h * 0.62f, tilt = -0.7f;
+            float halfW = 1.4f, sag = 0.45f, depth = 0.4f;
+            c.body();
+            c.s.translate(0, yc, zf);
+            c.s.mulPose(new Quaternionf().rotationZ(tilt));
+            Matrix4f m = c.m();
+            float t0 = -1f, t1 = -1f + 2f * sw, tail = Math.max(-1f, t1 - 2f * clamp01(st / 5f) - 0.2f);
+            crescent(g, m, halfW, sag, 0.55f, depth, 0f, 1f, c.c(WHITE, 0.85f * a), c.c(col, 0f), Math.max(t0, tail), t1, 44);
+            crescent(vc, m, halfW, sag, 0.2f, depth, 0f, 1f, c.c(WHITE, a), c.c(col, 0.75f * a), Math.max(t0, tail), t1, 44);
+            crescent(vc, m, halfW, sag, 0.06f, depth, 0f, 1f, c.c(WHITE, a), c.c(WHITE, a), Math.max(t0, tail), t1, 44);
+            c.pop();
+            // 沿刀弧窜动的雷纹（锚点坐标手算，供面向相机的条带使用）
+            Matrix4f L = new Matrix4f().rotateY(-c.yaw).translate(0, yc, zf).rotateZ(tilt);
+            int n = 14;
+            for (int b = 0; b < 2; b++) {
+                Vector3f[] pts = new Vector3f[n + 1];
+                for (int i = 0; i <= n; i++) {
+                    float u = Mth.lerp(i / (float) n, Math.max(t0, tail), t1);
+                    float base = 1f - u * u;
+                    float j = (i == 0 || i == n) ? 0 : (hash(seed + b * 101 + i * 13) - 0.5f) * 0.22f;
+                    pts[i] = L.transformPosition(new Vector3f(halfW * u, sag * base - 0.1f + j, depth * base + j * 0.5f));
+                }
+                ribLerp(g, c.m(), pts, 0.05f, 0.1f, c.c(col, 0.15f * a * flick), c.c(col, 0.7f * a * flick), c.cam);
+                ribLerp(vc, c.m(), pts, 0.008f, 0.02f, c.c(WHITE, 0.2f * a * flick), c.c(WHITE, a * flick), c.cam);
+            }
+            // 刀尖火花
+            float ue = t1, be = 1f - ue * ue;
+            Vector3f E = L.transformPosition(new Vector3f(halfW * ue, sag * be, depth * be));
+            c.bb(E);
+            m = c.m();
+            disc(g, m, 0, 0, 0.35f * fade, c.c(WHITE, 0.8f * a), c.c(col, 0f), 14);
+            starburst(g, m, 7, 0.04f, 0.6f * fade, t * 0.3f, seed, c.c(WHITE, 0.8f * a), c.c(col, 0f));
+            c.pop();
+        }
+    }
+
+    // ───────────────────────── 轰雷剑标记：足下雷纹阵 + 头顶倒计时雷印 ─────────────────────────
+
+    private void thunderMark(C c) {
+        float t = c.t, h = c.h, A = c.env(4, 6) * (c.selfFP ? 0.4f : 1f);
+        int col = c.col, deep = 0x2F5BFF;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        int seed = (int) (t * 1.5f) * 29 + c.e.getId() * 5;
+        float w = Math.max(0.7f, c.follow != null ? c.follow.getBbWidth() * 1.15f : 0.8f);
+        float pulse = 0.75f + 0.25f * Mth.sin(t * 0.6f);
+        float spin = easeOutBack(clamp01(t / 6f));
+        c.flat(0.05f);
+        Matrix4f m = c.m();
+        ring(g, m, w * 0.86f * spin, w * spin, c.c(deep, 0f), c.c(col, 0.8f * A * pulse), 40);
+        ring(vc, m, w * 0.965f * spin, w * spin, c.c(WHITE, 0.9f * A), c.c(WHITE, 0.9f * A), 40);
+        ring(g, m, w * 0.55f * spin, w * 0.6f * spin, c.c(col, 0.55f * A), c.c(col, 0.55f * A), 32);
+        c.s.mulPose(new Quaternionf().rotationZ(t * 0.08f));
+        m = c.m();
+        for (int k = 0; k < 3; k++) {
+            float ang = TAU * k / 3f;
+            float r = w * 0.78f * spin;
+            boltGlyph(vc, m, Mth.cos(ang) * r, Mth.sin(ang) * r, ang, w * 0.12f, 0.018f, c.c(WHITE, 0.95f * A));
+            boltGlyph(g, m, Mth.cos(ang) * r, Mth.sin(ang) * r, ang, w * 0.12f, 0.05f, c.c(col, 0.5f * A));
+        }
+        c.pop();
+        // 随机窜上身体的电弧
+        for (int i = 0; i < 2; i++) {
+            int sd = seed + i * 97;
+            if (hash(sd) > 0.55f) continue;
+            float ang = hash(sd + 1) * TAU, ang2 = ang + (hash(sd + 2) - 0.5f) * 1.5f;
+            Vector3f a = new Vector3f(Mth.cos(ang) * w, 0.05f, Mth.sin(ang) * w);
+            Vector3f b = new Vector3f(Mth.cos(ang2) * w * 0.55f, h * (0.35f + 0.5f * hash(sd + 3)), Mth.sin(ang2) * w * 0.55f);
+            Vector3f[] p = boltPts(a, b, 6, 0.16f, sd);
+            ribLerp(g, c.m(), p, 0.1f, 0.04f, c.c(col, 0.6f * A), c.c(col, 0.1f * A), c.cam);
+            ribLerp(vc, c.m(), p, 0.02f, 0.008f, c.c(WHITE, 0.95f * A), c.c(WHITE, 0.3f * A), c.cam);
+        }
+        // 头顶雷印：菱形 + 闪电符 + 倒计时弧
+        float left = clamp01(1f - t / Math.max(1f, c.life - 8f));
+        c.bb(0, h + 0.55f, 0);
+        m = c.m();
+        disc(g, m, 0, 0, 0.34f * pulse, c.c(col, 0.5f * A), c.c(col, 0f), 18);
+        polyLine(vc, m, 4, 0.2f, 0f, 0.016f, c.c(WHITE, 0.95f * A));
+        ring(g, m, 0.27f, 0.31f, c.c(col, 0.85f * A), c.c(col, 0.85f * A), (float) Math.PI / 2f, (float) Math.PI / 2f + TAU * left, 36);
+        boltGlyph(vc, m, 0, 0, 0f, 0.1f, 0.016f, c.c(WHITE, A));
+        c.pop();
+    }
+
+    // ───────────────────────── 轰雷剑引爆：天降落雷 ─────────────────────────
+
+    private void thunderStrike(C c) {
+        float t = c.t;
+        int col = c.col;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float on = t < 7 ? 1f : clamp01(1f - (t - 7f) / 5f);
+        float flick = ((int) (t * 2f) % 3 == 1) ? 0.4f : 1f;
+        float a = on * flick;
+        int seed = (int) (t * 2f) * 61 + c.e.getId() * 3;
+        Vector3f top = new Vector3f((hash(c.e.getId()) - 0.5f) * 2f, 18f, (hash(c.e.getId() + 9) - 0.5f) * 2f);
+        Vector3f cur = new Vector3f(top).lerp(new Vector3f(), clamp01(t / 1.5f));
+        Vector3f[] main = boltPts(top, cur, 22, 1.1f, seed);
+        if (a > 0) {
+            ribLerp(g, c.m(), main, 0.55f, 0.5f, c.c(col, 0.5f * a), c.c(col, 0.6f * a), c.cam);
+            ribLerp(vc, c.m(), main, 0.08f, 0.1f, c.c(WHITE, a), c.c(WHITE, a), c.cam);
+            for (int b = 0; b < 6; b++) {
+                int idx = 2 + (int) (hash(seed + b * 11) * (main.length - 4));
+                Vector3f from = main[idx];
+                Vector3f to = new Vector3f(from).add((hash(seed + b * 3) - 0.5f) * 4f, -1.5f - hash(seed + b * 5) * 2f, (hash(seed + b * 7) - 0.5f) * 4f);
+                Vector3f[] br = boltPts(from, to, 5, 0.4f, seed + b * 19);
+                ribLerp(g, c.m(), br, 0.2f, 0.02f, c.c(col, 0.5f * a), c.c(col, 0f), c.cam);
+                ribLerp(vc, c.m(), br, 0.035f, 0.005f, c.c(WHITE, 0.9f * a), c.c(WHITE, 0.1f * a), c.cam);
+            }
+        }
+        if (t < 1.5f) return;
+        float k = t - 1.5f;
+        float f6 = clamp01(1f - k / 6f), f8 = clamp01(1f - k / 8f);
+        c.flat(0.06f);
+        Matrix4f m = c.m();
+        disc(g, m, 0, 0, 2.6f * f8 + 0.3f, c.c(WHITE, 0.9f * f6), c.c(col, 0f), 28);
+        float r = 0.4f + 3.4f * easeOut(clamp01(k / 8f));
+        ring(g, m, r - 0.35f, r, c.c(col, 0f), c.c(WHITE, 0.8f * f8), 48);
+        ring(vc, m, r - 0.06f, r, c.c(WHITE, 0.9f * f8), c.c(col, 0.6f * f8), 48);
+        c.pop();
+        for (int i = 0; i < 6; i++) {
+            float ang = TAU * i / 6f + hash(c.e.getId() + i) * 0.6f;
+            float R = 0.6f + 2.4f * easeOut(clamp01(k / 4f));
+            Vector3f[] arc = boltPts(new Vector3f(0, 0.06f, 0), new Vector3f(Mth.cos(ang) * R, 0.06f, Mth.sin(ang) * R), 6, 0.25f, seed + i * 37);
+            ribLerp(g, c.m(), arc, 0.12f, 0.02f, c.c(col, 0.6f * f6 * flick), c.c(col, 0f), c.cam);
+            ribLerp(vc, c.m(), arc, 0.025f, 0.004f, c.c(WHITE, 0.9f * f6 * flick), c.c(WHITE, 0f), c.cam);
+        }
+        c.bb(0, 0.9f, 0);
+        m = c.m();
+        starburst(g, m, 12, 0.1f, 2.2f * f6 + 0.2f, t * 0.1f, seed, c.c(WHITE, 0.9f * f6), c.c(col, 0f));
+        sparkle(g, m, 0, 0, 1.6f * f6, 0.3f, c.c(WHITE, f6), c.c(col, 0f));
+        c.pop();
+    }
+
+    // ───────────────────────── 光亮术：物品点亮的星芒 + 扩散光环 ─────────────────────────
+
+    private void lumen(C c) {
+        float t = c.t, A = c.env(0, 10) * (c.selfFP ? 0.45f : 1f);
+        int col = c.col;
+        VertexConsumer g = c.glow();
+        Vector3f P = c.variant == 1 ? new Vector3f(0, 0.3f, 0)
+                : c.selfFP ? c.bodyPt(-0.3f, c.h + 0.1f, 1.0f) : c.bodyPt(-0.36f, c.h + 0.35f, 0.1f);
+        float k = easeOut(clamp01(t / 6f)), flash = clamp01(1f - t / 8f);
+        c.bb(P);
+        Matrix4f m = c.m();
+        disc(g, m, 0, 0, 0.3f + 1.3f * flash * k, c.c(WHITE, 0.9f * flash * A), c.c(col, 0f), 24);
+        disc(g, m, 0, 0, 0.45f, c.c(col, 0.5f * A), c.c(col, 0f), 20);
+        sparkle(g, m, 0, 0, 0.6f + 1.5f * k * (0.4f + 0.6f * flash), t * 0.05f, c.c(WHITE, A), c.c(col, 0f));
+        starburst(g, m, 10, 0.1f, 0.9f + 0.4f * k, t * 0.06f, 7, c.c(col, 0.5f * A), c.c(col, 0f));
+        c.pop();
+        for (int i = 0; i < 2; i++) {
+            float rt = t - i * 4f;
+            if (rt <= 0 || rt > 16) continue;
+            float r = 0.3f + 6f * easeOut(rt / 16f), fa = clamp01(1f - rt / 16f);
+            c.s.pushPose();
+            c.s.translate(P.x, P.y, P.z);
+            c.s.mulPose(new Quaternionf().rotationX((float) Math.PI / 2f));
+            ring(g, c.m(), r - 0.3f, r, c.c(col, 0f), c.c(WHITE, 0.6f * fa * A), 56);
+            c.pop();
+        }
+        for (int i = 0; i < 10; i++) {
+            float ph = (t * 0.04f + hash(i * 13)) % 1f;
+            Vector3f q = new Vector3f(P).add((hash(i * 7) - 0.5f) * 1.2f, ph * 1.6f - 0.2f, (hash(i * 11) - 0.5f) * 1.2f);
+            c.bb(q);
+            sparkle(g, c.m(), 0, 0, 0.12f * (1f - ph) + 0.03f, t * 0.1f + i, c.c(WHITE, (1f - ph) * A), c.c(col, 0f));
+            c.pop();
+        }
+    }
+
+    // ───────────────────────── 照明术：身前四枚浮空光球 ─────────────────────────
+
+    private void lightOrbs(C c) {
+        float t = c.t;
+        int col = c.col;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float fpA = c.selfFP ? 0.5f : 1f;
+        float[] xs = {0.9f, 0.3f, -0.3f, -0.9f};
+        Vector3f chest = c.bodyPt(0, c.h * 0.65f, 0.3f);
+        for (int i = 0; i < 4; i++) {
+            float spawn = easeOutBack(clamp01((t - i * 1.5f) / 10f));
+            if (spawn <= 0) continue;
+            float bob = 0.08f * Mth.sin(t * 0.09f + i * 1.6f);
+            float zf = (c.selfFP ? 1.15f : 0.75f) - 0.12f * Math.abs(xs[i]);
+            Vector3f slot = c.bodyPt(xs[i], c.h + 0.15f + bob + (c.selfFP ? 0.2f : 0f), zf);
+            Vector3f P = new Vector3f(chest).lerp(slot, spawn);
+            float pulse = 0.85f + 0.15f * Mth.sin(t * 0.25f + i * 2.1f);
+            c.bb(P);
+            Matrix4f m = c.m();
+            disc(g, m, 0, 0, 0.45f * pulse, c.c(col, 0.35f * fpA), c.c(col, 0f), 20);
+            disc(g, m, 0, 0, 0.17f, c.c(WHITE, 0.95f * fpA), c.c(col, 0.4f * fpA), 16);
+            disc(vc, m, 0, 0, 0.07f, c.c(WHITE, fpA), c.c(WHITE, fpA), 12);
+            sparkle(g, m, 0, 0, 0.36f * pulse, t * 0.03f + i, c.c(WHITE, 0.8f * fpA), c.c(col, 0f));
+            if (t < i * 1.5f + 8f) {
+                float fl = clamp01(1f - (t - i * 1.5f) / 8f);
+                disc(g, m, 0, 0, 0.9f * fl + 0.2f, c.c(WHITE, 0.7f * fl * fpA), c.c(col, 0f), 18);
+            }
+            c.pop();
+            for (int j = 0; j < 2; j++) {
+                float ang = t * 0.15f + j * (float) Math.PI + i;
+                Vector3f q = new Vector3f(P).add(Mth.cos(ang) * 0.24f, Mth.sin(ang * 1.3f) * 0.06f, Mth.sin(ang) * 0.24f);
+                c.bb(q);
+                disc(g, c.m(), 0, 0, 0.05f, c.c(WHITE, 0.9f * fpA), c.c(col, 0f), 8);
+                c.pop();
+            }
+        }
+    }
+
+    // ───────────────────────── 冻寒骨爪：飞掠的冰霜骨爪 + 三道爪痕 ─────────────────────────
+
+    private void frostClaw(C c) {
+        float t = c.t;
+        Vector3f E = c.e.end();
+        float len = E.length();
+        if (len < 0.1f) return;
+        Vector3f dir = new Vector3f(E).div(len);
+        Vector3f S = beamStart(c, dir);
+        boolean blight = c.variant == 1;
+        int col = c.col, bone = 0xEAF6FF, dark = blight ? 0x5A2A86 : 0x2C7FB8;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float T = 4f, A = clamp01((c.life - t) / 6f);
+        float head = easeOut(clamp01(t / T));
+        Vector3f H = new Vector3f(S).lerp(E, head);
+        Vector3f[] pp = perp(dir);
+        Vector3f side = pp[0], up = pp[1].y < 0 ? new Vector3f(pp[1]).negate() : new Vector3f(pp[1]);
+        // 寒雾拖尾
+        if (t < T + 4) {
+            float ta = clamp01(1f - (t - T) / 4f);
+            Vector3f tailS = new Vector3f(S).lerp(E, Math.max(0, head - 0.5f));
+            ribLerp(g, c.m(), line(tailS, H, 8), 0.02f, 0.45f, c.c(dark, 0f), c.c(col, 0.45f * ta), c.cam);
+            ribLerp(vc, c.m(), line(tailS, H, 8), 0.005f, 0.05f, c.c(WHITE, 0f), c.c(WHITE, 0.55f * ta), c.cam);
+        }
+        // 骨爪：四根弯曲指骨张开飞来，抵达时合拢抓下
+        if (t < T + 3) {
+            float grip = clamp01((t - T + 1f) / 2.5f), ca = clamp01(1f - (t - T) / 3f);
+            Vector3f palm = new Vector3f(H).sub(new Vector3f(dir).mul(0.4f));
+            for (int f = 0; f < 4; f++) {
+                float sp = (f - 1.5f) * 0.2f * (1f - 0.55f * grip);
+                Vector3f base = new Vector3f(palm).add(new Vector3f(side).mul(sp)).add(new Vector3f(up).mul(f == 0 || f == 3 ? -0.03f : 0.02f));
+                Vector3f ctrl = new Vector3f(base).add(new Vector3f(dir).mul(0.45f)).add(new Vector3f(up).mul(0.25f)).add(new Vector3f(side).mul(sp * 0.6f));
+                Vector3f tip = new Vector3f(base).add(new Vector3f(dir).mul(0.6f - 0.25f * grip)).add(new Vector3f(up).mul(-0.05f - 0.3f * grip))
+                        .add(new Vector3f(side).mul(sp * 0.4f));
+                int n = 6;
+                Vector3f[] pts = new Vector3f[n];
+                float[] wg = new float[n], wt = new float[n];
+                int[] cg = new int[n], ct = new int[n];
+                for (int i = 0; i < n; i++) {
+                    float u = i / (float) (n - 1);
+                    pts[i] = bezier(base, ctrl, tip, u);
+                    wt[i] = Mth.lerp(u, 0.05f, 0.006f);
+                    wg[i] = wt[i] * 3f + 0.03f;
+                    ct[i] = c.c(mix(bone, blight ? 0xC9B3F0 : col, u * 0.6f), ca);
+                    cg[i] = c.c(u > 0.6f ? WHITE : col, 0.5f * ca);
+                }
+                rib(g, c.m(), pts, wg, cg, c.cam);
+                rib(vc, c.m(), pts, wt, ct, c.cam);
+            }
+            c.bb(palm);
+            Matrix4f m = c.m();
+            disc(g, m, 0, 0, 0.35f, c.c(dark, 0.5f * ca), c.c(col, 0f), 16);
+            disc(vc, m, 0, 0, 0.1f, c.c(bone, 0.9f * ca), c.c(col, 0.6f * ca), 12);
+            c.pop();
+        }
+        // 命中：三道斜向爪痕 + 冰晶迸散 + 霜环
+        if (t >= T) {
+            float k = t - T, burst = clamp01(1f - k / 7f);
+            c.bb(E);
+            Matrix4f m = c.m();
+            for (int i = 0; i < 3; i++) {
+                float st = clamp01((k - i * 0.7f) / 2f);
+                if (st <= 0) continue;
+                float fa = clamp01(1f - (k - 3f - i * 0.5f) / 6f) * A;
+                float off = (i - 1) * 0.28f;
+                float x0 = -0.55f + off, y0 = 0.75f, x1 = 0.45f + off, y1 = -0.75f;
+                float xe = Mth.lerp(easeOut(st), x0, x1), ye = Mth.lerp(easeOut(st), y0, y1);
+                needle(g, m, x0, y0, xe, ye, 0.11f, c.c(col, 0.7f * fa), c.c(dark, 0f));
+                needle(vc, m, x0, y0, xe, ye, 0.035f, c.c(WHITE, fa), c.c(bone, 0.4f * fa));
+                if (blight) needle(g, m, x0 + 0.05f, y0, xe + 0.05f, ye, 0.06f, c.c(dark, 0.6f * fa), c.c(dark, 0f));
+            }
+            disc(g, m, 0, 0, 0.5f + 0.6f * burst, c.c(WHITE, 0.6f * burst * A), c.c(col, 0f), 20);
+            starburst(g, m, 10, 0.05f, 1.1f * easeOut(clamp01(k / 3f)), 0.3f, c.e.getId(), c.c(WHITE, 0.8f * burst * A), c.c(col, 0f));
+            c.pop();
+            for (int i = 0; i < 8; i++) {
+                Vector3f d = new Vector3f(hash(i * 5 + 1) - 0.5f, hash(i * 7 + 2) - 0.3f, hash(i * 11 + 3) - 0.5f);
+                if (d.lengthSquared() < 1e-4f) d.set(0, 1, 0);
+                d.normalize();
+                Vector3f a0 = new Vector3f(E).add(new Vector3f(d).mul(0.15f + 0.6f * easeOut(clamp01(k / 6f))));
+                Vector3f b0 = new Vector3f(E).add(new Vector3f(d).mul(0.4f + 1.4f * easeOut(clamp01(k / 6f))));
+                ribSpindle(vc, c.m(), a0, b0, 0.05f, 0.3f, c.c(bone, 0.2f * burst * A), c.c(mix(bone, col, 0.4f), burst * A), c.cam);
+            }
+            float r = 0.3f + 1.6f * easeOut(clamp01(k / 8f));
+            c.plane(E.x, E.y, E.z, dir.x, dir.y, dir.z);
+            ring(g, c.m(), r - 0.15f, r, c.c(col, 0f), c.c(WHITE, 0.6f * burst * A), 40);
+            c.pop();
+            if (blight) {
+                for (int i = 0; i < 6; i++) {
+                    float ph = (k * 0.06f + hash(i * 17)) % 1f;
+                    Vector3f q = new Vector3f(E).add((hash(i * 3) - 0.5f) * 0.9f, ph * 1.2f, (hash(i * 9) - 0.5f) * 0.9f);
+                    c.bb(q);
+                    disc(g, c.m(), 0, 0, 0.16f * (1f - ph), c.c(dark, 0.7f * (1f - ph) * A), c.c(dark, 0f), 10);
+                    c.pop();
+                }
+            }
         }
     }
 }

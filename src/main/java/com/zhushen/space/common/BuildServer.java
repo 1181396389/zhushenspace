@@ -23,7 +23,7 @@ public final class BuildServer {
         PlayerSkillData sd = player.getData(ModAttachments.PLAYER_SKILLS);
         PlayerAttributeData ad = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         if (!ad.envelopeUsed()) return;
-        BuildCheck c = BuildCheck.of(b.totalXp, b.created, b.giftedSkillXp,
+        BuildCheck c = BuildCheck.of(b.totalXp - b.artXp, b.created, b.giftedSkillXp,
                 b.attrXp, sd.points(), b.featMask, b.si1Skill, b.si3Skills[0], b.si3Skills[1],
                 attrXp, skills, featMask, si1, si3a, si3b);
         if (!c.ok()) {
@@ -82,6 +82,23 @@ public final class BuildServer {
         sync(player);
     }
 
+    /** 尚未分配的 XP（建卡总 XP − 属性 − 技能 − 专长 − 已用于技艺研发的 XP） */
+    public static int freeXp(ServerPlayer player) {
+        PlayerBuildData b = player.getData(ModAttachments.PLAYER_BUILD);
+        int[] sk = player.getData(ModAttachments.PLAYER_SKILLS).points();
+        BuildCheck c = BuildCheck.of(b.totalXp - b.artXp, b.created, b.giftedSkillXp,
+                b.attrXp, sk, b.featMask, b.si1Skill, b.si3Skills[0], b.si3Skills[1],
+                b.attrXp, sk, b.featMask, b.si1Skill, b.si3Skills[0], b.si3Skills[1]);
+        return Math.max(0, c.free);
+    }
+
+    /** 技艺研发 / 额外选项占用 XP（调用方已确认 freeXp 足够） */
+    public static void spendArtXp(ServerPlayer player, int amount) {
+        PlayerBuildData b = player.getData(ModAttachments.PLAYER_BUILD);
+        b.artXp = Math.max(0, b.artXp + amount);
+        sync(player);
+    }
+
     public static void addXp(ServerPlayer player, int amount) {
         PlayerBuildData b = player.getData(ModAttachments.PLAYER_BUILD);
         b.totalXp = Math.max(0, b.totalXp + amount);
@@ -94,6 +111,7 @@ public final class BuildServer {
         PlayerAttributeData ad = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         b.version = PlayerBuildData.VERSION;
         b.totalXp = ad.envelopeUsed() ? BuildRules.TOTAL_XP : 0;
+        b.artXp = 0;
         b.created = false;
         b.attrXp = new int[AttributeType.COUNT];
         b.featMask = new int[FeatType.COUNT];
@@ -123,8 +141,10 @@ public final class BuildServer {
 
     public static void sync(ServerPlayer player) {
         PlayerBuildData b = player.getData(ModAttachments.PLAYER_BUILD);
-        PacketDistributor.sendToPlayer(player, new SyncBuildPayload(b.totalXp, b.created, b.attrXp, b.featMask,
+        // 研发占用的 XP 不再出现在建卡界面里
+        PacketDistributor.sendToPlayer(player, new SyncBuildPayload(Math.max(0, b.totalXp - b.artXp), b.created, b.attrXp, b.featMask,
                 b.si1Skill, b.si3Skills[0], b.si3Skills[1], b.giftedSkillXp, b.pendingItems, b.pendingExchange));
+        ArtManager.sync(player); // 技艺页显示的可用 XP 跟着刷新
     }
 
     public static void syncAll(ServerPlayer player) {
