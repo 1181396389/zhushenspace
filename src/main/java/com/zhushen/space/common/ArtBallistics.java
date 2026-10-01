@@ -1,16 +1,53 @@
 package com.zhushen.space.common;
 
+import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.data.*;
 import com.zhushen.space.entity.art.ArtProjectile;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import java.util.*;
 
-/** Release-time stat snapshot, collision-time target defense. No instant target damage. */
+/**
+ * Release-time stat snapshot, collision-time target defense. No instant target damage.
+ * 出手与动作对齐：施法时立即扣费、播放动作，弹体在动作的“出招帧”才真正发出（几 tick 的延迟，瞄准取发出时的视线）。
+ */
+@EventBusSubscriber(modid = ZhuShenSpace.MODID)
 public final class ArtBallistics {
     private ArtBallistics() {}
+
+    /** 各技艺动作里“刀光 / 掌风 / 火球离手”那一帧距施法的 tick 数（与 art.json 的出招关键帧一致） */
+    private static final int SPIRIT_DELAY = 4, WIND_DELAY = 5, HADOKEN_DELAY = 2, FIREBALL_DELAY = 3;
+
+    private record Pending(ServerPlayer player, int due, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dim, Runnable run) {}
+    private static final List<Pending> PENDING = new ArrayList<>();
+
+    private static void later(ServerPlayer p, int ticks, Runnable run) {
+        if (ticks <= 0) { run.run(); return; }
+        PENDING.add(new Pending(p, p.getServer().getTickCount() + ticks, p.level().dimension(), run));
+    }
+
+    @SubscribeEvent public static void tick(ServerTickEvent.Post e) {
+        if (PENDING.isEmpty()) return;
+        int now = e.getServer().getTickCount();
+        List<Pending> due = new ArrayList<>();
+        PENDING.removeIf(q -> {
+            if (q.player().getServer() != e.getServer() || q.due() > now) return false;
+            due.add(q); return true;
+        });
+        for (Pending q : due) {
+            ServerPlayer p = q.player();
+            // 出招前死亡 / 下线 / 换维度：这一招作废（费用已在施法时结算，与原先即时发出的规则一致）
+            if (p.isRemoved() || !p.isAlive() || p.level().dimension() != q.dim()) continue;
+            q.run().run();
+        }
+    }
+
+    @SubscribeEvent public static void stop(net.neoforged.neoforge.event.server.ServerStoppedEvent e) { PENDING.clear(); }
     public record Shot(ArtSkill skill, int check, int cap, int bonus, float roll, float restraint,
                        float charge, int element, double range, Set<UUID> hit) {}
 
@@ -54,6 +91,35 @@ public final class ArtBallistics {
         Shot shot = new Shot(s, check + castBoost, cap, bonus, ArtManager.roll(p), restraint, charge, element, range, new HashSet<>());
         shot.hit().add(p.getUUID());
         ArtFx.anim(p, animation);
+        if (kind == ArtProjectile.SEAL) {
+            ArtFx.releaseSfx(p, s.pool, 0.45f);
+            // 阵留在施法者面前（与蓄力时同一位置），三道激光从阵心射出；被墙挡住时阵贴在墙前
+            ArtProjectile seal = ArtProjectile.seal(p, color);
+            seal.releaseSeal(shot);
+            return true;
+        }
+        final int fKind = kind, fColor = color;
+        final float fSize = size;
+        final double fSpeed = speed;
+        int delay = switch (s) {
+            case SPIRIT_SLASH -> SPIRIT_DELAY;
+            case WIND_SLASH -> WIND_DELAY;
+            case HADOKEN -> HADOKEN_DELAY;
+            default -> FIREBALL_DELAY;
+        };
+        if (kind == ArtProjectile.SPIRIT || kind == ArtProjectile.WIND) {
+            // 挥刀残光：比刀光离手早一帧，贴着施法者身前划过（size 编码方向：1 = 横斩，2 = 斜劈）
+            float variant = kind == ArtProjectile.SPIRIT ? 1f : 2f;
+            later(p, delay - 1, () -> {
+                Vec3 v = p.getViewVector(1);
+                ArtProjectile.fx(p, ArtProjectile.SWING, fColor, variant, p.getEyePosition().add(v.scale(0.95)).add(0, -0.22, 0), v, 7);
+            });
+        }
+        later(p, delay, () -> fire(p, s, fKind, fColor, fSize, fSpeed, shot));
+        return true;
+    }
+
+    private static void fire(ServerPlayer p, ArtSkill s, int kind, int color, float size, double speed, Shot shot) {
         ArtFx.releaseSfx(p, s.pool, 0.45f);
         Vec3 dir = p.getViewVector(1);
         // Start at eye/hand, not past nearby walls. Swept-volume collision handles the first tick.
@@ -62,15 +128,28 @@ public final class ArtBallistics {
                 net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, p));
         if (mouthPath.getType() != net.minecraft.world.phys.HitResult.Type.MISS)
             origin = mouthPath.getLocation().add(Vec3.atLowerCornerOf(mouthPath.getDirection().getNormal()).scale(0.05));
-        if (kind == ArtProjectile.SEAL) {
-            // 阵留在施法者面前（与蓄力时同一位置），三道激光从阵心射出；被墙挡住时阵贴在墙前
-            ArtProjectile seal = ArtProjectile.seal(p, color);
-            seal.releaseSeal(shot);
-        } else ArtProjectile.launch(p, kind, color, size, origin, dir, speed, shot);
-        return true;
+        ArtProjectile.launch(p, kind, color, size, origin, dir, speed, shot);
+        if (kind == ArtProjectile.WAVE || kind == ArtProjectile.FIREBALL) {
+            // 出手冲击环
+            int ring = kind == ArtProjectile.WAVE ? 0xFF7FD8FF : 0xFFFF9A3C;
+            ArtProjectile.fx(p, ArtProjectile.RING, ring, kind == ArtProjectile.WAVE ? size : size * 0.8f, origin.add(dir.scale(0.7)), dir, 9);
+        }
+    }
+
+    /** 命中 / 击中方块时的视觉特效 */
+    private static void hitFx(ArtProjectile projectile, ServerPlayer p, Shot shot, Vec3 point) {
+        Vec3 dir = projectile.getLookAngle();
+        switch (shot.skill()) {
+            case SPIRIT_SLASH -> ArtProjectile.fx(p, ArtProjectile.HIT_SLASH, 0xFF8FE3FF, 1f, point, dir, 11);
+            case WIND_SLASH -> ArtProjectile.fx(p, ArtProjectile.HIT_WIND, 0xFF5BE3A8, 1f, point, dir, 17);
+            case HADOKEN -> ArtProjectile.fx(p, ArtProjectile.HIT_WAVE, 0xFF5FC8FF, projectile.size(), point, dir, 13);
+            case EIGHT_FORMATION -> ArtProjectile.fx(p, ArtProjectile.HIT_SEAL, projectile.color(), 1f, point, dir, 10);
+            default -> {}
+        }
     }
 
     public static void impact(ArtProjectile projectile, ServerPlayer p, Shot shot, LivingEntity target, Vec3 point) {
+        if (shot.skill() != ArtSkill.GREAT_FIREBALL) hitFx(projectile, p, shot, point);
         if (shot.skill() == ArtSkill.GREAT_FIREBALL) {
             ArtProjectile.burst(p, point);
             ArtFx.soundAt(p, point, com.zhushen.space.sound.ModSounds.artSfx(shot.skill().pool).impact().get(), 1.0f, 0.9f);

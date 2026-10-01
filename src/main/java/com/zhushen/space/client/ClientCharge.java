@@ -51,6 +51,16 @@ public final class ClientCharge {
         return ZsAnim.clamp01((now - startMs) / (ArtCharge.MAX_TICKS * 50f));
     }
 
+    /** 当前蓄力进度 0..1；未在蓄力时返回 -1（供屏幕集中线使用） */
+    public static float level() {
+        long now = ZsAnim.nowMs();
+        if (!active || now - startMs > 10_500) return -1f;
+        return progress(now);
+    }
+
+    /** 当前蓄力技艺的主色 / 亮色 */
+    public static int[] palette() { return colors(); }
+
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut e) { active = false; endMs = 0; }
 

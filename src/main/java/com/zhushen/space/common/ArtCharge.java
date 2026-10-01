@@ -58,7 +58,13 @@ public final class ArtCharge {
             if (ArtManager.energy(p, s) < s.cost) { ArtManager.deny(p, "msg.zhushenspace.art.lack_energy"); return; }
             Charging c = new Charging(p, packet.bar(), packet.slot(), s, p.getServer().getTickCount(), packet.nonce(), p.serverLevel().dimension(), null);
             if (!valid(c)) return;
-            ArtProjectile seal = s == ArtSkill.EIGHT_FORMATION ? ArtProjectile.seal(p, ArtManager.formationColor(p)) : null;
+            // 蓄力视觉：八卦阵（视线前）/ 波动光团（右腰）/ 口前火苗，蓄力结束时随 cancel 一并移除
+            ArtProjectile seal = switch (s) {
+                case EIGHT_FORMATION -> ArtProjectile.seal(p, ArtManager.formationColor(p));
+                case HADOKEN -> ArtProjectile.charge(p, ArtProjectile.CHARGE_ORB, 0xFF6FD0FF, ArtProjectile.ANCHOR_HIP);
+                case GREAT_FIREBALL -> ArtProjectile.charge(p, ArtProjectile.CHARGE_FIRE, 0xFFFF8A2A, ArtProjectile.ANCHOR_MOUTH);
+                default -> null;
+            };
             ACTIVE.put(p.getUUID(), new Charging(p, c.bar(), c.slot(), s, c.start(), c.nonce(), c.dimension(), seal));
             ArtFx.anim(p, s == ArtSkill.HADOKEN ? "art_charge_wave" : s == ArtSkill.GREAT_FIREBALL ? "art_charge_fire" : "art_charge_seal");
             ArtFx.castSfx(p, s.pool, 0.35f);
