@@ -64,10 +64,46 @@ public class EnergyHudRenderer {
         return new float[]{x, y, w, h};
     }
 
+    /** 游戏内 HUD：只显示当前战斗预设会用到的能量池 */
     public static void render(GuiGraphics g, Font font, int screenW, int screenH) {
+        List<PoolView> pools = visiblePools();
+        if (pools.isEmpty()) return;
+        draw(g, font, screenW, screenH, pools);
+    }
+
+    /** 界面设置预览：显示全部能量池（便于摆放位置） */
+    public static void renderAll(GuiGraphics g, Font font, int screenW, int screenH) {
         List<PoolView> pools = ClientEnergyData.pools();
         if (pools.isEmpty()) return;
         draw(g, font, screenW, screenH, pools);
+    }
+
+    /**
+     * 当前使用中的战斗预设栏（A / B）里有技能会消耗的能量池才显示：
+     * 技艺 → 其所属能量池（查克拉忍术另含仙术查克拉）；内力系与太极流派技能 → 内力；内力吐息开启中 → 内力。
+     * 意志力不由技能消耗（G / B 键使用），始终显示。
+     */
+    public static List<PoolView> visiblePools() {
+        List<PoolView> all = ClientEnergyData.pools();
+        if (all.isEmpty()) return all;
+        java.util.Set<String> used = new java.util.HashSet<>();
+        int bar = ClientUiConfig.get().activeBar;
+        for (int slot = 0; slot < 9; slot++) {
+            int id = ClientSkillData.slotAbility(bar, slot);
+            if (id < 0 || id >= com.zhushen.space.data.SkillAbility.COUNT) continue;
+            com.zhushen.space.data.SkillAbility a = com.zhushen.space.data.SkillAbility.values()[id];
+            com.zhushen.space.data.ArtSkill s = com.zhushen.space.data.ArtSkill.of(a);
+            if (s != null) {
+                used.add(s.pool.id);
+                if ("chakra".equals(s.pool.id)) used.add("sage");
+            } else if (a.isNeiliAbility() || a.isSchoolAbility()) {
+                used.add(ClientEnergyData.NEILI_ID);
+            }
+        }
+        if (ClientEnergyData.breathEnabled()) used.add(ClientEnergyData.NEILI_ID);
+        List<PoolView> out = new java.util.ArrayList<>(all.size());
+        for (PoolView p : all) if (used.contains(p.id()) || "willpower".equals(p.id())) out.add(p);
+        return out;
     }
 
     private static void draw(GuiGraphics g, Font font, int screenW, int screenH, List<PoolView> pools) {
@@ -230,6 +266,7 @@ public class EnergyHudRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.options.hideGui) return;
         if (ClientEnergyData.pools().isEmpty()) return;
+        if (mc.screen instanceof com.zhushen.space.screen.EnergyUiConfigScreen) return; // 设置界面自己画全部能量池
         ClientUiConfig.saveNow(); // 惰性落盘配置修改
         GuiGraphics g = event.getGuiGraphics();
         render(g, mc.font, g.guiWidth(), g.guiHeight());

@@ -26,7 +26,7 @@ public final class ArtBallistics {
     private record Pending(ServerPlayer player, int due, net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dim, Runnable run) {}
     private static final List<Pending> PENDING = new ArrayList<>();
 
-    private static void later(ServerPlayer p, int ticks, Runnable run) {
+    static void later(ServerPlayer p, int ticks, Runnable run) {
         if (ticks <= 0) { run.run(); return; }
         PENDING.add(new Pending(p, p.getServer().getTickCount() + ticks, p.level().dimension(), run));
     }
@@ -207,7 +207,7 @@ public final class ArtBallistics {
         };
         PlayerHealthData.Severity sev = shot.skill() == ArtSkill.GREAT_FIREBALL || shot.skill() == ArtSkill.EIGHT_FORMATION
                 ? PlayerHealthData.Severity.L : PlayerHealthData.Severity.B;
-        if (DamageRules.deal(t, p.damageSources().indirectMagic(projectile, p), value, ArtManager.spec(sev, 0, 0, true, kind))) {
+        if (DamageRules.deal(t, ArtDamage.source(projectile, p, kind), value, ArtManager.spec(sev, 0, 0, true, kind))) {
             if (shot.skill() == ArtSkill.WIND_SLASH) ArtManager.knockUp(p, t, value);
             if (shot.skill() == ArtSkill.GREAT_FIREBALL) t.igniteForSeconds(3);
             // One restrained hit sound; no generic rings, sparks or forced camera shake.

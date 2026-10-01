@@ -110,6 +110,8 @@ public final class DamageRules {
     public static Set<DamageKind> kinds(DamageSource src, LivingEntity victim) {
         Spec sp = PENDING.get(victim.getUUID());
         if (sp != null) return sp.kinds;
+        DamageKind art = ArtDamage.kindOf(src);
+        if (art != null) return EnumSet.of(art);
         if (src.is(DamageTypes.IN_FIRE) || src.is(DamageTypes.ON_FIRE) || src.is(DamageTypes.LAVA) || src.is(DamageTypes.HOT_FLOOR)
                 || src.is(DamageTypes.CAMPFIRE))
             return EnumSet.of(DamageKind.FIRE);

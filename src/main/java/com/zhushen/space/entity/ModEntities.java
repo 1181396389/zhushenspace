@@ -43,6 +43,13 @@ public class ModEntities {
                     .sized(0.5f, 0.5f).clientTrackingRange(12).updateInterval(1).noSummon().fireImmune()
                     .build("art_projectile"));
 
+    /** 非弹体技艺的纯视觉特效（光束 / 附身光环 / 残影），不碰撞、不保存 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.zhushen.space.entity.art.ArtVfx>> ART_VFX =
+            ENTITY_TYPES.register("art_vfx", () -> EntityType.Builder
+                    .<com.zhushen.space.entity.art.ArtVfx>of(com.zhushen.space.entity.art.ArtVfx::new, MobCategory.MISC)
+                    .sized(0.5f, 0.5f).clientTrackingRange(10).updateInterval(1).noSummon().fireImmune()
+                    .build("art_vfx"));
+
     @SubscribeEvent
     public static void onRegisterAttributes(EntityAttributeCreationEvent event) {
         event.put(T_VIRUS_ZOMBIE.get(), TVirusZombie.createAttributes().build());

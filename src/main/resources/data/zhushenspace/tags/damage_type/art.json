@@ -1,0 +1,20 @@
+{
+  "replace": false,
+  "values": [
+    "zhushenspace:art_blunt",
+    "zhushenspace:art_slash",
+    "zhushenspace:art_pierce",
+    "zhushenspace:art_pure_energy",
+    "zhushenspace:art_fire",
+    "zhushenspace:art_cold",
+    "zhushenspace:art_lightning",
+    "zhushenspace:art_acid",
+    "zhushenspace:art_holy",
+    "zhushenspace:art_unholy",
+    "zhushenspace:art_sonic",
+    "zhushenspace:art_light",
+    "zhushenspace:art_psychic",
+    "zhushenspace:art_force",
+    "zhushenspace:art_toxin"
+  ]
+}

@@ -137,6 +137,7 @@ public final class ArtManager {
         p.setData(ModAttachments.PLAYER_ARTS, new PlayerArtData());
         BUFFS.remove(p.getUUID());
         VIGOR.remove(p.getUUID());
+        endVigorFx(p);
         armor(p, MOD_OUTER, 0);
         armor(p, MOD_WARD, 0);
         armor(p, MOD_PALM, 0);
@@ -297,7 +298,7 @@ public final class ArtManager {
 
     /** 目标防御（高速 / 破甲 / 接触） */
     static float defense(ServerPlayer p, LivingEntity t, int speed, int pierce, boolean touch) {
-        DamageSource src = p.damageSources().indirectMagic(p, p);
+        DamageSource src = ArtDamage.source(null, p, DamageKind.PURE_ENERGY);
         float d = touch ? (float) (DamageRules.isFlatFooted(t, p) ? 0 : DamageRules.naturalDefense(t))
                 : CombatFormula.defense(t, src);
         return Math.max(0, d - speed - pierce);
@@ -393,7 +394,8 @@ public final class ArtManager {
             p.displayClientMessage(Component.translatable("msg.zhushenspace.art.miss"), true);
             return;
         }
-        DamageRules.deal(t, p.damageSources().indirectMagic(p, p), amount, spec);
+        // 远程技艺：注册的对应伤害类型；直接来源为空（不是亲手近战，不触发近战类加成 / 上限）
+        DamageRules.deal(t, ArtDamage.source(null, p, spec), amount, spec);
     }
 
     static DamageRules.Spec spec(PlayerHealthData.Severity sev, int armorPierce, int ignoreResist, boolean ranged, DamageKind... ks) {
@@ -514,6 +516,7 @@ public final class ArtManager {
         if (buff(p, ArtSkill.BASIC_PALM) && p.getMainHandItem().isEmpty()) add += 9;
         Integer v = VIGOR.remove(p.getUUID());
         Long until = VIGOR_UNTIL.remove(p.getUUID());
+        if (v != null) endVigorFx(p);
         if (v != null && until != null && until >= p.level().getGameTime()) add += 1 + 9 * v;
         if (add > 0) e.setAmount(e.getAmount() + add);
     }
@@ -548,17 +551,17 @@ public final class ArtManager {
             case MIND_BLAST -> mindBlast(p, s);
             case MIND_SHOCK -> mindShock(p, s);
             case HADOKEN -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
-            case BREATH_METHOD -> selfBuff(p, s, 10 * 60 * 20, ParticleTypes.END_ROD);
+            case BREATH_METHOD -> breathMethod(p, s);
             case YAKSHA_FLIGHT -> yaksha(p, s);
             case MAGIC_BURST -> magicBurst(p, s);
-            case MINOR_WARD -> selfBuff(p, s, 60 * 20, ParticleTypes.ENCHANT);
+            case MINOR_WARD -> minorWard(p, s);
             case FIVE_ELEMENTS -> fiveElements(p, s);
             case EIGHT_FORMATION -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
             case IGNORE_ME -> ignoreMe(p, s);
             case BIO_LIGHTNING -> bioLightning(p, s);
             case NETHER_VIGOR -> netherVigor(p, s);
             case WIND_SLASH -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
-            case BASIC_PALM -> selfBuff(p, s, 60 * 20, ParticleTypes.CLOUD);
+            case BASIC_PALM -> basicPalm(p, s);
             case REVIVE -> revive(p, s);
             case PHOENIX_FIRE -> phoenixFire(p, s);
             case GREAT_FIREBALL -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
@@ -589,26 +592,110 @@ public final class ArtManager {
         };
     }
 
-    static boolean selfBuff(ServerPlayer p, ArtSkill s, int ticks, ParticleOptions part) {
+    // ===== 演出（动漫风 v3：动作 → 出手帧生成视觉特效 → 特效到位时结算） =====
+
+    /** 出手点：右手前方 */
+    static Vec3 handPos(ServerPlayer p) {
+        Vec3 v = p.getViewVector(1);
+        double y = Math.toRadians(p.getYRot());
+        Vec3 right = new Vec3(-Math.cos(y), 0, -Math.sin(y));
+        return clampFromEye(p, p.getEyePosition().add(v.scale(0.55)).add(right.scale(0.22)).add(0, -0.32, 0));
+    }
+
+    /** 额前（精神系）/ 口前（火遁） */
+    static Vec3 browPos(ServerPlayer p) { return clampFromEye(p, p.getEyePosition().add(p.getViewVector(1).scale(0.4)).add(0, 0.05, 0)); }
+
+    static Vec3 mouthPos(ServerPlayer p) { return clampFromEye(p, p.getEyePosition().add(p.getViewVector(1).scale(0.45)).add(0, -0.16, 0)); }
+
+    /** 出手点被墙挡住时贴回眼前，光束永远不会从墙后发出 */
+    private static Vec3 clampFromEye(ServerPlayer p, Vec3 want) {
+        Vec3 eye = p.getEyePosition();
+        HitResult hit = p.level().clip(new ClipContext(eye, want, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
+        if (hit.getType() == HitResult.Type.MISS) return want;
+        return eye.add(hit.getLocation().subtract(eye).scale(0.8));
+    }
+
+    /** 光束落点：目标躯干 */
+    static Vec3 aim(LivingEntity t) { return t.position().add(0, t.getBbHeight() * 0.6, 0); }
+
+    static void later(ServerPlayer p, int ticks, Runnable r) { ArtBallistics.later(p, ticks, r); }
+
+    static void hitSfx(ServerPlayer p, ArtSkill s, LivingEntity t) {
+        ArtFx.soundAt(p, t.position(), com.zhushen.space.sound.ModSounds.artSfx(s.pool).hit().get(), 0.7f, 1f);
+    }
+
+    /** 黄泉活力：附身的鬼火（下一次近战消耗时提前熄灭） */
+    private static final Map<UUID, com.zhushen.space.entity.art.ArtVfx> VIGOR_FX = new HashMap<>();
+
+    static void endVigorFx(ServerPlayer p) {
+        var fx = VIGOR_FX.remove(p.getUUID());
+        if (fx != null && !fx.isRemoved()) fx.finish(8);
+    }
+
+    /** 息法：每个已习得的选项各有一层光环（外息金色护体环 / 中息白色定身轮 / 内息紫色心灯） */
+    static boolean breathMethod(ServerPlayer p, ArtSkill s) {
         if (!pay(p, s, s.cost)) return false;
         if (holdback(p, 1) < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        addBuff(p, s, ticks);
-        p.serverLevel().sendParticles(part, p.getX(), p.getY() + 1, p.getZ(), 30, 0.5, 0.8, 0.5, 0.05);
-        p.level().playSound(null, p.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.6f, 1.4f);
+        addBuff(p, s, 10 * 60 * 20);
+        int bits = data(p).optionBits[s.ordinal()] & 7;
+        ArtFx.anim(p, "art_breath");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 8, () -> {
+            com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.BREATH, 0xFFFFD35A, bits, 46, p);
+            ArtFx.releaseSfx(p, s.pool, 0.25f);
+        });
         return true;
     }
 
-    /** 灵斩：以持握武器作为心灵检定的武器伤害，距离 = 决心 米 */
+    /** 初级防护：六角结界由下而上展开 */
+    static boolean minorWard(ServerPlayer p, ArtSkill s) {
+        if (!pay(p, s, s.cost)) return false;
+        if (holdback(p, 1) < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
+        addBuff(p, s, 60 * 20);
+        ArtFx.anim(p, "art_minor_ward");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 5, () -> {
+            com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.WARD, 0xFF6F8CFF, 0, 34, p);
+            ArtFx.releaseSfx(p, s.pool, 0.3f);
+            p.level().playSound(null, p.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1f, 0.8f);
+        });
+        return true;
+    }
 
+    /** 基础掌法：马步推掌，巨大的气劲掌印向前推出 */
+    static boolean basicPalm(ServerPlayer p, ArtSkill s) {
+        if (!pay(p, s, s.cost)) return false;
+        if (holdback(p, 1) < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
+        addBuff(p, s, 60 * 20);
+        ArtFx.anim(p, "art_basic_palm");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 6, () -> {
+            Vec3 v = p.getViewVector(1);
+            com.zhushen.space.entity.art.ArtVfx.at(p, com.zhushen.space.entity.art.ArtVfx.PALM, 0xFF4DE0C0, 0, 16,
+                    clampFromEye(p, p.getEyePosition().add(v.scale(0.9)).add(0, -0.35, 0)), v);
+            ArtFx.releaseSfx(p, s.pool, 0.45f);
+        });
+        return true;
+    }
 
     /** 灵力治疗：6 点治疗，严重优先、然后冲击；潜行 = 自己 */
     static boolean spiritHeal(ServerPlayer p, ArtSkill s) {
-        LivingEntity t = p.isShiftKeyDown() ? p : target(p, Math.max(2, attr(p, AttributeType.RESOLVE)));
-        if (t == null) t = p;
+        LivingEntity t0 = p.isShiftKeyDown() ? p : target(p, Math.max(2, attr(p, AttributeType.RESOLVE)));
+        final LivingEntity t = t0 == null ? p : t0;
         float amt = holdback(p, 6);
         if (amt < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        heal(t, (int) amt, false);
-        p.serverLevel().sendParticles(ParticleTypes.HEART, t.getX(), t.getY() + 1.2, t.getZ(), 6, 0.4, 0.4, 0.4, 0);
+        ArtFx.anim(p, "art_spirit_heal");
+        ArtFx.castSfx(p, s.pool, 0.25f);
+        later(p, 4, () -> {
+            if (!t.isAlive()) return;
+            com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.HEAL, 0xFF7CF2D8, t == p ? 0 : 1, 36, t);
+            ArtFx.releaseSfx(p, s.pool, 0.25f);
+        });
+        later(p, t == p ? 7 : 10, () -> {
+            if (!t.isAlive()) return;
+            heal(t, (int) amt, false);
+            p.level().playSound(null, t.blockPosition(), SoundEvents.AMETHYST_BLOCK_RESONATE, SoundSource.PLAYERS, 0.8f, 1.6f);
+        });
         return true;
     }
 
@@ -635,34 +722,46 @@ public final class ArtManager {
         }
     }
 
-    /** 精神冲击：远程心灵攻击 20 米，纯能量（研发后可为心灵） */
+    /** 精神冲击：远程心灵攻击 20 米，纯能量（研发后可为心灵）。额前「第三只眼」射出精神涟漪 */
     static boolean mindBlast(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, 20);
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
         float v = attackRoll(p, mindValue(p), 0, defense(p, t, 0, 0, false), mindValue(p), 0);
         boolean psy = data(p).hasResearch(s, 0);
-        beam(p, t.getEyePosition(), psy ? dust(0xC77DFF) : dust(0xE0F4FF));
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, psy ? DamageKind.PSYCHIC : DamageKind.PURE_ENERGY));
+        ArtFx.anim(p, "art_mind_blast");
+        later(p, 3, () -> {
+            com.zhushen.space.entity.art.ArtVfx.beam(p, com.zhushen.space.entity.art.ArtVfx.MIND_BEAM,
+                    psy ? 0xFFC77DFF : 0xFFE0F4FF, psy ? 1 : 0, 13, browPos(p), aim(t));
+            ArtFx.releaseSfx(p, s.pool, 0.35f);
+        });
+        later(p, 6, () -> {
+            if (!t.isAlive()) return;
+            hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, psy ? DamageKind.PSYCHIC : DamageKind.PURE_ENERGY));
+            hitSfx(p, s, t);
+        });
         return true;
     }
 
-    /** 精神震荡：20 米内目标受 13 点纯能量伤害，意志豁免减免 */
+    /** 精神震荡：20 米内目标受 13 点纯能量伤害，意志豁免减免。目标头部炸开精神震波 */
     static boolean mindShock(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, 20);
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
         if (!pay(p, s, s.cost)) return false;
         float v = holdback(p, 13);
-        p.serverLevel().sendParticles(ParticleTypes.SONIC_BOOM, t.getX(), t.getY() + 1, t.getZ(), 1, 0, 0, 0, 0);
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v - willSave(t), spec(PlayerHealthData.Severity.B, 0, 0, true, DamageKind.PURE_ENERGY));
+        ArtFx.anim(p, "art_mind_shock");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 5, () -> {
+            if (!t.isAlive()) return;
+            com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.MIND_QUAKE, 0xFFD9CEFF, 0, 18, t);
+            ArtFx.soundAt(p, t.position(), com.zhushen.space.sound.ModSounds.artSfx(s.pool).impact().get(), 0.9f, 1.2f);
+            hit(p, t, v - willSave(t), spec(PlayerHealthData.Severity.B, 0, 0, true, DamageKind.PURE_ENERGY));
+        });
         return true;
     }
 
-    /** 波动拳：远程肉搏攻击 50 米，力量 + 肉搏 + 天生武器 1，【高速8】 */
-
-
-    /** 夜叉空行：自身 + 触及范围内准星所指玩家获得飞行 10 分钟（最多 决心 个目标） */
+    /** 夜叉空行：自身 + 触及范围内准星所指玩家获得飞行 10 分钟（最多 决心 个目标）。背后展开风之羽翼 */
     static boolean yaksha(ServerPlayer p, ArtSkill s) {
         if (!pay(p, s, s.cost)) return false;
         if (holdback(p, 1) < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
@@ -675,68 +774,113 @@ public final class ArtManager {
             addBuff(t, s, 10 * 60 * 20);
             t.getAbilities().mayfly = true;
             t.onUpdateAbilities();
-            t.serverLevel().sendParticles(ParticleTypes.CHERRY_LEAVES, t.getX(), t.getY() + 1, t.getZ(), 20, 0.5, 0.5, 0.5, 0.02);
         }
+        ArtFx.anim(p, "art_yaksha");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 6, () -> {
+            for (ServerPlayer t : ts) {
+                if (!t.isAlive()) continue;
+                com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.YAKSHA, 0xFFE9D8FF, 0, 42, t);
+                t.level().playSound(null, t.blockPosition(), SoundEvents.ENDER_DRAGON_FLAP, SoundSource.PLAYERS, 0.5f, 1.5f);
+            }
+            ArtFx.releaseSfx(p, s.pool, 0.3f);
+        });
         return true;
     }
 
-    /** 魔能爆：远程法术攻击，距离 = 关键属性 + 神秘学 米，威力 0，物理钝击（研发后力场） */
+    /** 魔能爆：远程法术攻击，距离 = 关键属性 + 神秘学 米，威力 0，物理钝击（研发后力场）。掌前魔法阵射出奥术光枪 */
     static boolean magicBurst(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, Math.max(4, spellCheck(p, s.pool)));
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
         int check = spellCheck(p, s.pool);
         float v = attackRoll(p, check, 0, defense(p, t, 0, 0, false), spellCap(p, s.pool, 0, 0), 0);
         boolean force = data(p).hasResearch(s, 0);
-        beam(p, t.getEyePosition(), dust(force ? 0x7C4DFF : 0xB388FF));
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, force ? DamageKind.FORCE : DamageKind.BLUNT));
+        ArtFx.anim(p, "art_magic_burst");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 3, () -> {
+            com.zhushen.space.entity.art.ArtVfx.beam(p, com.zhushen.space.entity.art.ArtVfx.ARCANE,
+                    force ? 0xFF7C4DFF : 0xFFB388FF, force ? 1 : 0, 15, handPos(p), aim(t));
+            ArtFx.releaseSfx(p, s.pool, 0.4f);
+        });
+        later(p, 7, () -> {
+            if (!t.isAlive()) return;
+            hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, force ? DamageKind.FORCE : DamageKind.BLUNT));
+            hitSfx(p, s, t);
+        });
         return true;
     }
 
-    /** 五行道法：远程法术攻击，距离 = 风度 米，纯能量（关键词仅作表现） */
+    /** 五行道法：远程法术攻击，距离 = 风度 米，纯能量（关键词仅作表现）。掷出符箓，在目标处显化雷 / 风 / 水 / 火 / 土 */
     static boolean fiveElements(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, Math.max(4, attr(p, AttributeType.CHARM)));
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
         float v = attackRoll(p, spellCheck(p, s.pool), 0, defense(p, t, 0, 0, false), spellCap(p, s.pool, 0, 0), 0);
-        int[] colors = {0xFFF176, 0xB2FF59, 0x40C4FF, 0xFF7043, 0xBCAAA4};
-        beam(p, t.getEyePosition(), dust(colors[Math.min(4, data(p).current[s.ordinal()])]));
+        int el = Math.max(0, Math.min(4, data(p).current[s.ordinal()]));
+        int[] colors = {0xFFFFE45C, 0xFF9CF25A, 0xFF40C4FF, 0xFFFF7043, 0xFFC9A27E};
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.PURE_ENERGY));
+        ArtFx.anim(p, "art_five_elements");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 4, () -> {
+            com.zhushen.space.entity.art.ArtVfx.beam(p, com.zhushen.space.entity.art.ArtVfx.ELEMENT, colors[el], el, 24, handPos(p),
+                    t.position().add(0, t.getBbHeight() * 0.5, 0));
+            ArtFx.releaseSfx(p, s.pool, 0.35f);
+        });
+        later(p, 8, () -> {
+            if (!t.isAlive()) return;
+            hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.PURE_ENERGY));
+            var ev = switch (el) {
+                case 0 -> SoundEvents.LIGHTNING_BOLT_IMPACT;
+                case 1 -> SoundEvents.BREEZE_WIND_CHARGE_BURST.value();
+                case 2 -> SoundEvents.GENERIC_SPLASH;
+                case 3 -> SoundEvents.FIRECHARGE_USE;
+                default -> SoundEvents.DRIPSTONE_BLOCK_BREAK;
+            };
+            ArtFx.soundAt(p, t.position(), ev, 0.8f, 1.1f);
+        });
         return true;
     }
 
-    /** 八阵图：远程法术攻击 20 米，【高速8】，元素由轮盘 / 选项切换 */
-
-
-    /** 无视我：10 分钟隐身，生物不锁定；互动即打破 */
+    /** 无视我：10 分钟隐身，生物不锁定；互动即打破。「嘘」的手势后身形像信号故障一样碎散消失 */
     static boolean ignoreMe(ServerPlayer p, ArtSkill s) {
         if (!pay(p, s, s.cost)) return false;
         if (holdback(p, 1) < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        addBuff(p, s, 10 * 60 * 20);
-        p.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 10 * 60 * 20, 0, false, false, true));
-        for (Mob m : p.level().getEntitiesOfClass(Mob.class, p.getBoundingBox().inflate(32))) {
-            if (m.getTarget() == p) {
-                Set<UUID> seen = SEEN_THROUGH.get(p.getUUID());
-                if (seen == null || !seen.contains(m.getUUID())) m.setTarget(null);
+        ArtFx.anim(p, "art_ignore_me");
+        ArtFx.castSfx(p, s.pool, 0.25f);
+        later(p, 8, () -> {
+            com.zhushen.space.entity.art.ArtVfx.at(p, com.zhushen.space.entity.art.ArtVfx.VANISH, 0xFFE05AFF, 0, 22, p.position(), p.getViewVector(1));
+            ArtFx.releaseSfx(p, s.pool, 0.2f);
+            addBuff(p, s, 10 * 60 * 20);
+            p.addEffect(new MobEffectInstance(MobEffects.INVISIBILITY, 10 * 60 * 20, 0, false, false, true));
+            for (Mob m : p.level().getEntitiesOfClass(Mob.class, p.getBoundingBox().inflate(32))) {
+                if (m.getTarget() == p) {
+                    Set<UUID> seen = SEEN_THROUGH.get(p.getUUID());
+                    if (seen == null || !seen.contains(m.getUUID())) m.setTarget(null);
+                }
             }
-        }
+        });
         return true;
     }
 
-    /** 生物闪电：远程心灵接触攻击 20 米，【高速4】【破甲3】【破魔3】，闪电 */
+    /** 生物闪电：远程心灵接触攻击 20 米，【高速4】【破甲3】【破魔3】，闪电。指尖迸出分叉电弧 */
     static boolean bioLightning(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, 20);
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
         if (!pay(p, s, s.cost)) return false;
         float v = attackRoll(p, mindValue(p), 0, defense(p, t, 4, 3, true), mindValue(p), 0);
-        beam(p, t.getEyePosition(), ParticleTypes.ELECTRIC_SPARK);
-        p.level().playSound(null, t.blockPosition(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 0.4f, 1.8f);
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.L, 3, 3, true, DamageKind.LIGHTNING));
+        ArtFx.anim(p, "art_bio_lightning");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 3, () -> {
+            if (!t.isAlive()) return;
+            com.zhushen.space.entity.art.ArtVfx.beam(p, com.zhushen.space.entity.art.ArtVfx.BIO_BOLT, 0xFF9FE8FF, 0, 10, handPos(p), aim(t));
+            p.level().playSound(null, t.blockPosition(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 0.4f, 1.8f);
+            hit(p, t, v, spec(PlayerHealthData.Severity.L, 3, 3, true, DamageKind.LIGHTNING));
+        });
         return true;
     }
 
-    /** 黄泉活力：附于下一次近战（10 秒内）：附加成功 +1；增幅每点妖力 +3DP（上限 传奇风度 次） */
+    /** 黄泉活力：附于下一次近战（10 秒内）：附加成功 +1；增幅每点妖力 +3DP（上限 传奇风度 次）。拳边缠绕黄泉鬼火 */
     static boolean netherVigor(ServerPlayer p, ArtSkill s) {
         // 增幅与基础能耗一同作为一次能耗支付
         Amplify.Plan plan = Amplify.plan(energy(p, s) - s.cost, legendary(p, AttributeType.CHARM), i -> 1,
@@ -745,7 +889,15 @@ public final class ArtManager {
         int amp = plan.steps();
         VIGOR.put(p.getUUID(), amp);
         VIGOR_UNTIL.put(p.getUUID(), p.level().getGameTime() + 200);
-        p.serverLevel().sendParticles(ParticleTypes.SOUL_FIRE_FLAME, p.getX(), p.getY() + 1, p.getZ(), 20, 0.4, 0.6, 0.4, 0.02);
+        ArtFx.anim(p, "art_nether_vigor");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        endVigorFx(p);
+        later(p, 6, () -> {
+            if (!VIGOR.containsKey(p.getUUID())) return;
+            VIGOR_FX.put(p.getUUID(), com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.NETHER, 0xFF4DF2E0,
+                    Math.min(6, amp), 194, p));
+            p.level().playSound(null, p.blockPosition(), SoundEvents.SOUL_ESCAPE.value(), SoundSource.PLAYERS, 1f, 0.8f);
+        });
         return true;
     }
 
@@ -776,19 +928,30 @@ public final class ArtManager {
         }
     }
 
-    /** 起死回生：触及，治疗点数 = 肉搏等级（冲击/严重 1 点，恶性 3 点） */
+    /** 起死回生：触及，治疗点数 = 肉搏等级（冲击/严重 1 点，恶性 3 点）。天降金色光柱 */
     static boolean revive(ServerPlayer p, ArtSkill s) {
-        LivingEntity t = p.isShiftKeyDown() ? p : target(p, p.entityInteractionRange());
-        if (t == null) t = p;
+        LivingEntity t0 = p.isShiftKeyDown() ? p : target(p, p.entityInteractionRange());
+        final LivingEntity t = t0 == null ? p : t0;
         if (!pay(p, s, s.cost)) return false;
         float pts = holdback(p, skill(p, SkillType.BRAWL));
         if (pts < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        heal(t, (int) pts, true);
-        p.serverLevel().sendParticles(ParticleTypes.TOTEM_OF_UNDYING, t.getX(), t.getY() + 1, t.getZ(), 30, 0.4, 0.6, 0.4, 0.2);
+        ArtFx.anim(p, "art_revive");
+        ArtFx.castSfx(p, s.pool, 0.35f);
+        later(p, 7, () -> {
+            if (!t.isAlive()) return;
+            com.zhushen.space.entity.art.ArtVfx.on(p, com.zhushen.space.entity.art.ArtVfx.REVIVE, 0xFFFFE58A, t == p ? 0 : 1, 44, t);
+            ArtFx.releaseSfx(p, s.pool, 0.4f);
+            p.level().playSound(null, t.blockPosition(), SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.8f, 1.5f);
+        });
+        later(p, 13, () -> {
+            if (!t.isAlive()) return;
+            heal(t, (int) pts, true);
+            p.level().playSound(null, t.blockPosition(), SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 0.35f, 1.6f);
+        });
         return true;
     }
 
-    /** 凤仙火之术：远程法术攻击 20 米，【高速4】，火焰；增幅每点查克拉 威力+2（上限 传奇感知 次） */
+    /** 凤仙火之术：远程法术攻击 20 米，【高速4】，火焰；增幅每点查克拉 威力+2（上限 传奇感知 次）。口中连吐数枚小火球 */
     static boolean phoenixFire(ServerPlayer p, ArtSkill s) {
         LivingEntity t = target(p, 20);
         if (t == null) { deny(p, "msg.zhushenspace.art.no_target"); return false; }
@@ -797,13 +960,21 @@ public final class ArtManager {
         if (!pay(p, s, s.cost + plan.cost())) return false; // 增幅与基础能耗一同作为一次能耗支付
         int power = 3 + PoolEffects.sageBoost(p, 2) + 2 * plan.steps();
         float v = attackRoll(p, spellCheck(p, s.pool), 0, defense(p, t, 4, 0, false), spellCap(p, s.pool, power, 0), 0);
-        beam(p, t.getEyePosition(), ParticleTypes.FLAME);
-        p.level().playSound(null, p.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1f, 1.3f);
         if (v < 0) { deny(p, "msg.zhushenspace.art.holdback_fail"); return true; }
-        hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.FIRE));
+        int balls = Math.min(9, 5 + plan.steps());
+        ArtFx.anim(p, "art_phoenix_fire");
+        ArtFx.castSfx(p, s.pool, 0.3f);
+        later(p, 5, () -> {
+            com.zhushen.space.entity.art.ArtVfx.beam(p, com.zhushen.space.entity.art.ArtVfx.PHOENIX, 0xFFFF8A3C, balls, 24, mouthPos(p), aim(t));
+            p.level().playSound(null, p.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1f, 1.3f);
+        });
+        later(p, 11, () -> {
+            if (!t.isAlive()) return;
+            hit(p, t, v, spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.FIRE));
+            hitSfx(p, s, t);
+        });
         return true;
     }
-
     /** 豪火球之术：前方 20 米锥形，威力 4，火焰；每个目标反射豁免 −6DP（−18） */
 
 }

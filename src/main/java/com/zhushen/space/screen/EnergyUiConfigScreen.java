@@ -214,7 +214,7 @@ public class EnergyUiConfigScreen extends Screen {
         if (ClientEnergyData.pools().isEmpty()) {
             EnergyHudRenderer.renderDemo(g, font, this.width, this.height);
         } else {
-            EnergyHudRenderer.render(g, font, this.width, this.height);
+            EnergyHudRenderer.renderAll(g, font, this.width, this.height);
         }
         // 战斗模式伤势 HUD 预览（无伤势时显示示例数值）
         WoundHudRenderer.renderPreview(g, font, this.width, this.height);

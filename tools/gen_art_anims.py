@@ -1,4 +1,4 @@
-"""生成五个弹体技艺（灵斩 / 风斩 / 波动拳 / 八阵图 / 豪火球）的 KosmX/GeckoLib 动作文件 art.json。
+"""生成全部 19 个技艺（5 个弹体技艺 + 14 个非弹体技艺）的 KosmX/GeckoLib 动作文件 art.json。
 
 约定与 tools/gen_taiji_anims.py 一致：
   手臂/腿 x 负值 = 向前抬起；右臂 y 正 = 向内、z 正 = 向外；左臂镜像。
@@ -196,6 +196,147 @@ seq("art_fireball", 0.85, [
     (0.55, P(FIRE_BLOW, torso=[21, 0, 0]), LIN),
     (0.85, NEUTRAL, SINE),
 ])
+
+
+# =====================================================================
+# 非弹体技艺（v3.2）：每个技艺一套独立动作；出手帧与服务端特效生成延迟对齐（ArtManager 中的 later(...)）
+# =====================================================================
+
+def shake(pose, t0, t1, step, amp, bones=("right_arm", "left_arm")):
+    """在 [t0, t1] 内按 step 生成细小颤抖关键帧"""
+    out, t, i = [], t0, 0
+    while t <= t1 + 1e-6:
+        s = 1 if i % 2 == 0 else -1
+        kw = {b: add(pose[b], [s * amp, 0, s * amp * 0.5]) for b in bones}
+        out.append((round(t, 3), P(pose, **kw), SINE))
+        t += step
+        i += 1
+    return out
+
+
+# 灵力治疗（特效 4 tick = 0.2s）：双掌收于胸前 → 柔和地向前送出，掌心朝前
+HEAL_GATHER = P(right_arm=[-58, 34, 0], left_arm=[-58, -34, 0], torso=[-4, 0, 0], head=[-4, 0, 0],
+                right_arm_bend=[85, 0], left_arm_bend=[85, 0], body=[0, -0.5, 0])
+HEAL_GIVE = P(right_arm=[-86, 12, 4], left_arm=[-86, -12, -4], torso=[6, 0, 0], head=[-6, 0, 0],
+              right_arm_bend=[18, 0], left_arm_bend=[18, 0], body=[0, -1, 0], left_leg=[-8, 0, -3], right_leg=[5, 0, 3])
+seq("art_spirit_heal", 1.4, [
+    (0, NEUTRAL, LIN), (0.12, HEAL_GATHER, CUBIC), (0.22, HEAL_GIVE, BACK),
+    (0.6, P(HEAL_GIVE, torso=[4, 0, 0], body=[0, -0.5, 0]), SINE), (0.95, HEAL_GIVE, SINE), (1.4, NEUTRAL, SINE),
+])
+
+# 精神冲击（3 tick）：剑指抵住太阳穴 → 头部猛然前送，左手向外甩开
+MB_FOCUS = P(right_arm=[-138, 42, 30], right_arm_bend=[120, 0], left_arm=[-20, 0, -10], head=[-6, -8, 0], torso=[-4, 4, 0])
+MB_SEND = P(MB_FOCUS, head=[12, 0, 0], torso=[10, -4, 0], left_arm=[-30, 0, -55], left_arm_bend=[5, 0], body=[0, -1.5, 0],
+            left_leg=[-14, 0, -4], right_leg=[10, 0, 4])
+seq("art_mind_blast", 0.95, [
+    (0, NEUTRAL, LIN), (0.1, MB_FOCUS, CUBIC), (0.15, MB_SEND, EXPO), (0.55, P(MB_SEND, head=[9, 0, 0]), LIN), (0.95, NEUTRAL, SINE),
+])
+
+# 精神震荡（5 tick）：双手抱头仰面蓄念 → 双臂猛然向两侧张开
+MS_HOLD = P(right_arm=[-150, 36, 26], left_arm=[-150, -36, -26], right_arm_bend=[112, 0], left_arm_bend=[112, 0],
+            torso=[-9, 0, 0], head=[-14, 0, 0], body=[0, -1, 0])
+MS_BURST = P(right_arm=[-82, 0, 62], left_arm=[-82, 0, -62], right_arm_bend=[8, 0], left_arm_bend=[8, 0],
+             torso=[13, 0, 0], head=[8, 0, 0], body=[0, -3, 0], left_leg=[-10, 0, -10], right_leg=[10, 0, 10])
+seq("art_mind_shock", 1.1, [(0, NEUTRAL, LIN), (0.16, MS_HOLD, BACK)] + shake(MS_HOLD, 0.18, 0.22, 0.02, 2.0) + [
+    (0.25, MS_BURST, EXPO), (0.7, P(MS_BURST, torso=[10, 0, 0]), LIN), (1.1, NEUTRAL, SINE),
+])
+
+# 息法（8 tick）：双掌合十，深吸（身体上提、后仰）→ 长呼（下沉）
+BR_PRAY = P(right_arm=[-52, 38, 0], left_arm=[-52, -38, 0], right_arm_bend=[96, 0], left_arm_bend=[96, 0], head=[4, 0, 0])
+BR_IN = P(BR_PRAY, torso=[-5, 0, 0], head=[-6, 0, 0], body=[0, 0.6, 0])
+BR_OUT = P(BR_PRAY, torso=[4, 0, 0], head=[8, 0, 0], body=[0, -1.6, 0])
+seq("art_breath", 2.0, [
+    (0, NEUTRAL, LIN), (0.18, BR_PRAY, CUBIC), (0.75, BR_IN, SINE), (1.45, BR_OUT, SINE), (2.0, NEUTRAL, SINE),
+])
+
+# 夜叉空行（6 tick）：屈膝蓄势 → 腾身而起，双臂向后展开如翼
+YK_CROUCH = P(right_arm=[-28, 10, 8], left_arm=[-28, -10, -8], torso=[20, 0, 0], head=[6, 0, 0], body=[0, -5, 0],
+              left_leg=[-24, 0, -4], right_leg=[-24, 0, 4])
+YK_RISE = P(right_arm=[38, 0, 58], left_arm=[38, 0, -58], right_arm_bend=[10, 0], left_arm_bend=[10, 0],
+            torso=[-12, 0, 0], head=[-16, 0, 0], body=[0, 0.8, 0], left_leg=[-6, 0, -3], right_leg=[12, 0, 3])
+seq("art_yaksha", 1.3, [
+    (0, NEUTRAL, LIN), (0.15, YK_CROUCH, CUBIC), (0.3, YK_RISE, EXPO), (0.85, P(YK_RISE, right_arm=[30, 0, 62], left_arm=[30, 0, -62]), SINE),
+    (1.3, NEUTRAL, SINE),
+])
+
+# 魔能爆（3 tick）：右掌后引、拧腰 → 单掌推出，左手扣住右腕稳住后坐
+MG_COCK = P(right_arm=[-70, 22, 12], right_arm_bend=[92, 0], left_arm=[-60, -40, 0], left_arm_bend=[80, 0],
+            torso=[0, 16, 0], head=[0, -10, 0], body=[0, -1, 0], left_leg=[-12, 0, -6], right_leg=[8, 0, 6])
+MG_PUSH = P(right_arm=[-93, 4, 0], right_arm_bend=[0, 0], left_arm=[-80, -34, 0], left_arm_bend=[40, 0],
+            torso=[8, -10, 0], head=[-8, 6, 0], body=[0, -2.5, 0], left_leg=[-24, 0, -8], right_leg=[16, 0, 8])
+seq("art_magic_burst", 1.0, [
+    (0, NEUTRAL, LIN), (0.1, MG_COCK, BACK), (0.15, MG_PUSH, EXPO), (0.22, P(MG_PUSH, torso=[4, -8, 0], right_arm=[-98, 4, 0]), QUART),
+    (0.6, MG_PUSH, LIN), (1.0, NEUTRAL, SINE),
+])
+
+# 初级防护（5 tick）：双臂交叉护胸 → 向上向外撑开结界
+WD_CROSS = P(right_arm=[-72, 52, 0], left_arm=[-72, -52, 0], right_arm_bend=[92, 0], left_arm_bend=[92, 0],
+             torso=[6, 0, 0], head=[6, 0, 0], body=[0, -2, 0])
+WD_OPEN = P(right_arm=[-104, 0, 46], left_arm=[-104, 0, -46], right_arm_bend=[10, 0], left_arm_bend=[10, 0],
+            torso=[-6, 0, 0], head=[-8, 0, 0], body=[0, -0.5, 0], left_leg=[-6, 0, -8], right_leg=[6, 0, 8])
+seq("art_minor_ward", 1.2, [
+    (0, NEUTRAL, LIN), (0.15, WD_CROSS, CUBIC), (0.25, WD_OPEN, EXPO), (0.8, P(WD_OPEN, torso=[-4, 0, 0]), LIN), (1.2, NEUTRAL, SINE),
+])
+
+# 五行道法（4 tick）：右手夹符举过肩后、左手剑指护胸 → 甩腕掷符
+FE_COCK = P(right_arm=[-160, 0, 22], right_arm_bend=[60, 0], left_arm=[-70, -46, 0], left_arm_bend=[110, 0],
+            torso=[-8, 20, 0], head=[-4, -14, 0], body=[0, -0.5, 0], left_leg=[-10, 0, -4], right_leg=[8, 0, 4])
+FE_THROW = P(right_arm=[-84, 14, 0], right_arm_bend=[0, 0], left_arm=[-70, -46, 0], left_arm_bend=[110, 0],
+             torso=[14, -16, 0], head=[-10, 10, 0], body=[0, -2, 0], left_leg=[-26, 0, -6], right_leg=[18, 0, 6])
+seq("art_five_elements", 1.0, [
+    (0, NEUTRAL, LIN), (0.13, FE_COCK, BACK), (0.2, FE_THROW, EXPO), (0.6, P(FE_THROW, torso=[11, -14, 0]), LIN), (1.0, NEUTRAL, SINE),
+])
+
+# 无视我（8 tick）：食指抵唇「嘘」→ 后撤半步，身形消散
+IG_SHH = P(right_arm=[-118, 56, 10], right_arm_bend=[128, 0], head=[5, 0, 0], torso=[3, 0, 0])
+IG_STEP = P(IG_SHH, torso=[-7, 0, 0], head=[-2, 0, 0], left_leg=[22, 0, -2], right_leg=[-6, 0, 2], body=[0, -1, 0])
+seq("art_ignore_me", 0.9, [
+    (0, NEUTRAL, LIN), (0.18, IG_SHH, CUBIC), (0.32, IG_SHH, LIN), (0.42, IG_STEP, QUART), (0.9, NEUTRAL, SINE),
+])
+
+# 生物闪电（3 tick）：右手回收 → 五指张开向前，左手抓住右前臂，电流冲击下手臂颤抖
+BL_PULL = P(right_arm=[-60, 30, 0], right_arm_bend=[90, 0], left_arm=[-40, -30, 0], left_arm_bend=[60, 0], torso=[0, 10, 0], body=[0, -1, 0])
+BL_SHOOT = P(right_arm=[-92, 0, 0], right_arm_bend=[0, 0], left_arm=[-76, -40, 0], left_arm_bend=[58, 0],
+             torso=[6, -8, 0], head=[-6, 4, 0], body=[0, -2, 0], left_leg=[-18, 0, -6], right_leg=[12, 0, 6])
+seq("art_bio_lightning", 1.0, [(0, NEUTRAL, LIN), (0.1, BL_PULL, CUBIC), (0.15, BL_SHOOT, EXPO)]
+    + shake(BL_SHOOT, 0.2, 0.6, 0.04, 2.2, bones=("right_arm", "left_arm", "torso")) + [(1.0, NEUTRAL, SINE)])
+
+# 黄泉活力（6 tick）：右拳收腰 → 竖拳于面前、左掌覆拳，沉腰发力
+NV_LOAD = P(right_arm=[-18, 12, 12], right_arm_bend=[100, 0], left_arm=[-30, -22, 0], left_arm_bend=[40, 0],
+            torso=[4, 14, 0], body=[0, -1.5, 0])
+NV_POWER = P(right_arm=[-96, 26, 0], right_arm_bend=[88, 0], left_arm=[-82, -46, 0], left_arm_bend=[100, 0],
+             torso=[8, 0, 0], head=[4, 0, 0], body=[0, -3, 0], left_leg=[-14, 0, -12], right_leg=[10, 0, 12])
+seq("art_nether_vigor", 1.3, [(0, NEUTRAL, LIN), (0.15, NV_LOAD, CUBIC), (0.3, NV_POWER, BACK)]
+    + shake(NV_POWER, 0.34, 0.8, 0.05, 1.6) + [(1.3, NEUTRAL, SINE)])
+
+# 基础掌法（6 tick）：马步、双掌收腰 → 双掌齐推 → 收掌回腰
+BP_LOAD = P(right_arm=[12, 16, 12], left_arm=[12, -16, -12], right_arm_bend=[75, 0], left_arm_bend=[75, 0],
+            torso=[4, 0, 0], body=[0, -4, 0], left_leg=[-8, 0, -15], right_leg=[-8, 0, 15])
+BP_PUSH = P(right_arm=[-88, 8, 0], left_arm=[-88, -8, 0], right_arm_bend=[0, 0], left_arm_bend=[0, 0],
+            torso=[11, 0, 0], head=[-8, 0, 0], body=[0, -4.6, 0], left_leg=[-8, 0, -15], right_leg=[-8, 0, 15])
+seq("art_basic_palm", 1.3, [
+    (0, NEUTRAL, LIN), (0.15, BP_LOAD, CUBIC), (0.28, BP_PUSH, EXPO), (0.6, P(BP_PUSH, torso=[9, 0, 0]), LIN),
+    (0.9, BP_LOAD, CUBIC), (1.3, NEUTRAL, SINE),
+])
+
+# 起死回生（7 tick）：俯身，双掌按向对方胸口，按压两次注入内力
+RV_LEAN = P(right_arm=[-58, 14, 0], left_arm=[-58, -14, 0], right_arm_bend=[12, 0], left_arm_bend=[12, 0],
+            torso=[34, 0, 0], head=[12, 0, 0], body=[0, -6, 0], left_leg=[-26, 0, -4], right_leg=[18, 0, 4])
+RV_PRESS = P(RV_LEAN, right_arm=[-46, 12, 0], left_arm=[-46, -12, 0], torso=[40, 0, 0], body=[0, -7, 0])
+seq("art_revive", 1.5, [
+    (0, NEUTRAL, LIN), (0.2, RV_LEAN, CUBIC), (0.35, RV_PRESS, EXPO), (0.5, RV_LEAN, SINE), (0.62, RV_PRESS, EXPO),
+    (1.0, RV_LEAN, SINE), (1.5, NEUTRAL, SINE),
+])
+
+# 凤仙火（5 tick）：单手结印于口前、深吸 → 连续三口急吐（每口头部前送）
+PH_IN = P(right_arm=[-110, 46, 8], right_arm_bend=[112, 0], left_arm=[16, 0, -16], torso=[-10, 0, 0], head=[-10, 0, 0], body=[0, 0.4, 0])
+PH_PUFF = P(PH_IN, torso=[14, 0, 0], head=[-16, 0, 0], body=[0, -2, 0], left_leg=[-20, 0, -5], right_leg=[14, 0, 5])
+PH_BACK = P(PH_PUFF, torso=[7, 0, 0], head=[-11, 0, 0])
+seq("art_phoenix_fire", 1.1, [
+    (0, NEUTRAL, LIN), (0.18, PH_IN, CUBIC), (0.25, PH_PUFF, EXPO), (0.32, PH_BACK, SINE), (0.38, PH_PUFF, EXPO),
+    (0.45, PH_BACK, SINE), (0.52, PH_PUFF, EXPO), (0.75, PH_BACK, LIN), (1.1, NEUTRAL, SINE),
+])
+
 
 if __name__ == "__main__":
     path = os.path.join(OUT, "art.json")

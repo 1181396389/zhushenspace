@@ -100,7 +100,7 @@ public final class CheckRules {
     public static boolean strike(ServerPlayer p, Kind k, Expression sub, LivingEntity target, int mod, DamageRules.Spec spec) {
         Result r = attack(p, k, sub, target, mod);
         if (r.value() <= 0) return false;
-        DamageSource src = p.damageSources().indirectMagic(p, p);
+        DamageSource src = ArtDamage.source(p, p, spec);
         return DamageRules.deal(target, src, r.value(), spec);
     }
 }
