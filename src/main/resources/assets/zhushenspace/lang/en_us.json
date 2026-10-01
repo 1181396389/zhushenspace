@@ -1096,7 +1096,7 @@
   "msg.zhushenspace.tk.field_on": "Force field: on (1 telekinesis per attack received)",
   "msg.zhushenspace.tk.field_off": "Force field: off",
   "msg.zhushenspace.tk.manip_end": "Telekinetic control ended",
-  "msg.zhushenspace.tk.manip_on": "Telekinetic control: %ss · %s floating weapons · range %s m (empty-hand use: grab / push, sneak: lift; attack: weapons strike)",
+  "msg.zhushenspace.tk.manip_on": "Telekinetic control: %ss · %s floating weapons · range %s m (empty-hand use: grab / push, sneak-use: lift; while holding: attack throws, scroll pushes / pulls)",
   "msg.zhushenspace.tk.nothing": "Nothing to manipulate under the crosshair",
   "msg.zhushenspace.trip.resisted": "%s kept their footing",
   "msg.zhushenspace.trip.resisted_self": "You keep your footing like a beast",
@@ -1111,5 +1111,6 @@
   "ability.zhushenspace.art_tk_attack.desc": "[Special] Telekinesis | 1 telekinesis | range = effective range | one target | instant, no gesture. Crush the target with an invisible grip: a ranged mind attack (mind check, cap + effective Strength) dealing physical blunt damage; serious with Telekinesis Talent.",
   "ability.zhushenspace.art_tk_manip": "Telekinetic Control",
   "ability.zhushenspace.art_tk_manip.short": "TK Control",
-  "ability.zhushenspace.art_tk_manip.desc": "[Special] Telekinesis | 1 telekinesis | lasts Resolve rounds (1 round = 3 s). Use doors, levers, buttons and containers within effective range; empty-hand use grabs dropped items and floats them along your crosshair (moving them slows you; they drop out of range or sight), sneak pulls them closer; empty-hand use on a creature pushes it (effective Strength contest), sneak lifts it instead; hotbar weapons (up to effective Agility) float behind you and strike your crosshair target on attack, using effective Strength and weapon skill."
+  "ability.zhushenspace.art_tk_manip.desc": "[Special] Telekinesis | 1 telekinesis | lasts Resolve rounds (1 round = 3 s). Use doors, levers, buttons and containers within effective range; empty-hand use grabs dropped items; empty-hand use on a creature pushes it (effective Strength contest), sneak-use lifts it instead. Held items and creatures float along your crosshair (moving them slows you; they drop out of range or sight): scroll to push / pull (sneak also pulls), use to drop, attack to throw toward the crosshair - thrown items make a throwing attack on creatures they hit, thrown creatures take impact damage (as does whatever they slam into) on hitting walls or creatures, and fall damage applies on landing. Hotbar weapons (up to effective Agility) float behind you and strike your crosshair target on attack, using effective Strength and weapon skill.",
+  "hud.zhushenspace.tk.hold_hint": "Attack: throw · Scroll: push / pull · Use: drop"
 }

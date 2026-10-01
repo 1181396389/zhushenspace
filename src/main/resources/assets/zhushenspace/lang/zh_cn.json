@@ -1096,7 +1096,7 @@
   "msg.zhushenspace.tk.field_on": "念动力场：开启（每次被攻击花 1 点念动力）",
   "msg.zhushenspace.tk.field_off": "念动力场：关闭",
   "msg.zhushenspace.tk.manip_end": "念动力操控结束",
-  "msg.zhushenspace.tk.manip_on": "念动力操控：%s 秒 · 悬浮武器 %s 柄 · 范围 %s 米（空手右键：取物 / 推开，潜行：托起；左键：武器出击）",
+  "msg.zhushenspace.tk.manip_on": "念动力操控：%s 秒 · 悬浮武器 %s 柄 · 范围 %s 米（空手右键：取物 / 推开，潜行右键：托起；托着时左键扔出、滚轮推远拉近）",
   "msg.zhushenspace.tk.nothing": "准星处没有可以操控的东西",
   "msg.zhushenspace.trip.resisted": "%s 稳住了身形，没有被摔倒",
   "msg.zhushenspace.trip.resisted_self": "你像野兽一样稳住了身形，没有被摔倒",
@@ -1111,5 +1111,6 @@
   "ability.zhushenspace.art_tk_attack.desc": "【特异】念动力｜1 念动力｜距离 = 有效范围｜一个目标｜立即，无需姿势。用无形的念力攥紧目标：远程心灵攻击（心灵检定，上限再加有效力量），造成物理钝击伤害；拥有念动力天赋时为严重伤害。",
   "ability.zhushenspace.art_tk_manip": "念动力操控",
   "ability.zhushenspace.art_tk_manip.short": "念控",
-  "ability.zhushenspace.art_tk_manip.desc": "【特异】念动力｜1 念动力｜持续 决心 轮（1 轮 = 3 秒）。期间：可隔空使用有效范围内的门、拉杆、按钮与容器；空手右键可隔空取起掉落物，使其跟随准星漂浮（移动物品会拖慢你自己，超出范围或失去视线时掉落），潜行可拉近；空手右键生物以有效力量对抗将其推开，潜行时改为将其托起；快捷栏中的武器（不超过有效敏捷柄）悬浮在你背后，左键时飞向准星目标，以有效力量与武器技能代你攻击。"
+  "ability.zhushenspace.art_tk_manip.desc": "【特异】念动力｜1 念动力｜持续 决心 轮（1 轮 = 3 秒）。期间：可隔空使用有效范围内的门、拉杆、按钮与容器；空手右键可隔空取起掉落物；空手右键生物以有效力量对抗将其推开，潜行时改为将其托起。托着的物品或生物都会跟随准星漂浮（移动它会拖慢你自己，超出范围或失去视线时掉落），滚轮推远 / 拉近（潜行也能拉近），右键放下，左键朝准星方向扔出去——扔出的物品砸中生物时进行投掷攻击，扔出的生物撞墙或撞到别的生物时双方受到撞击伤害，落地时照常结算坠落伤害。快捷栏中的武器（不超过有效敏捷柄）悬浮在你背后，左键时飞向准星目标，以有效力量与武器技能代你攻击。",
+  "hud.zhushenspace.tk.hold_hint": "左键 扔出 · 滚轮 推远 / 拉近 · 右键 放下"
 }

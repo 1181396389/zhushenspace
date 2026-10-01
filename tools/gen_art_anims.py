@@ -439,6 +439,15 @@ seq("art_tk_command", 0.75, [
     (0, NEUTRAL, LIN), (0.1, TK_SIGN, BACK), (0.17, TK_POINT, EXPO), (0.42, TK_POINT, LIN), (0.75, NEUTRAL, SINE),
 ])
 
+# 投掷：托着的东西随右手后拉蓄势 → 甩臂掷出（指向准星）
+TK_WIND = P(right_arm=[-150, -20, 30], right_arm_bend=[60, 0], left_arm=[-60, -20, -10], left_arm_bend=[30, 0],
+            torso=[-10, 24, 0], head=[-4, -18, 0], body=[0, -1, 0], left_leg=[-16, 0, -4], right_leg=[12, 0, 4])
+TK_THROW = P(right_arm=[-70, 30, -16], right_arm_bend=[0, 0], left_arm=[18, 0, -22], left_arm_bend=[10, 0],
+             torso=[22, -24, 0], head=[-10, 16, 0], body=[0, -3.5, 0], left_leg=[-32, 0, -6], right_leg=[22, 0, 8])
+seq("art_tk_throw", 0.8, [
+    (0, NEUTRAL, LIN), (0.08, TK_WIND, BACK), (0.15, TK_THROW, EXPO), (0.45, P(TK_THROW, torso=[24, -26, 0]), LIN), (0.8, NEUTRAL, SINE),
+])
+
 
 if __name__ == "__main__":
     path = os.path.join(OUT, "art.json")

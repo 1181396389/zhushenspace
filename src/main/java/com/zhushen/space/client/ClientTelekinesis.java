@@ -104,9 +104,24 @@ public final class ClientTelekinesis {
                 e.setSwingHand(false);
                 e.setCanceled(true);
             }
+        } else if (e.isAttack() && s.held >= 0) {
+            // 正托着东西：左键 = 扔出去（不再挥拳 / 挖掘）
+            PacketDistributor.sendToServer(new TkActionPayload(1, false));
+            e.setSwingHand(true);
+            e.setCanceled(true);
         } else if (e.isAttack() && !s.weapons.isEmpty()) {
             PacketDistributor.sendToServer(new TkActionPayload(1, false));
         }
+    }
+
+    /** 正托着东西：滚轮推远 / 拉近（不切换快捷栏） */
+    @SubscribeEvent
+    public static void onScroll(InputEvent.MouseScrollingEvent e) {
+        Minecraft mc = Minecraft.getInstance();
+        S s = self();
+        if (s == null || s.held < 0 || mc.screen != null || e.getScrollDeltaY() == 0) return;
+        PacketDistributor.sendToServer(new TkActionPayload(e.getScrollDeltaY() > 0 ? 2 : 3, false));
+        e.setCanceled(true);
     }
 
     @SubscribeEvent
@@ -147,6 +162,14 @@ public final class ClientTelekinesis {
                 int x = cx + Math.round(Mth.cos(a) * 6.5f), y = cy + Math.round(Mth.sin(a) * 6.5f);
                 g.fill(x - 1, y - 1, x + 1, y + 1, 0xF0FFE2B0);
             }
+            // 操作提示：准星下方一行小字
+            var hint = net.minecraft.network.chat.Component.translatable("hud.zhushenspace.tk.hold_hint");
+            var pose = g.pose();
+            pose.pushPose();
+            pose.translate(cx, cy + 18, 0);
+            pose.scale(0.75f, 0.75f, 1f);
+            g.drawCenteredString(mc.font, hint, 0, 0, 0xD0FFE2B0);
+            pose.popPose();
         }
     }
 }

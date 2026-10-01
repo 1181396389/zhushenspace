@@ -18,6 +18,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -211,7 +212,8 @@ public final class Telekinesis {
         double holdDist;
         boolean carrying;
         int liftId = -1;
-        double liftY;
+        /** 托起后的抬升量（0 → LIFT_UP，逐 tick 缓升） */
+        double liftUp;
         ArtVfx blades, grip;
         long lastSync;
     }
@@ -336,11 +338,24 @@ public final class Telekinesis {
 
     // ===== 操作（客户端发来） =====
 
+    /** 托起的生物悬在准星点上方的高度 */
+    static final double LIFT_UP = 1.2;
+    /** 滚轮一格推远 / 拉近的距离 */
+    static final double DIST_STEP = 0.75;
+
     public static void handle(ServerPlayer p, int action, boolean sneak) {
         if (!active(p) || StatusEffects.incapacitated(p)) return;
         State st = STATES.get(p.getUUID());
-        if (action == 0) use(p, st, sneak);
-        else if (action == 1) strike(p, st);
+        boolean holding = st.itemId >= 0 || st.liftId >= 0;
+        switch (action) {
+            case 0 -> use(p, st, sneak);
+            case 1 -> { if (holding) fling(p, st); else strike(p, st); } // 托着东西时左键 = 扔出去
+            case 2, 3 -> {                                                  // 滚轮：推远 / 拉近
+                if (!holding) return;
+                st.holdDist = Mth.clamp(st.holdDist + (action == 2 ? DIST_STEP : -DIST_STEP), 1.5, range(p));
+            }
+            default -> {}
+        }
     }
 
     private static void use(ServerPlayer p, State st, boolean sneak) {
@@ -368,7 +383,8 @@ public final class Telekinesis {
             }
             if (sneak) {
                 st.liftId = le.getId();
-                st.liftY = le.getY() + 2.5;
+                st.liftUp = 0;
+                st.holdDist = Mth.clamp(p.getEyePosition().distanceTo(le.position().add(0, le.getBbHeight() * 0.5, 0)), 1.5, range(p));
                 st.grip = ArtVfx.on(p, ArtVfx.TK_GRIP, COLOR, 0, 20 * 60 * 10, le);
                 ArtFx.anim(p, "art_tk_lift");
                 p.level().playSound(null, le.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 0.6f, 1.8f);
@@ -436,8 +452,125 @@ public final class Telekinesis {
     private static void releaseLift(ServerPlayer p, State st) {
         if (st.liftId < 0) return;
         st.liftId = -1;
+        st.carrying = false;
+        setCarry(p, false);
         if (st.grip != null && !st.grip.isRemoved()) st.grip.finish(6);
         st.grip = null;
+    }
+
+    /** 准星处的目标点（被方块挡住时停在方块前） */
+    private static Vec3 holdPoint(ServerPlayer p, State st, double r) {
+        Vec3 eye = p.getEyePosition(), look = p.getViewVector(1f);
+        Vec3 want = eye.add(look.scale(Math.min(st.holdDist, r)));
+        HitResult hr = p.level().clip(new ClipContext(eye, want, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
+        if (hr.getType() != HitResult.Type.MISS) want = hr.getLocation().subtract(look.scale(0.3));
+        return want;
+    }
+
+    /** 移动被托物消耗移动力：速度不超过自己的步行速度，移动期间自身移速减半 */
+    private static Vec3 steer(ServerPlayer p, State st, Vec3 d) {
+        double max = Math.max(0.05, p.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) * 2.16);
+        double len = d.length();
+        boolean moving = len > 0.08;
+        if (moving != st.carrying) { st.carrying = moving; setCarry(p, moving); }
+        return len > max ? d.scale(max / len) : d.scale(0.6);
+    }
+
+    // ===== 投掷 =====
+
+    /** 被扔出去的东西：撞墙 / 撞到生物时结算撞击伤害 */
+    private static final class Thrown {
+        final ServerPlayer owner;
+        final int id;
+        final boolean item;
+        int ticks;
+        double lastSpeed;
+        Thrown(ServerPlayer owner, int id, boolean item) { this.owner = owner; this.id = id; this.item = item; }
+    }
+
+    private static final List<Thrown> THROWN = new ArrayList<>();
+
+    /** 投掷速度（格 / tick）：随有效力量提高 */
+    static double throwSpeed(ServerPlayer p) { return Math.min(2.2, 0.6 + 0.14 * strCheck(p)); }
+
+    private static void fling(ServerPlayer p, State st) {
+        Vec3 look = p.getViewVector(1f);
+        double v = throwSpeed(p);
+        Entity e = null;
+        if (st.itemId >= 0) {
+            e = p.serverLevel().getEntity(st.itemId);
+            releaseItem(p, st);
+            if (e instanceof ItemEntity it) {
+                it.setDeltaMovement(look.scale(v).add(0, 0.08, 0));
+                it.hasImpulse = true;
+                it.setPickUpDelay(20);
+            }
+        } else if (st.liftId >= 0) {
+            e = p.serverLevel().getEntity(st.liftId);
+            releaseLift(p, st);
+            if (e instanceof LivingEntity le) {
+                le.setDeltaMovement(look.scale(v * 0.85).add(0, 0.15, 0));
+                le.hurtMarked = true;
+            }
+        }
+        sync(p, st);
+        if (e == null || !e.isAlive()) return;
+        THROWN.add(new Thrown(p, e.getId(), e instanceof ItemEntity));
+        ArtFx.anim(p, "art_tk_throw");
+        ArtVfx.on(p, ArtVfx.TK_GRIP, COLOR, 1, 12, e);
+        p.level().playSound(null, e.blockPosition(), SoundEvents.WIND_CHARGE_BURST.value(), SoundSource.PLAYERS, 0.7f, 0.9f);
+        p.level().playSound(null, p.blockPosition(), SoundEvents.TRIDENT_THROW.value(), SoundSource.PLAYERS, 0.6f, 0.7f);
+    }
+
+    private static void tickThrown() {
+        if (THROWN.isEmpty()) return;
+        THROWN.removeIf(t -> {
+            ServerPlayer o = t.owner;
+            if (o.isRemoved() || !o.isAlive() || ++t.ticks > 60) return true;
+            Entity e = o.serverLevel().getEntity(t.id);
+            if (e == null || !e.isAlive()) return true;
+            double speed = e.getDeltaMovement().length();
+            if (t.ticks > 2 && e.onGround() && speed < 0.2) return true;
+            boolean done = t.item ? tickThrownItem(o, (ItemEntity) e, speed) : e instanceof LivingEntity le && tickThrownMob(o, le, t);
+            t.lastSpeed = speed;
+            return done;
+        });
+    }
+
+    /** 扔出的物品撞到生物：运动（投掷）检定，判定 = 念动力力量检定值 + 运动 */
+    private static boolean tickThrownItem(ServerPlayer o, ItemEntity it, double speed) {
+        if (speed < 0.45) return false;
+        for (Entity h : o.level().getEntities(it, it.getBoundingBox().inflate(0.3), en -> en instanceof LivingEntity && en != o && en.isAlive() && !en.isSpectator())) {
+            LivingEntity t = (LivingEntity) h;
+            int check = strCheck(o) + ArtManager.skill(o, SkillType.ATHLETICS);
+            float v = ArtManager.attackRoll(o, check, (int) Math.round(speed * 2), ArtManager.defense(o, t, 0, 0, false), check + 3, 0);
+            if (v > 0) ArtManager.hit(o, t, v, ArtManager.spec(PlayerHealthData.Severity.B, 0, 0, true, DamageKind.BLUNT));
+            else ArtManager.whiff(o);
+            it.setDeltaMovement(it.getDeltaMovement().scale(-0.15));
+            it.hasImpulse = true;
+            o.level().playSound(null, t.blockPosition(), SoundEvents.PLAYER_ATTACK_KNOCKBACK, SoundSource.PLAYERS, 0.7f, 1.2f);
+            return true;
+        }
+        return false;
+    }
+
+    /** 扔出的生物：撞墙或撞上别的生物时双方受到撞击伤害（钝击 B，不可防御），落地后的坠落伤害照常结算 */
+    private static boolean tickThrownMob(ServerPlayer o, LivingEntity le, Thrown t) {
+        if (t.lastSpeed < 0.35) return false;
+        LivingEntity other = null;
+        for (Entity h : o.level().getEntities(le, le.getBoundingBox().inflate(0.15), en -> en instanceof LivingEntity && en != o && en.isAlive() && !en.isSpectator())) {
+            other = (LivingEntity) h;
+            break;
+        }
+        if (!le.horizontalCollision && other == null) return false;
+        float amt = Math.max(1f, (strCheck(o) + 2) * DamageVariance.roll(o.getRandom()) + (float) (t.lastSpeed * 4));
+        var spec = ArtManager.spec(PlayerHealthData.Severity.B, 0, 0, true, DamageKind.BLUNT);
+        ArtManager.hit(o, le, amt, spec);
+        if (other != null) ArtManager.hit(o, other, amt * 0.75f, spec);
+        if (o.level() instanceof ServerLevel sl) sl.sendParticles(ParticleTypes.EXPLOSION, le.getX(), le.getY() + le.getBbHeight() * 0.5, le.getZ(), 1, 0, 0, 0, 0);
+        o.level().playSound(null, le.blockPosition(), SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 0.4f, 0.8f);
+        TaiChiFx.shake(o, le, 0.6f, 6);
+        return true;
     }
 
     private static void tickItem(ServerPlayer p, State st) {
@@ -451,21 +584,12 @@ public final class Telekinesis {
             return;
         }
         if (p.isShiftKeyDown()) st.holdDist = Math.max(1.5, st.holdDist - 0.15); // 潜行：拉向自己
-        Vec3 eye = p.getEyePosition(), look = p.getViewVector(1f);
-        Vec3 want = eye.add(look.scale(Math.min(st.holdDist, r)));
-        HitResult hr = p.level().clip(new ClipContext(eye, want, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
-        if (hr.getType() != HitResult.Type.MISS) want = hr.getLocation().subtract(look.scale(0.3));
-        Vec3 d = want.subtract(it.position().add(0, 0.15, 0));
-        // 移动物品消耗移动力：物品速度不超过自己的步行速度，移动期间自身移速减半
-        double max = Math.max(0.05, p.getAttributeBaseValue(Attributes.MOVEMENT_SPEED) * 2.16);
-        double len = d.length();
+        Vec3 want = holdPoint(p, st, r);
         it.setNoGravity(true);
         it.setPickUpDelay(10);
-        it.setDeltaMovement(len > max ? d.scale(max / len) : d.scale(0.6));
+        it.setDeltaMovement(steer(p, st, want.subtract(it.position().add(0, 0.15, 0))));
         it.hasImpulse = true;
         it.fallDistance = 0;
-        boolean moving = len > 0.08;
-        if (moving != st.carrying) { st.carrying = moving; setCarry(p, moving); }
     }
 
     private static void tickLift(ServerPlayer p, State st) {
@@ -476,9 +600,12 @@ public final class Telekinesis {
             sync(p, st);
             return;
         }
-        Vec3 v = le.getDeltaMovement();
-        double vy = Math.max(-0.2, Math.min(0.3, (st.liftY - le.getY()) * 0.3));
-        le.setDeltaMovement(v.x * 0.6, vy, v.z * 0.6);
+        // 和掉落物一样跟随准星：滚轮推远 / 拉近（潜行也可拉近），悬在准星点上方
+        if (p.isShiftKeyDown()) st.holdDist = Math.max(1.5, st.holdDist - 0.15);
+        st.liftUp = Math.min(LIFT_UP, st.liftUp + 0.12);
+        Vec3 want = holdPoint(p, st, r).add(0, st.liftUp - le.getBbHeight() * 0.5, 0);
+        Vec3 d = steer(p, st, want.subtract(le.position()));
+        le.setDeltaMovement(d.x, Mth.clamp(d.y, -0.3, 0.35) + 0.04, d.z); // +0.04：抵消一部分重力，悬停不下坠
         le.fallDistance = 0; // 被放下时从托举高度开始计算坠落
         le.hurtMarked = true;
     }
@@ -529,6 +656,7 @@ public final class Telekinesis {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post e) {
+        tickThrown();
         for (ServerPlayer p : e.getServer().getPlayerList().getPlayers()) {
             tickRecovery(p);
             State st = STATES.get(p.getUUID());
