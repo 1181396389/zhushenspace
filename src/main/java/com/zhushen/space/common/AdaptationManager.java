@@ -187,8 +187,7 @@ public final class AdaptationManager {
         s.wheel++;
         ServerLevel lvl = p.serverLevel();
         double y = p.getY() + p.getBbHeight() + 0.45;
-        lvl.playSound(null, p.getX(), y, p.getZ(), SoundEvents.BELL_BLOCK, SoundSource.PLAYERS, 1.1f, 0.5f);
-        lvl.playSound(null, p.getX(), y, p.getZ(), SoundEvents.CHAIN_PLACE, SoundSource.PLAYERS, 1.0f, 0.6f);
+        lvl.playSound(null, p.getX(), y, p.getZ(), com.zhushen.space.sound.ModSounds.MAHORAGA_TURN.get(), SoundSource.PLAYERS, 1.0f, 1.0f);
         lvl.sendParticles(ParticleTypes.END_ROD, p.getX(), y, p.getZ(), 18, 0.45, 0.04, 0.45, 0.015);
         p.displayClientMessage(Component.translatable(x.turns >= MAX_TURNS ? "msg.zhushenspace.adapt.max" : "msg.zhushenspace.adapt.turn",
                 label(x.label), x.turns, MAX_TURNS), true);

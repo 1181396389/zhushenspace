@@ -52,6 +52,18 @@ public final class ClientAdaptData {
         return w == null ? 0 : angleTurns(w, ZsAnim.nowMs());
     }
 
+    /** 头顶法阵模型的转动时长（与模型自带动画一致：45° / 0.21 秒，匀速） */
+    public static final long WORLD_TURN_MS = 210;
+
+    /** 头顶法阵当前角度（以「格」计，匀速转动） */
+    public static float worldTurns(int entityId) {
+        Wheel w = WHEELS.get(entityId);
+        if (w == null) return 0;
+        int steps = Math.max(1, Math.abs(w.to - w.from));
+        float t = ZsAnim.clamp01((ZsAnim.nowMs() - w.atMs) / (float) (WORLD_TURN_MS * steps));
+        return w.from + (w.to - w.from) * t;
+    }
+
     /** 转动后的闪光强度 0~1 */
     public static float flash(int entityId) {
         Wheel w = WHEELS.get(entityId);

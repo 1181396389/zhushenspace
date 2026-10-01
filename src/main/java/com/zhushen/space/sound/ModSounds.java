@@ -10,6 +10,11 @@ public class ModSounds {
     public static final DeferredRegister<SoundEvent> SOUND_EVENTS =
             DeferredRegister.create(net.minecraft.core.registries.Registries.SOUND_EVENT, "zhushenspace");
 
+    // 魔虚罗之法阵转动（适应）
+    public static final DeferredHolder<SoundEvent, SoundEvent> MAHORAGA_TURN =
+            SOUND_EVENTS.register("mahoraga_turn", () -> SoundEvent.createVariableRangeEvent(
+                    ResourceLocation.fromNamespaceAndPath("zhushenspace", "mahoraga_turn")));
+
     // 信封打开音效
     public static final DeferredHolder<SoundEvent, SoundEvent> ENVELOPE_OPEN =
             SOUND_EVENTS.register("envelope_open", () -> SoundEvent.createVariableRangeEvent(

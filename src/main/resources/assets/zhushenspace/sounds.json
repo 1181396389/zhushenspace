@@ -538,5 +538,17 @@
         "attenuation_distance": 32
       }
     ]
+  },
+  "mahoraga_turn": {
+    "subtitle": "subtitles.zhushenspace.mahoraga_turn",
+    "sounds": [
+      {
+        "name": "zhushenspace:mahoraga_turn",
+        "volume": 1.0,
+        "pitch": 1.0,
+        "stream": false,
+        "attenuation_distance": 24
+      }
+    ]
   }
 }
