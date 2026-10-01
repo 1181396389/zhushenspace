@@ -485,6 +485,9 @@ public final class TrialManager {
             return;
         }
         if (e != null) e.discard();
+        // 重连 / 重启后内存里没有记录：先清掉场景里遗留的假人，避免重复
+        for (Entity old : l.getEntities((Entity) null, TrialArena.box(d.slot), en -> en.getTags().contains(TrialArena.DUMMY_TAG)))
+            old.discard();
         UUID nid = TrialArena.spawnDummy(l, d.slot, d.stage, d.gen);
         if (nid != null) DUMMIES.put(p.getUUID(), nid);
     }
@@ -542,7 +545,7 @@ public final class TrialManager {
         switch (d.stage) {
             case S_PICK -> {
                 boolean on = TrialArena.onPickPad(d.slot, p.getX(), p.getZ());
-                if (on && ON_PAD.add(p.getUUID()) && d.template < 0) openPick(p);
+                if (on && ON_PAD.add(p.getUUID())) openPick(p); // 站上光台：重新打开选择界面（可以换卡）
                 else if (!on) ON_PAD.remove(p.getUUID());
             }
             case S_COMBAT, S_ARTS -> ensureDummy(p, l, d);
