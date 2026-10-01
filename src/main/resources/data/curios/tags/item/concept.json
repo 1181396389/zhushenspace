@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "#zhushenspace:concept_armament",
+      "required": false
+    }
+  ]
+}

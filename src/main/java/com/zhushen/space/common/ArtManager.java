@@ -580,7 +580,10 @@ public final class ArtManager {
         if (s.lockOn() && target(p, lockRange(p, s)) == null) { deny(p, "msg.zhushenspace.art.need_lock"); return false; }
         // 晕眩 / 欲眠 / 精神束缚 / 剧痛 / 沮丧 / 肢体妨害（姿势）的施法与心灵检定减值
         castBoost = boostFor(p, s) - StatusEffects.castPenalty(p, isSpell(s));
-        boolean ok = switch (s) {
+        ArtContext.begin(p, s); // 伤害归属（适应等按现象区分的能力）
+        boolean ok;
+        try {
+        ok = switch (s) {
             case SPIRIT_SLASH -> ArtBallistics.cast(p, s, castBoost, chargeTicks);
             case SPIRIT_HEAL -> spiritHeal(p, s);
             case MIND_BLAST -> mindBlast(p, s);
@@ -607,6 +610,9 @@ public final class ArtManager {
             case TK_ATTACK -> Telekinesis.attack(p, s);
             case TK_MANIP -> Telekinesis.manipulate(p, s);
         };
+        } finally {
+            ArtContext.end();
+        }
         castBoost = 0;
         if (ok && isSpell(s)) { announce(p, s); PoolEffects.onSpellCast(p, s); }
         return ok;

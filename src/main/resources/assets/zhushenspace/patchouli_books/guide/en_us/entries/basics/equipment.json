@@ -1,0 +1,38 @@
+{
+  "name": "Gear Slots",
+  "icon": "minecraft:iron_helmet",
+  "category": "zhushenspace:basics",
+  "sortnum": 5,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "Gear Slots",
+      "text": "Wearable gear uses fixed slots:$(li)Helmet 1 (1 minute)$(li)Necklace 1 (full round)$(li)Cloak 1 (1 minute)$(li)Armor: top + pants, only one suit$(li)Bracers 1 (full round, needs a pair of arms)$(li)Gloves 1 (full round, needs a pair of hands)$(li)Belt 1 (1 minute)$(li)Boots 1 (1 minute, needs legs)$(li)Rings 2 (full round, one per hand)$(li)Charm / Amulet 1 (full round)$(br2)Times are don/doff times; 1 round = 3 seconds."
+    },
+    {
+      "type": "patchouli:text",
+      "title": "Donning and Doffing",
+      "text": "Gear placed in a slot is first $(l)donning$() and only takes effect when the timer ends. Once in effect, gear with a don/doff time can't be pulled out directly: trying to take it off starts $(l)doffing$() (no effect meanwhile), after which it is $(l)unfastened$() and can be removed.$(br2)Except weapons, shields, rings, armor, plugins, mountable devices and props, donning and doffing take a standard action - progress pauses while you can't act."
+    },
+    {
+      "type": "patchouli:text",
+      "title": "Body and Slots",
+      "text": "When several items share a slot type, only as many as the slot count take effect - you choose which.$(br2)Slots follow your body:$(li)Losing a hand: lose the gloves and bracers slots and one ring slot$(li)No legs: no boots slot$(li)Two heads: one more helmet and necklace slot$(li)Four arms: more weapons$(br)Gear in a vanished slot returns to your inventory."
+    },
+    {
+      "type": "patchouli:text",
+      "title": "Special Slots",
+      "text": "$(l)Concept armament$(): occupies the concept slot and its own slot; unless noted otherwise it can only be changed during a short or long rest; it is never destroyed.$(br2)$(l)Plugins / mountable devices$(): one of each per piece of gear, worn and destroyed together with it, adding no hardness or structure. Right-click gear with one in your inventory to mount it; right-click with an empty cursor to remove.$(br2)Handheld devices, props, weapons and shields need a free hand; independent devices are remote-controlled."
+    },
+    {
+      "type": "patchouli:text",
+      "title": "Mahoraga's Wheel",
+      "text": "A rank B item from the shop that occupies the helmet slot.$(br2)Enduring the same phenomenon (an art, a creature's kind of attack, environmental damage, a condition) turns the wheel one notch; that phenomenon's damage and condition points then drop a step, up to four notches - never full immunity.$(br2)It adapts only to rank B or lower damage and abilities; BB and above cannot be adapted."
+    },
+    {
+      "type": "patchouli:text",
+      "title": "Wheel Limits",
+      "text": "$(li)Adaptation only, none of Mahoraga's other powers$(li)At most one turn per round$(li)Remembers three phenomena at once, forgetting the least recent$(li)It is an item: psychic and toxin damage ignore item reduction, so it can't lessen them$(li)Removing it, death or a long rest clears adaptation$(br2)In combat mode a panel on the right shows the wheel and each phenomenon's progress."
+    }
+  ]
+}

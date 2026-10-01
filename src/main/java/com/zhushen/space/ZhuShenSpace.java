@@ -44,6 +44,12 @@ public class ZhuShenSpace {
                     props -> new DeferredSpawnEggItem(ModEntities.T_VIRUS_ZOMBIE, 0x6B7D5A, 0x8B1A1A, props),
                     new Item.Properties());
 
+    /** 魔虚罗之法阵（B 级 · 头盔位）：适应 */
+    public static final DeferredItem<com.zhushen.space.item.MahoragaWheelItem> MAHORAGA_WHEEL =
+            ITEMS.registerItem("mahoraga_wheel",
+                    props -> new com.zhushen.space.item.MahoragaWheelItem(com.zhushen.space.item.ModArmorMaterials.MAHORAGA, props),
+                    new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
+
     // Creative Tab
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> ZHUSHEN_TAB = CREATIVE_MODE_TABS.register("zhushen_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.zhushenspace"))
@@ -52,11 +58,13 @@ public class ZhuShenSpace {
             .displayItems((parameters, output) -> {
                 output.accept(INVITATION_ENVELOPE.get());
                 output.accept(TAI_CHI_EMBLEM.get());
+                output.accept(MAHORAGA_WHEEL.get());
                 output.accept(T_VIRUS_ZOMBIE_SPAWN_EGG.get());
             }).build());
 
     public ZhuShenSpace(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(this::commonSetup);
+        com.zhushen.space.item.ModArmorMaterials.MATERIALS.register(modEventBus);
         ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
         ModSounds.register(modEventBus);
@@ -72,6 +80,7 @@ public class ZhuShenSpace {
         LOGGER.info("诸神空间模组已加载");
         // 游戏规则注册表不是线程安全的：放到主线程队列里注册（模组构造是并行的）
         event.enqueueWork(com.zhushen.space.common.ModGameRules::register);
+        com.zhushen.space.common.AdaptationManager.init();
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {

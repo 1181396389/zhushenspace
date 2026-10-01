@@ -247,6 +247,8 @@ public final class StatusManager {
         if (t == StatusType.FREEZE && prof.immune.contains(DamageKind.COLD)) return 0;
         if (save) amount -= saveRoll(p, t);
         if (amount <= 0) return 0;
+        amount = AdaptationManager.adaptStatus(p, t, amount, source); // 魔虚罗法阵：适应
+        if (amount <= 0) return 0;
         // 相互反制：先扣除等量的另一方点数
         StatusType opposite = t.opposite();
         if (opposite != null && d.any(opposite)) {

@@ -68,4 +68,9 @@ public class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<TrialData>> TRIAL =
             ATTACHMENTS.register("trial",
                     () -> AttachmentType.serializable(TrialData::new).copyOnDeath().build());
+
+    /** 装备位穿脱状态：死亡不保留 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<PlayerGearData>> PLAYER_GEAR =
+            ATTACHMENTS.register("player_gear",
+                    () -> AttachmentType.serializable(PlayerGearData::new).build());
 }

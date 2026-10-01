@@ -139,7 +139,8 @@ public final class Defense {
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             ItemStack st = p.getItemBySlot(slot);
             if (st.isEmpty()) continue;
-            boolean counts = !bypass && covers(slot, part, known);
+            // 穿戴中 / 解下中 / 被概念武装占据 / 没有腿时的靴子：不计入（见 GearManager）
+            boolean counts = !bypass && covers(slot, part, known) && GearManager.effective(p, slot);
             st.forEachModifier(slot, (attr, mod) -> {
                 if (attr.value() != Attributes.ARMOR.value() || mod.operation() != AttributeModifier.Operation.ADD_VALUE) return;
                 equip[1] += mod.amount();

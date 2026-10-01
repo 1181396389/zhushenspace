@@ -1525,6 +1525,7 @@ public class GodPanelScreen extends Screen {
             return;
         }
         renderArtCard(g, mouseX, mouseY);
+        renderGearCards(g, mouseX, mouseY);
         for (int i = 0; i < SchoolType.COUNT; i++) {
             SchoolType school = SchoolType.values()[i];
             int cy = shopCardY(i);
@@ -1581,6 +1582,63 @@ public class GodPanelScreen extends Screen {
                 g.drawString(font, req, cx + cw - font.width(req) - 8, cy + 39, TEXT_SUB, true);
             }
         }
+    }
+
+    // ===== 商城：装备 =====
+
+    private int gearCardY(int i) { return shopCardY(SchoolType.COUNT + 1 + i); }
+
+    private static net.minecraft.world.item.Item gearItem(com.zhushen.space.data.ShopGear gear) {
+        return switch (gear) {
+            case MAHORAGA_WHEEL -> com.zhushen.space.ZhuShenSpace.MAHORAGA_WHEEL.get();
+        };
+    }
+
+    /** 装备卡片：物品图标 + 名称 + 等级 / 装备位 + 说明 + 价格与购买按钮（可重复购买） */
+    private void renderGearCards(GuiGraphics g, int mouseX, int mouseY) {
+        int cx = panelX + 5, cw = panelW - 10;
+        g.flush();
+        g.enableScissor(panelX, listTop, panelX + panelW, listBottom);
+        for (com.zhushen.space.data.ShopGear gear : com.zhushen.space.data.ShopGear.values()) {
+            int cy = gearCardY(gear.ordinal());
+            if (cy >= listBottom) break;
+            ZsTheme.card(g, cx, cy, cw, 52, over(mouseX, mouseY, cx, cy, cw, 52));
+            g.renderItem(new net.minecraft.world.item.ItemStack(gearItem(gear)), cx + 4, cy + 2);
+            g.drawString(font, Component.translatable(gear.nameKey()), cx + 23, cy + 5, TEXT_MAIN, true);
+            String tag = Component.translatable("screen.zhushenspace.shop.gear_tag", gear.rank.label()).getString();
+            g.drawString(font, tag, cx + 23 + font.width(Component.translatable(gear.nameKey())) + 6, cy + 5, GOLD, true);
+            buyGlow(g, cx + cw - 48, cy + 3, 42, 14);
+            renderSmallButton(g, mouseX, mouseY, cx + cw - 48, cy + 3, 42, 14, Component.translatable("screen.zhushenspace.shop.buy"));
+            int dy = cy + 17;
+            List<FormattedCharSequence> desc = font.split(Component.translatable(gear.descKey()), cw - 16);
+            for (int l = 0; l < desc.size() && l < 2; l++) {
+                g.drawString(font, desc.get(l), cx + 8, dy, TEXT_SUB, true);
+                dy += 10;
+            }
+            boolean affordable = ClientProgressData.branch(gear.branchTier) >= gear.branchCost
+                    && ClientProgressData.score() >= gear.scoreCost;
+            g.drawString(font, Component.translatable("screen.zhushenspace.shop.cost",
+                            PlayerCurrencyData.tierLetter(gear.branchTier), gear.branchCost, gear.scoreCost),
+                    cx + 8, cy + 39, affordable ? ACCENT : 0xFFFF8A80, true);
+            String slot = Component.translatable("screen.zhushenspace.shop.gear_slot").getString();
+            g.drawString(font, slot, cx + cw - font.width(slot) - 8, cy + 39, TEXT_SUB, true);
+        }
+        g.flush();
+        g.disableScissor();
+    }
+
+    private boolean handleGearClick(double mouseX, double mouseY) {
+        int cx = panelX + 5, cw = panelW - 10;
+        for (com.zhushen.space.data.ShopGear gear : com.zhushen.space.data.ShopGear.values()) {
+            int cy = gearCardY(gear.ordinal());
+            if (cy >= listBottom || mouseY >= listBottom) break;
+            if (over(mouseX, mouseY, cx + cw - 48, cy + 3, 42, 14)) {
+                PacketDistributor.sendToServer(new com.zhushen.space.network.GearPurchasePayload(gear.ordinal()));
+                playClick(1.0f);
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 流派详情页：饰品介绍 + 可购买技能列表 */
@@ -2017,6 +2075,7 @@ public class GodPanelScreen extends Screen {
     private boolean handleShopClick(double mouseX, double mouseY) {
         if (detailArt >= 0 || artPage > 0) return handleArtClick(mouseX, mouseY);
         if (detailSchool < 0 && handleArtClick(mouseX, mouseY)) return true;
+        if (detailSchool < 0 && handleGearClick(mouseX, mouseY)) return true;
         // 详情页
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             SchoolType school = SchoolType.values()[detailSchool];

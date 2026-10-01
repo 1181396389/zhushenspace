@@ -52,6 +52,8 @@ public class ClientSetup {
     public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
         ClientMeditation.init(event);
         com.zhushen.space.common.PoseControl.CLIENT = ClientCondition::keepCrawl;
+        com.zhushen.space.common.GearManager.CLIENT_LOCKED = ClientGearData::locked;
+        com.zhushen.space.common.GearManager.CLIENT_CONCEPT_SWAP = ClientRest::active;
     }
 
     @SubscribeEvent

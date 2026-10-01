@@ -140,6 +140,24 @@ public class ProgressManager {
         return null;
     }
 
+    /** 主神商城：购买装备（物品直接发放到背包，满了则掉落在脚下） */
+    public static String purchaseGear(ServerPlayer player, com.zhushen.space.data.ShopGear gear) {
+        PlayerCurrencyData currency = player.getData(ModAttachments.PLAYER_CURRENCY);
+        if (currency.branch(gear.branchTier) < gear.branchCost || currency.score() < gear.scoreCost) {
+            return "commands.zhushenspace.school.lack_currency";
+        }
+        net.minecraft.world.item.Item item = switch (gear) {
+            case MAHORAGA_WHEEL -> com.zhushen.space.ZhuShenSpace.MAHORAGA_WHEEL.get();
+        };
+        currency.addBranch(gear.branchTier, -gear.branchCost);
+        currency.addScore(-gear.scoreCost);
+        ItemStack stack = new ItemStack(item);
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        player.displayClientMessage(Component.translatable("msg.zhushenspace.shop.gear_bought", Component.translatable(gear.nameKey())), false);
+        sync(player);
+        return null;
+    }
+
     /** 直接解锁（调试指令，不扣费） */
     public static void grantSchool(ServerPlayer player, SchoolType school) {
         player.getData(ModAttachments.PLAYER_SCHOOLS).unlock(school);

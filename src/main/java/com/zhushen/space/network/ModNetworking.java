@@ -26,7 +26,24 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("26"); // 协议版本：新手试炼十关 + 结算统计
+        PayloadRegistrar registrar = event.registrar("27"); // 协议版本：装备位 + 魔虚罗法阵
+        // 装备位穿脱状态 / 魔虚罗法阵适应 / 商城装备
+        registrar.playToClient(SyncGearPayload.TYPE, SyncGearPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientGearData.update(payload.entries(), payload.bodyFlags())));
+        registrar.playToClient(SyncAdaptPayload.TYPE, SyncAdaptPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() ->
+                        com.zhushen.space.client.ClientAdaptData.update(payload.entityId(), payload.wheel(), payload.entries())));
+        registrar.playToServer(GearPurchasePayload.TYPE, GearPurchasePayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer serverPlayer) {
+                        int ord = payload.gear();
+                        if (ord < 0 || ord >= com.zhushen.space.data.ShopGear.COUNT) return;
+                        String err = com.zhushen.space.common.ProgressManager.purchaseGear(serverPlayer,
+                                com.zhushen.space.data.ShopGear.values()[ord]);
+                        if (err != null) serverPlayer.displayClientMessage(net.minecraft.network.chat.Component.translatable(err), true);
+                    }
+                }));
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));

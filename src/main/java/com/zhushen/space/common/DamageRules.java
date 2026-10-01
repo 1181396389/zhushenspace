@@ -250,6 +250,7 @@ public final class DamageRules {
     private static final List<BiConsumer<Hit, Profile>> ATTACK = new ArrayList<>();
     private static final List<ToDoubleFunction<Hit>> FINAL = new ArrayList<>();
     private static final List<Function<Hit, Share>> TRANSFERS = new ArrayList<>();
+    private static final List<ToDoubleFunction<Hit>> PERCENT = new ArrayList<>();
 
     /** 注册防御提供者（专长、状态、装备、生物种类……） */
     public static void addProvider(BiConsumer<LivingEntity, Profile> p) { PROVIDERS.add(p); }
@@ -262,6 +263,12 @@ public final class DamageRules {
      * 多个追加都以同一最终伤害为基准分别计算再相加。
      */
     public static void addFinalMod(ToDoubleFunction<Hit> f) { FINAL.add(f); }
+
+    /**
+     * 注册按比例的伤害降低（最终伤害之后、伤害转移之前）：返回 0~1 的降低比例，多个来源取最高；
+     * 不可避免的伤害不受影响；视为物品带来的伤害降低，精神 / 毒素伤害无视（如魔虚罗法阵的适应）。
+     */
+    public static void addPercentReduction(ToDoubleFunction<Hit> f) { PERCENT.add(f); }
 
     /** 伤害转移：转移者与本次承担的点数（向下取整后传入） */
     public record Share(LivingEntity to, int points) {}
@@ -688,6 +695,8 @@ public final class DamageRules {
         h.parts.removeIf(p -> p.amount <= 0);
         // 11) 最终伤害：易伤 / 暴击等以同一最终伤害为基准分别追加
         finalStage(h, pr);
+        // 按比例降低（适应等）：取最高
+        percentStage(h);
         // 伤害转移：只针对最终伤害
         if (!h.transferred()) transfer(h);
         h.parts.removeIf(p -> p.amount <= 0);
@@ -839,6 +848,18 @@ public final class DamageRules {
             p.amount += add;
         }
         if (plusTo != null) plusTo.amount += plus;
+    }
+
+    private static void percentStage(Hit h) {
+        if (PERCENT.isEmpty() || h.transferred()) return;
+        double best = 0;
+        for (var f : PERCENT) best = Math.max(best, f.applyAsDouble(h));
+        if (best <= 0) return;
+        float keep = (float) (1 - Math.min(0.95, best));
+        for (Part p : h.parts) {
+            if (p.unavoidable || p.amount <= 0 || p.kinds.stream().anyMatch(DamageKind::ignoresItems)) continue;
+            p.amount *= keep;
+        }
     }
 
     private static void transfer(Hit h) {

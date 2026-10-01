@@ -210,6 +210,7 @@ public final class RestManager {
         }
         if (!p.isAlive()) return;
         if (kind == Kind.LONG && !canLongRest(p, bed)) kind = Kind.SHORT; // 24 小时内已长休：降为短休
+        if (kind == Kind.LONG) AdaptationManager.reset(p); // 长休：魔虚罗法阵的适应清空
 
         PlayerHealthData hp = p.getData(ModAttachments.PLAYER_HEALTH);
         List<String> parts = new ArrayList<>();
