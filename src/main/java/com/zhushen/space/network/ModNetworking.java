@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("24"); // 协议版本：念动力 tk_action / tk_state / tk_strike
+        PayloadRegistrar registrar = event.registrar("25"); // 协议版本：新手试炼 trial_state / trial_action
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -55,6 +55,13 @@ public class ModNetworking {
                 (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientTelekinesis.state(p)));
         registrar.playToClient(TkStrikePayload.TYPE, TkStrikePayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientTelekinesis.strike(p)));
+        // ===== 新手试炼 =====
+        registrar.playToServer(TrialActionPayload.TYPE, TrialActionPayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer sp) com.zhushen.space.common.TrialManager.handle(sp, p.action(), p.value());
+                }));
+        registrar.playToClient(TrialStatePayload.TYPE, TrialStatePayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientTrial.state(p)));
         registrar.playToServer(ArtActionPayload.TYPE, ArtActionPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer sp) com.zhushen.space.common.ArtManager.handle(sp, p);

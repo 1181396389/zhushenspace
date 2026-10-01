@@ -315,6 +315,7 @@ public class SkillManager {
         if (!ability.isArtAbility()) player.level().playSound(null, player.blockPosition(),
                 SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.7f, 1.4f);
         SkillServer.sync(player);
+        TrialManager.onSkillUsed(player, ability); // 新手试炼：使用技能 / 施放技艺的目标
     }
 
     /** 肉搏格挡 buff 是否生效中（太极拳被动结算用） */

@@ -1,0 +1,33 @@
+{
+  "name": "新手试炼",
+  "icon": "minecraft:sea_lantern",
+  "category": "zhushenspace:basics",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "title": "新手试炼",
+      "text": "第一次使用$(l)主神邀请函$()后，主神会询问是否进入新手试炼。$(br2)试炼是一座只属于你的白色副本，六个房间依次教会你最常用的操作：每个房间完成目标后，前方的门才会打开。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "六个房间",
+      "text": "$(li)$(bold)苏醒$()：打开主神面板$(li)$(bold)试用角色$()：选一张角色卡$(li)$(bold)战斗模式$()：进入战斗模式、攻击假人、使用技能$(li)$(bold)伤势与状态$()：爬起来、扑灭火焰、急救止血$(li)$(bold)能量池与技艺$()：施放技艺命中假人$(li)$(bold)结算$()：走上传送台回到主神空间"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "试用角色",
+      "text": "四张预设角色卡：$(bold)战士$()（内力）、$(bold)游侠$()（查克拉）、$(bold)念动力者$()（念动力）、$(bold)术士$()（魔力）。$(br2)试用角色不消耗任何 XP，离开试炼后自动还原；真正的角色在试炼结束后，回到主神空间用主神面板创建。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "不会影响存档",
+      "text": "进入时，背包、属性、技能、专长、能量、技艺、伤势、状态、货币都会暂存，离开时原样归还；试炼中获得的物品无法带出。$(br2)在试炼中倒下只会回到本关入口并完全恢复，没有任何损失。"
+    },
+    {
+      "type": "patchouli:text",
+      "title": "指令",
+      "text": "$(li)$(bold)/zs tutorial start$()：进入试炼（跳过之后也能随时进入）$(li)$(bold)/zs tutorial restart$()：从第一个房间重新开始$(li)$(bold)/zs tutorial quit$()：退出试炼$(li)$(bold)/zs tutorial skip$()：跳过$(li)$(bold)/zs tutorial info$()：查看完成次数与最快用时"
+    }
+  ]
+}

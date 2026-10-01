@@ -23,6 +23,12 @@ public final class BuildServer {
         PlayerSkillData sd = player.getData(ModAttachments.PLAYER_SKILLS);
         PlayerAttributeData ad = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
         if (!ad.envelopeUsed()) return;
+        if (TrialManager.inTrial(player)) {
+            // 试用角色不可修改：正式建卡请在完成试炼后进行
+            player.displayClientMessage(Component.translatable("msg.zhushenspace.trial.no_build"), true);
+            syncAll(player);
+            return;
+        }
         BuildCheck c = BuildCheck.of(b.totalXp - b.artXp, b.created, b.giftedSkillXp,
                 b.attrXp, sd.points(), b.featMask, b.si1Skill, b.si3Skills[0], b.si3Skills[1],
                 attrXp, skills, featMask, si1, si3a, si3b);

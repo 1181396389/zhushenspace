@@ -63,4 +63,9 @@ public class ModAttachments {
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<HallReturnData>> HALL_RETURN =
             ATTACHMENTS.register("hall_return",
                     () -> AttachmentType.serializable(HallReturnData::new).copyOnDeath().build());
+
+    /** 新手试炼：进度、记录与进入前的存档备份（持久化、死亡保留） */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<TrialData>> TRIAL =
+            ATTACHMENTS.register("trial",
+                    () -> AttachmentType.serializable(TrialData::new).copyOnDeath().build());
 }

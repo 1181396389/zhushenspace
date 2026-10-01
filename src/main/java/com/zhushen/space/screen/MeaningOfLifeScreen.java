@@ -106,7 +106,9 @@ public class MeaningOfLifeScreen extends Screen {
         long t = now() - start;
         if (shatterAt >= 0) {
             if (now() - shatterAt >= CRACK_MS + FALL_MS) {
-                Minecraft.getInstance().setScreen(new GodPanelScreen());
+                // 第一次接入：询问是否进入新手试炼；否则直接打开主神面板
+                Minecraft.getInstance().setScreen(com.zhushen.space.client.ClientTrial.shouldPrompt()
+                        ? new TrialPromptScreen() : new GodPanelScreen());
             }
             return;
         }

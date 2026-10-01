@@ -46,6 +46,11 @@ public class HallManager {
 
     /** 主神面板按钮：进入大厅 / 返回主世界 */
     public static void enter(ServerPlayer player) {
+        if (TrialManager.inTrial(player)) {
+            // 新手试炼中：先完成或退出试炼（/zs tutorial quit），避免把试炼场景记成返回点
+            player.displayClientMessage(Component.translatable("msg.zhushenspace.trial.no_hall"), true);
+            return;
+        }
         ServerLevel target;
         BlockPos pos;
         float yaw, pitch;

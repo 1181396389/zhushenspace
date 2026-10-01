@@ -264,6 +264,7 @@ public class GodPanelScreen extends Screen {
 
     @Override
     protected void init() {
+        com.zhushen.space.client.ClientTrial.notePanel(); // 新手试炼：「打开主神面板」目标
         if (openedAt < 0) {
             openedAt = tabChangedAt = ZsAnim.nowMs();
             SgStyle.rollIn();
