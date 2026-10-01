@@ -237,7 +237,7 @@ public final class LimbManager {
     }
 
     /** 数值阶段末尾：判定部位（盔甲按部位计入防御，见 Defense；原版护甲已不再减伤） */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    @SubscribeEvent(priority = EventPriority.LOW)
     public static void onIncoming(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || bypass(event.getSource())) return;
         LimbPart part = resolvePart(player, event.getSource());

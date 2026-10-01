@@ -22,6 +22,12 @@ public final class ClientDefenseData {
     private static final long[] changedAt = new long[5];
     private static int flags;
     private static long flagsAt;
+    private static java.util.List<com.zhushen.space.network.DamageKeywordsPayload.Entry> keywords = java.util.List.of();
+
+    /** 减伤关键字（悬停显示） */
+    public static void updateKeywords(com.zhushen.space.network.DamageKeywordsPayload p) { keywords = p.entries(); }
+
+    public static java.util.List<com.zhushen.space.network.DamageKeywordsPayload.Entry> keywords() { return keywords; }
 
     public static void update(DefenseHudPayload p) {
         long now = System.currentTimeMillis();
@@ -59,6 +65,7 @@ public final class ClientDefenseData {
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut e) {
         cur = null;
         flags = 0;
+        keywords = java.util.List.of();
         java.util.Arrays.fill(values, 0);
         java.util.Arrays.fill(changedAt, 0);
     }

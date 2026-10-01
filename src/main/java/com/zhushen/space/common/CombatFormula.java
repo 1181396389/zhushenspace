@@ -186,6 +186,7 @@ public final class CombatFormula {
             }
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
             float wd = weaponDamage(p, event.getAmount());
+            DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
             base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + wd - def - pen
                     + PoolEffects.checkBonus(p, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false, victim);
             base = Math.max(0f, base) * StatusEffects.successFactor(p); // 肌肉痉挛：失去一半自然成功数
@@ -208,6 +209,7 @@ public final class CombatFormula {
             int n = rangeExcess(dist, sp.range());
             int distPen = n * WeaponCategory.RANGE_PENALTY + (deficit > 0 ? n * WeaponCategory.RANGE_PENALTY : 0);
             float wd = event.getAmount();
+            DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * WeaponCategory.REQ_PENALTY
                     + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
@@ -229,6 +231,7 @@ public final class CombatFormula {
             int n = rangeExcess(dist, range);
             int distPen = n * WeaponCategory.RANGE_PENALTY + deficit * n * (n + 1);
             float wd = event.getAmount();
+            DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * 2
                     + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);

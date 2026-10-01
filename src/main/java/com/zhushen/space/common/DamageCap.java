@@ -28,15 +28,15 @@ import java.util.Map;
  * </pre>
  * <ul>
  *   <li><b>枪械</b>：按「枪械」技能点数；基础伤害 = TACZ 结算的弹头伤害（含距离衰减），
- *       计入技能乘区 × 暴击 × 弱点，TACZ 自带的爆头倍率不计入（见 {@link GunDamage}）。</li>
+ *       计入技能乘区（暴击 × 弱点另有枪械专用的总倍率上限），TACZ 自带的爆头倍率不计入（见 {@link GunDamage}）。</li>
  *   <li><b>近战</b>：徒手按「肉搏」、冷兵器（剑 / 斧 / 三叉戟 / 重锤）按「白刃」、其他手持物按 0 点；
  *       基础伤害 = 原版结算的本次近战伤害（徒手或武器伤害，含攻击力属性、附魔与跳劈）。
- *       计入全部加成：肉搏 / 白刃加伤、冲锋攻击、暴击、弱点，以及护甲结算后的太极拳徒手加成、
- *       八劲、内力吐息等。</li>
+ *       计入攻击方的全部加成：肉搏 / 白刃加伤、冲锋攻击、太极拳徒手加成、八劲、内力吐息等。</li>
  * </ul>
  * 实现：
  * <ol>
- *   <li>{@link LivingIncomingDamageEvent} 最高优先级记录基础伤害，最低优先级截断到 基础 × 上限；</li>
+ *   <li>{@link LivingIncomingDamageEvent} 最高优先级记录基础伤害，LOW 截断到 基础 × 上限（之后 DamageRules 才结算目标的伤害降低；
+ *       暴击、弱点等「确定最终伤害后」的追加不计入上限）；</li>
  *   <li>{@link LivingDamageEvent.Pre}（护甲 / 附魔减伤之后）最高优先级按护甲减伤比例折算出本阶段的允许值，
  *       最低优先级把太极 / 八劲 / 内力吐息等之后追加的伤害截断到该允许值。</li>
  * </ol>
@@ -144,7 +144,7 @@ public final class DamageCap {
         MELEE.put(event.getEntity().getId(), m);
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    @SubscribeEvent(priority = EventPriority.LOW)
     public static void onIncomingLast(LivingIncomingDamageEvent event) {
         ServerPlayer player = meleeAttacker(event.getSource(), event.getEntity());
         if (player == null) return;

@@ -6,6 +6,7 @@ import com.zhushen.space.data.ModAttachments;
 import com.zhushen.space.data.PlayerAttributeData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -75,59 +76,59 @@ public class AttributeEvents {
         }
     }
 
-    /** 操作属性传奇暴击 + 感知属性弱点勘破（玩家造成伤害时判定）
-     *  （LOW：在伤害浮动 {@link DamageVariance} 之后结算，暴击 / 弱点作用于浮动后的伤害） */
-    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOW)
-    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
-        DamageSource source = event.getSource();
-        if (!(source.getEntity() instanceof ServerPlayer player)) return;
-        if (player.level().isClientSide()) return;
-        if (WillpowerManager.isBonusStrike(player)) return; // 意志加持追加伤害：固定 9 点
+    /**
+     * 操作属性传奇暴击 + 感知属性弱点勘破（玩家造成伤害时判定）。
+     * 由 {@link DamageRules} 注册为第 11 步（确定最终伤害后）的追加，与易伤等分别计算后相加。
+     * 返回追加系数：额外造成「最终伤害 × 系数」（暴击、弱点各自按 倍率 − 1 计算后相加，不计入伤害上限）。
+     */
+    static double finalBonus(DamageRules.Hit h) {
+        DamageSource source = h.source;
+        if (!(source.getEntity() instanceof ServerPlayer player)) return 0;
+        if (player.level().isClientSide() || player == h.victim) return 0;
+        if (WillpowerManager.isBonusStrike(player)) return 0; // 意志加持追加伤害：固定 9 点
 
         var data = player.getData(ModAttachments.PLAYER_ATTRIBUTES);
+        LivingEntity target = h.victim;
 
         // TACZ 枪械伤害走单独的平衡规则（降档倍率 + 每发一次判定 + 总倍率封顶）
-        if (GunDamage.isGun(source)) {
-            onGunDamage(event, player, data);
-            return;
-        }
+        if (GunDamage.isGun(source)) return gunBonus(target, source, player, data);
 
+        double bonus = 0;
         // 操作：传奇暴击（仅当操作属性自身满 5 点时激活，按传奇点数叠加）
         int operation = data.get(AttributeType.OPERATION.ordinal());
         int leg = data.legendaryPoints();
         if (operation >= AttributeType.MAX_POINTS && leg > 0
                 && player.getRandom().nextFloat() < leg * CRIT_CHANCE_PER_LEGENDARY) {
-            event.setAmount(event.getAmount() * CRIT_DAMAGE_MULTIPLIER);
+            bonus += CRIT_DAMAGE_MULTIPLIER - 1f;
         }
 
         // 感知：弱点勘破（黄色光点瞄准机制，见 WeakPointManager）
         int perception = data.get(AttributeType.PERCEPTION.ordinal());
         if (perception > 0 && player.level() instanceof ServerLevel level) {
-            var weakPoint = WeakPointManager.get(event.getEntity());
+            var weakPoint = WeakPointManager.get(target);
             if (weakPoint != null) {
                 // 已有光点：命中光点（光点随目标实时移动）才触发额外伤害并消耗
-                Vec3 wpPos = WeakPointManager.getWorldPos(event.getEntity(), weakPoint);
+                Vec3 wpPos = WeakPointManager.getWorldPos(target, weakPoint);
                 if (WeakPointManager.isHit(player, source, wpPos)) {
-                    event.setAmount(event.getAmount() * WEAK_POINT_DAMAGE_MULTIPLIER);
-                    WeakPointManager.consume(level, event.getEntity());
+                    bonus += WEAK_POINT_DAMAGE_MULTIPLIER - 1f;
+                    WeakPointManager.consume(level, target);
                 }
             } else {
-                // 无光点：按每点感知 5% 概率生成弱点光点
-                WeakPointManager.trySpawn(level, event.getEntity(), player, perception);
+                // 无光点：按感知概率生成弱点光点
+                WeakPointManager.trySpawn(level, target, player, perception);
             }
         }
+        return bonus;
     }
 
     /**
-     * 枪械伤害的暴击 / 弱点结算（见 {@link GunDamage}）：
+     * 枪械伤害的暴击 / 弱点（见 {@link GunDamage}）：
      * - 暴击、弱点倍率降档为枪械专用值
      * - TACZ 每发子弹的「普通 + 穿甲」两次结算只判定一次，第二次复用同一倍率（不再额外掷弱点生成）
      * - 弱点被枪械消耗后，目标进入弱点冷却，期间枪械命中不会再生成弱点
      * - 技能乘区 × 暴击 × 弱点 合计不超过总上限
      */
-    private static void onGunDamage(LivingIncomingDamageEvent event, ServerPlayer player, PlayerAttributeData data) {
-        var target = event.getEntity();
-        DamageSource source = event.getSource();
+    private static double gunBonus(LivingEntity target, DamageSource source, ServerPlayer player, PlayerAttributeData data) {
         GunDamage.Hit hit = GunDamage.current(player, target, source);
 
         float extra;
@@ -164,7 +165,7 @@ public class AttributeEvents {
                 hit.extra = extra;
             }
         }
-        if (extra != 1f) event.setAmount(event.getAmount() * extra);
+        return extra - 1f;
     }
 
     /** 耐力：每 5 点使受到的负面效果持续时间降低 15% */

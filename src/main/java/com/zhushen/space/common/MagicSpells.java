@@ -155,7 +155,8 @@ public final class MagicSpells {
         }
         t.level().playSound(null, t.getX(), t.getY(), t.getZ(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 0.8f, 1.6f);
         t.level().playSound(null, t.getX(), t.getY(), t.getZ(), SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.PLAYERS, 1f, 1.1f);
-        ArtManager.hit(caster, t, m.amount, ArtManager.spec(PlayerHealthData.Severity.L, 0, 0, false, DamageKind.LIGHTNING));
+        ArtManager.hit(caster, t, m.amount, ArtManager.spec(PlayerHealthData.Severity.L, 0, 0, false, DamageKind.LIGHTNING)
+                .withTraits(DamageRules.Trait.MAGIC)); // 法术：【魔法】（穿透 DR/魔法）
     }
 
     /** 传送立即引爆（末影珍珠的摔落伤害会让位移判定忽略这一下，所以单独处理） */
@@ -315,6 +316,7 @@ public final class MagicSpells {
             DamageRules.Spec spec = blight
                     ? ArtManager.spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.COLD, DamageKind.UNHOLY)
                     : ArtManager.spec(PlayerHealthData.Severity.L, 0, 0, true, DamageKind.COLD);
+            spec = spec.withTraits(DamageRules.Trait.MAGIC); // 法术：【魔法】
             ArtManager.hit(p, t, v, spec);
             ArtFx.soundAt(p, t.position(), SoundEvents.PLAYER_HURT_FREEZE, 0.9f, 1.0f);
             ArtFx.soundAt(p, t.position(), SoundEvents.GLASS_BREAK, 0.5f, 1.6f);

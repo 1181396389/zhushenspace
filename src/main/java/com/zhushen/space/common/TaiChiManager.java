@@ -288,17 +288,18 @@ public class TaiChiManager {
 
     /** ===== 太极拳被动 ===== */
 
-    /** 徒手攻击加成与听劲（玩家近战直击时结算） */
-    @SubscribeEvent
-    public static void onOutgoingDamage(LivingDamageEvent.Pre event) {
+    /** 徒手攻击加成与听劲（玩家近战直击时结算；攻击方伤害阶段，计入伤害上限，之后才结算目标的伤害降低） */
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.NORMAL)
+    public static void onOutgoingDamage(LivingIncomingDamageEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         if (player == event.getEntity()) return;
         if (WillpowerManager.isBonusStrike(player)) return; // 意志加持追加伤害：固定 9 点
         if (event.getSource().getDirectEntity() != player) return;
         if (GunDamage.isGun(event.getSource())) return; // TACZ 伪装近战的子弹不算徒手
+        if (DamageRules.hasPending(event.getEntity())) return; // 模组能力伤害自行结算
         if (!isTaiChiEquipped(player)) return;
 
-        float amount = event.getNewDamage();
+        float amount = event.getAmount();
         if (isUnarmed(player)) {
             amount += TAIJI_DAMAGE_BONUS;
         }
@@ -306,7 +307,7 @@ public class TaiChiManager {
         if (SkillManager.isTingjinActive(player)) {
             amount *= 0.8f;
         }
-        event.setNewDamage(amount);
+        event.setAmount(amount);
 
         // 八劲合一（被动）：需装备饰品且已购买（hasEightPowers 双重校验）。
         // 门槛 = 本次肉搏攻击的最终伤害（已含肉搏技能点 +1/点与太极被动 +6，事件链早期结算）
@@ -315,7 +316,7 @@ public class TaiChiManager {
                 && !MOVE_ATTACK_FLAG.contains(player.getUUID())
                 && hasEightPowers(player)
                 && amount > EIGHT_POWERS_DAMAGE_THRESHOLD) {
-            appendEightPowers(player, event.getEntity(), event);
+            event.setAmount(appendEightPowers(player, event.getEntity(), amount));
         }
     }
 
@@ -332,15 +333,17 @@ public class TaiChiManager {
      * 掤 +6 / 捋 +6 / 按 +3 伤害，挤破魔（无视最多 6 点伤害吸收），
      * 采削减生机，挒压制（虚弱+缓慢），肘破甲（护甲 20% 转化，上限 4），靠击退撞墙。
      */
-    private static void appendEightPowers(ServerPlayer player, LivingEntity target, LivingDamageEvent.Pre event) {
+    private static float appendEightPowers(ServerPlayer player, LivingEntity target, float amount) {
         int idx = EIGHT_POWERS_NEXT.getOrDefault(player.getUUID(), 0) % EIGHT_POWERS_CYCLE.length;
         EIGHT_POWERS_NEXT.put(player.getUUID(), (idx + 1) % EIGHT_POWERS_CYCLE.length);
         SkillAbility jin = EIGHT_POWERS_CYCLE[idx];
 
-        float amount = event.getNewDamage();
         switch (jin) {
             case WARD_OFF, ROLL_BACK -> amount += 6; // 掤 / 捋：劲力直透
-            case PRESS -> amount += Math.min(6f, target.getAbsorptionAmount()); // 挤：破魔
+            case PRESS -> { // 挤：破魔（无视最多 6 点伤害吸收：关键字吸收与吸收生命值）
+                amount += Math.min(6f, target.getAbsorptionAmount());
+                DamageRules.breakNext(target, DamageRules.Break.points(DamageRules.Stage.ABSORB, 6));
+            }
             case PUSH -> amount += 3; // 按：下按
             case PULL -> { // 采：削减生机
                 // 严重伤害的即时部分并入本次攻击（嵌套 hurt 会被受击无敌帧吞掉），
@@ -367,8 +370,6 @@ public class TaiChiManager {
             default -> {
             }
         }
-        event.setNewDamage(amount);
-
         // 劲力提示（动作栏）+ 特效：该劲在目标周身对应方位迸出内力 + 轻出招声
         player.displayClientMessage(Component.translatable("msg.zhushenspace.taiji.eight_powers_jin",
                 Component.translatable(jin.nameKey())), true);
@@ -385,6 +386,7 @@ public class TaiChiManager {
                 ModSounds.TAI_CHI_MOVE.get(), SoundSource.PLAYERS, 0.5f, 1.2f);
         // 打击感：单劲透发，轻震动
         hitFeel(player, 0.4f, 4);
+        return amount;
     }
 
     /** 命中打击感：向攻击者发送镜头微震反馈 */

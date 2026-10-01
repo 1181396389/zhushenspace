@@ -82,6 +82,19 @@ public final class DefenseHudRenderer {
         render(g, mc.font, pos[0], pos[1], cfg.defScale, false);
     }
 
+    /** 打开聊天栏 / 物品栏时，鼠标悬停在防御 HUD 上：显示当前的减伤关键字 */
+    @SubscribeEvent
+    public static void onScreenRender(net.neoforged.neoforge.client.event.ScreenEvent.Render.Post event) {
+        var screen = event.getScreen();
+        if (!(screen instanceof net.minecraft.client.gui.screens.ChatScreen)
+                && !(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)) return;
+        if (System.currentTimeMillis() - lastAt > 300 || !ClientDefenseData.valid()) return;
+        int mx = event.getMouseX(), my = event.getMouseY();
+        if (mx < lastX || my < lastY || mx > lastX + lastW || my > lastY + lastH) return;
+        Minecraft mc = Minecraft.getInstance();
+        event.getGuiGraphics().renderTooltip(mc.font, DamageKeywordText.tooltip(mc.font, 220), mx, my);
+    }
+
     /** 界面设置预览（无数据时显示示例） */
     public static void renderPreview(GuiGraphics g, Font font, int sw, int sh) {
         float s = ClientUiConfig.get().defScale;
@@ -102,8 +115,19 @@ public final class DefenseHudRenderer {
         };
     }
 
+    /** 最近一次实际绘制的范围（打开聊天栏 / 物品栏时悬停显示减伤关键字） */
+    private static float lastX, lastY, lastW, lastH;
+    private static long lastAt;
+
     private static void render(GuiGraphics g, Font font, float x, float y, float scale, boolean demo) {
         long now = System.currentTimeMillis();
+        if (!demo) {
+            lastX = x;
+            lastY = y;
+            lastW = W * scale;
+            lastH = H * scale;
+            lastAt = now;
+        }
         g.pose().pushPose();
         g.pose().translate(x, y, 0);
         g.pose().scale(scale, scale, 1);

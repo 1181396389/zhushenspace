@@ -483,7 +483,7 @@ public final class ArtManager {
         DamageRules.FLAT_IMMUNE = e -> e instanceof ServerPlayer p && buff(p, ArtSkill.BREATH_METHOD)
                 && data(p).hasOption(ArtSkill.BREATH_METHOD, 1);
         // 初级防护：伤害忽略 1（不叠加，取最高）
-        DamageRules.addProvider((e, pr) -> { if (buff(e, ArtSkill.MINOR_WARD)) pr.allIgnore = Math.max(pr.allIgnore, 1); });
+        DamageRules.addProvider((e, pr) -> { if (buff(e, ArtSkill.MINOR_WARD)) pr.ignore(SkillAbility.MINOR_WARD.nameKey(), 1); });
     }
 
     @SubscribeEvent

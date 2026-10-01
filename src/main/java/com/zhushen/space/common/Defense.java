@@ -364,6 +364,7 @@ public final class Defense {
                 else refreshFull(p);
             }
             syncHud(p, tc % 400 == 0); // 防御 / 豁免 HUD：变化时同步，每 20 秒强制一次
+            if (tc % 20 == 0) DamageRules.syncKeywords(p, tc % 400 == 0); // 减伤关键字（悬停显示）：变化时同步
         }
     }
 

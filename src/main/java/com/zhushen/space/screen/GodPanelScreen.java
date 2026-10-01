@@ -352,7 +352,9 @@ public class GodPanelScreen extends Screen {
             case FEATS -> renderFeatTab(g, mouseX, mouseY);
         }
         g.pose().popPose();
-        if (tab == Tab.ATTRIBUTES || tab == Tab.SKILLS || tab == Tab.FEATS) renderBuildStatus(g, listBottom + 3);
+        int statusEnd = panelX + 8;
+        if (tab == Tab.ATTRIBUTES || tab == Tab.SKILLS || tab == Tab.FEATS) statusEnd = renderBuildStatus(g, listBottom + 3);
+        if (tab == Tab.ATTRIBUTES) renderKeywordChip(g, mouseX, mouseY, statusEnd, listBottom + 3);
         ZsTheme.endOpen(g);
         if (tab == Tab.SKILLS) renderProfChooser(g, mouseX, mouseY);
         else profChooser = -1;
@@ -1257,7 +1259,7 @@ public class GodPanelScreen extends Screen {
     }
 
     /** 建卡 XP 状态行：属性 / 技能 / 专长投入与剩余（建卡时显示各自区间，超出标红） */
-    private void renderBuildStatus(GuiGraphics g, int y) {
+    private int renderBuildStatus(GuiGraphics g, int y) {
         BuildCheck c = buildCheck();
         boolean cr = ClientBuildData.created;
         int x = panelX + 8;
@@ -1267,7 +1269,26 @@ public class GodPanelScreen extends Screen {
                 cr ? "" : " (" + BuildRules.SKILL_MIN + "~" + BuildRules.SKILL_MAX + ")"), !cr && (c.skillPool < BuildRules.SKILL_MIN || c.skillPool > BuildRules.SKILL_MAX));
         x = statusPart(g, x, y, Component.translatable("build.zhushenspace.feat", c.feat,
                 cr ? "" : " (≥" + BuildRules.FEAT_MIN + ")"), !cr && c.feat < BuildRules.FEAT_MIN);
-        statusPart(g, x, y, Component.translatable("build.zhushenspace.free", c.free, ClientBuildData.totalXp), c.free < 0);
+        return statusPart(g, x, y, Component.translatable("build.zhushenspace.free", c.free, ClientBuildData.totalXp), c.free < 0);
+    }
+
+    /** 属性页右下：「减伤关键字」标签，悬停列出当前全部伤害降低能力（免疫 / 忽略 / 硬度 / 抵消 / 抗力 / 减免 / 吸收 / 阈值 / 转化 / 易伤） */
+    private void renderKeywordChip(GuiGraphics g, int mouseX, int mouseY, int minX, int y) {
+        Component label = Component.translatable("dmgkw.zhushenspace.chip",
+                com.zhushen.space.client.ClientDefenseData.keywords().size());
+        int w = font.width(label) + 10, h = 11;
+        int x = Math.max(minX, panelX + panelW - 8 - w);
+        int top = y - 2;
+        boolean hover = over(mouseX, mouseY, x, top, w, h);
+        boolean any = com.zhushen.space.client.DamageKeywordText.any();
+        int edge = hover ? SgStyle.NIXIE_HOT : any ? SgStyle.NIXIE : SgStyle.NIXIE_DIM;
+        g.fill(x, top, x + w, top + h, hover ? 0xCC2A1A0C : 0x99140C06);
+        g.fill(x, top, x + w, top + 1, edge);
+        g.fill(x, top + h - 1, x + w, top + h, edge);
+        g.fill(x, top, x + 1, top + h, edge);
+        g.fill(x + w - 1, top, x + w, top + h, edge);
+        g.drawString(font, label, x + 5, y, hover ? 0xFFFFFFFF : any ? SgStyle.TEXT : SgStyle.TEXT_SUB, false);
+        if (hover) g.renderTooltip(font, com.zhushen.space.client.DamageKeywordText.tooltip(font, TOOLTIP_WIDTH), mouseX, mouseY);
     }
 
     private int statusPart(GuiGraphics g, int x, int y, Component text, boolean bad) {

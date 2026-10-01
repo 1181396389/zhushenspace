@@ -243,8 +243,9 @@ public final class WillpowerManager {
         return bonus;
     }
 
-    /** 非近战（弹射物 / 枪械 / 技能伤害）的玩家攻击：数值阶段最后追加完好加值（近战在 DamageCap 截断之后追加） */
-    @SubscribeEvent(priority = EventPriority.LOWEST)
+    /** 非近战（弹射物 / 枪械 / 技能伤害）的玩家攻击：攻击方伤害的最后追加完好加值（近战在 DamageCap 截断之后追加）；
+     *  之后才由 DamageRules（LOWEST）结算目标的伤害降低 */
+    @SubscribeEvent(priority = EventPriority.LOW)
     public static void onIncomingLast(LivingIncomingDamageEvent event) {
         LivingEntity victim = event.getEntity();
         DamageSource src = event.getSource();

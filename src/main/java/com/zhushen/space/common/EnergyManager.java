@@ -249,19 +249,20 @@ public class EnergyManager {
 
     /** ===== 恢复方式 ===== */
 
-    /** 内力吐息：开启时近战直击（含普攻）消耗 1 点内力，+6 伤害 */
-    @SubscribeEvent
-    public static void onDamagePre(LivingDamageEvent.Pre event) {
+    /** 内力吐息：开启时近战直击（含普攻）消耗 1 点内力，追加伤害（攻击方伤害阶段：计入伤害上限，之后才结算目标的伤害降低） */
+    @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.NORMAL)
+    public static void onDamagePre(net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent event) {
         if (!(event.getSource().getEntity() instanceof ServerPlayer attacker)) return;
         if (attacker == event.getEntity()) return;
         if (WillpowerManager.isBonusStrike(attacker)) return; // 意志加持追加伤害：固定 9 点
         if (event.getSource().getDirectEntity() != attacker) return; // 仅近战直击，弹射物除外
         if (GunDamage.isGun(event.getSource())) return; // TACZ 伪装近战的子弹不算近战
+        if (DamageRules.hasPending(event.getEntity())) return; // 模组能力伤害自行结算
         PlayerEnergyData data = attacker.getData(ModAttachments.PLAYER_ENERGY);
         if (!data.breathEnabled() || data.getPool(POOL_NEILI) == null) return;
         if (TaiChiManager.isPoolSealed(attacker)) return; // 能量池被封印
         if (data.consume(POOL_NEILI, 1.0)) {
-            event.setNewDamage(event.getNewDamage() + (float) BREATH_BONUS_DAMAGE);
+            event.setAmount(event.getAmount() + (float) BREATH_BONUS_DAMAGE);
             sync(attacker);
         }
     }
