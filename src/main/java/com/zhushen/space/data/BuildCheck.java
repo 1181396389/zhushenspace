@@ -51,6 +51,19 @@ public final class BuildCheck {
                 int c = FeatType.choice(m);
                 if (c < 0 || c > 2) r.err("build.zhushenspace.err.barbarian");
             }
+            if (f == FeatType.WOLF_CHILD && (m & FeatType.LEVEL_BITS) != 0) {
+                int c = FeatType.choice(m);
+                if (c < 0 || c > 31 || FeatType.wildAttr(m) != ((c >> 1) & 3)) r.err("build.zhushenspace.err.invalid");
+                if ((sm & FeatType.LEVEL_BITS) != 0) {
+                    // 已保存：变体与属性不可更改，已消除的缺陷不可恢复
+                    if (FeatType.wildBase(m) != FeatType.wildBase(sm)
+                            || (FeatType.wildLiterate(sm) && !FeatType.wildLiterate(m))
+                            || (FeatType.wildFearless(sm) && !FeatType.wildFearless(m))) r.err("build.zhushenspace.err.invalid");
+                }
+                // 智力在建卡时变为 1 点：不能在智力上投入 XP（建卡后也不能再提升）
+                int intI = AttributeType.INTELLIGENCE.ordinal();
+                if (!created ? attrXp[intI] != 0 : attrXp[intI] > savedAttr[intI]) r.err("build.zhushenspace.err.wolf_int");
+            }
         }
         if (created) {
             if (si1 != savedSi1 || si3a != savedSi3a || si3b != savedSi3b) r.err("build.zhushenspace.err.creation_feat");

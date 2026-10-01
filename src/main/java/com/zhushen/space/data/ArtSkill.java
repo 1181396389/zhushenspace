@@ -43,7 +43,12 @@ public enum ArtSkill {
     ILLUMINATION(SkillAbility.ILLUMINATION, FeatEffects.Pool.MAGIC, -1, 500, 1, Mode.NONE, 0),
     /** 冻寒骨爪【死灵】【暗】【水】语言、姿势 · 智力 米 · 一个目标 · 立即 */
     FROST_CLAW(SkillAbility.FROST_CLAW, FeatEffects.Pool.MAGIC, -1, 500, 0, Mode.NONE, 0,
-            new Research("undead_bane", 6, 1), new Research("blight", 12, 1));
+            new Research("undead_bane", 6, 1), new Research("blight", 12, 1)),
+    // ===== 念动力（特异本质）：获得念动力池即自动习得，不可购买 =====
+    /** 念动力攻击：1 点 · 念动力范围 · 一个目标 · 远程心灵攻击，物理严重伤害，无需姿势 */
+    TK_ATTACK(SkillAbility.TK_ATTACK, FeatEffects.Pool.TELEKINESIS, -1, 0, 1, Mode.NONE, 0),
+    /** 念动力操控：1 点 · 持续 决心 轮 · 隔空操作 / 取物 / 悬浮武器 / 推举生物 */
+    TK_MANIP(SkillAbility.TK_MANIP, FeatEffects.Pool.TELEKINESIS, -1, 0, 1, Mode.NONE, 0);
 
     /** 选项模式：NONE 无；PICK 购买后选定（首个免费，其余按 extraCost XP 研发，-1 = 不可再选）；CYCLE 随时切换（轮盘） */
     public enum Mode { NONE, PICK, CYCLE }
@@ -95,6 +100,9 @@ public enum ArtSkill {
      */
     public boolean lockOn() { return false; }
 
+    /** 天生技艺：拥有对应能量池即自动习得（不在商城出售） */
+    public boolean innate() { return pool == FeatEffects.Pool.TELEKINESIS; }
+
     public String optionKey(int i) { return "art.zhushenspace." + name().toLowerCase(java.util.Locale.ROOT) + ".opt." + options[i]; }
 
     public String researchKey(int i) { return "art.zhushenspace." + name().toLowerCase(java.util.Locale.ROOT) + ".res." + researches[i].key(); }
@@ -104,11 +112,11 @@ public enum ArtSkill {
         return null;
     }
 
-    /** 分类（能量池）顺序：灵力 精神力 灵能 妖力 佛法 魔法 道术 内力 查克拉 */
+    /** 分类（能量池）顺序：灵力 精神力 灵能 妖力 佛法 魔法 道术 内力 查克拉 念动力 */
     public static final FeatEffects.Pool[] CATEGORIES = {
             FeatEffects.Pool.SPIRIT, FeatEffects.Pool.MIND, FeatEffects.Pool.PSYCHIC, FeatEffects.Pool.YOKAI,
             FeatEffects.Pool.BUDDHA, FeatEffects.Pool.MAGIC, FeatEffects.Pool.DAO, FeatEffects.Pool.NEILI,
-            FeatEffects.Pool.CHAKRA};
+            FeatEffects.Pool.CHAKRA, FeatEffects.Pool.TELEKINESIS};
 
     public static java.util.List<ArtSkill> inCategory(FeatEffects.Pool p) {
         java.util.List<ArtSkill> l = new java.util.ArrayList<>();

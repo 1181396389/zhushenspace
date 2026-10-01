@@ -90,7 +90,10 @@ public enum SkillAbility {
     THUNDER_SWORD(null, 0, 60, "art", "art_thunder_sword"),
     LIGHT(null, 0, 60, "art", "art_light"),
     ILLUMINATION(null, 0, 60, "art", "art_illumination"),
-    FROST_CLAW(null, 0, 60, "art", "art_frost_claw");
+    FROST_CLAW(null, 0, 60, "art", "art_frost_claw"),
+    // 念动力（获得念动力池时自动习得，追加在末尾）
+    TK_ATTACK(null, 0, 60, "art", "art_tk_attack"),
+    TK_MANIP(null, 0, 60, "art", "art_tk_manip");
 
     public static final String GATE_NEILI = "neili";
     public static final String GATE_TAI_CHI = "tai_chi";

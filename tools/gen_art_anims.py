@@ -1,4 +1,4 @@
-"""生成全部 23 个技艺（5 个弹体技艺 + 14 个非弹体技艺 + 4 个魔法专业法术）的 KosmX/GeckoLib 动作文件 art.json。
+"""生成全部技艺（5 个弹体技艺 + 14 个非弹体技艺 + 4 个魔法专业法术 + 念动力 6 个动作）的 KosmX/GeckoLib 动作文件 art.json。
 
 约定与 tools/gen_taiji_anims.py 一致：
   手臂/腿 x 负值 = 向前抬起；右臂 y 正 = 向内、z 正 = 向外；左臂镜像。
@@ -380,6 +380,63 @@ FC_RAKE = P(right_arm=[-128, 28, -10], right_arm_bend=[48, 0], left_arm=[-60, -4
 seq("art_frost_claw", 0.95, [
     (0, NEUTRAL, LIN), (0.12, FC_LOW, BACK), (0.2, FC_RAKE, EXPO), (0.55, P(FC_RAKE, right_arm=[-124, 30, -10], torso=[-4, -18, 0]), LIN),
     (0.95, NEUTRAL, SINE),
+])
+
+
+# =====================================================================
+# 念动力（特异本质）
+# =====================================================================
+
+# 念动力攻击（VFX 0.15s 收缩、0.4s 命中）：右手张掌伸向目标、左手两指按太阳穴 → 颤抖着用力 → 猛然攥拳（内爆）
+TK_REACH = P(right_arm=[-92, 10, 0], right_arm_bend=[8, 0], left_arm=[-150, -42, -12], left_arm_bend=[128, 0],
+             torso=[2, 6, 0], head=[4, -6, 6], body=[0, -0.5, 0], left_leg=[-12, 0, -4], right_leg=[8, 0, 4])
+TK_STRAIN = P(TK_REACH, right_arm=[-86, 8, 0], right_arm_bend=[24, 0], torso=[-4, 6, 0], head=[8, -6, 8])
+TK_CRUSH = P(TK_REACH, right_arm=[-70, 14, -4], right_arm_bend=[40, 0], torso=[10, 10, 0], head=[12, -8, 4], body=[0, -2, 0])
+seq("art_tk_attack", 1.0, [
+    (0, NEUTRAL, LIN), (0.12, TK_REACH, BACK)] + shake(TK_STRAIN, 0.16, 0.32, 0.03, 2.2, bones=("right_arm", "head")) + [
+    (0.38, TK_CRUSH, EXPO), (0.7, P(TK_CRUSH, right_arm=[-72, 14, -4], torso=[8, 10, 0]), LIN), (1.0, NEUTRAL, SINE),
+])
+
+# 念动力操控（起势）：双臂自身侧张开、掌心向上缓缓托起，身体微微离地般上提，仰首
+TK_OPEN = P(right_arm=[-30, 0, 34], left_arm=[-30, 0, -34], right_arm_bend=[20, 0], left_arm_bend=[20, 0],
+            torso=[4, 0, 0], head=[8, 0, 0], body=[0, -1.5, 0])
+TK_RISE = P(right_arm=[-108, -14, 52], left_arm=[-108, 14, -52], right_arm_bend=[16, 0], left_arm_bend=[16, 0],
+            torso=[-8, 0, 0], head=[-20, 0, 0], body=[0, 0.8, 0], left_leg=[-4, 0, -4], right_leg=[4, 0, 4])
+seq("art_tk_manip", 1.4, [
+    (0, NEUTRAL, LIN), (0.18, TK_OPEN, CUBIC), (0.55, TK_RISE, QUART)] + shake(TK_RISE, 0.6, 0.8, 0.04, 1.2) + [
+    (1.0, P(TK_RISE, body=[0, 0.5, 0]), SINE), (1.4, NEUTRAL, SINE),
+])
+
+# 隔空取物：右手探出、五指一抓 → 收回半臂（物体随之飘起）
+TK_REACH2 = P(right_arm=[-96, 14, 0], right_arm_bend=[4, 0], torso=[6, 8, 0], head=[4, -6, 0], body=[0, -0.8, 0])
+TK_GRAB = P(TK_REACH2, right_arm=[-84, 10, 0], right_arm_bend=[46, 0], torso=[0, 6, 0])
+seq("art_tk_grab", 0.75, [
+    (0, NEUTRAL, LIN), (0.12, TK_REACH2, BACK), (0.22, TK_GRAB, EXPO), (0.45, TK_GRAB, LIN), (0.75, NEUTRAL, SINE),
+])
+
+# 念力推：右掌收至胸前 → 爆发式前推，弓步
+TK_LOAD = P(right_arm=[-64, 30, 0], right_arm_bend=[96, 0], left_arm=[10, 0, -10], torso=[-6, 14, 0], head=[0, -10, 0],
+            body=[0, -1, 0], left_leg=[-6, 0, -3], right_leg=[4, 0, 3])
+TK_PUSH = P(right_arm=[-92, 4, 0], right_arm_bend=[0, 0], left_arm=[26, 0, -20], torso=[16, -10, 0], head=[-10, 8, 0],
+            body=[0, -3.5, 0], left_leg=[-30, 0, -6], right_leg=[20, 0, 8])
+seq("art_tk_push", 0.8, [
+    (0, NEUTRAL, LIN), (0.12, TK_LOAD, BACK), (0.18, TK_PUSH, EXPO), (0.45, P(TK_PUSH, torso=[18, -12, 0]), LIN), (0.8, NEUTRAL, SINE),
+])
+
+# 托起：右手探出抓住 → 向上一抬过头（目标被拎离地面）
+TK_HOOK = P(right_arm=[-80, 12, 0], right_arm_bend=[30, 0], torso=[10, 6, 0], body=[0, -2, 0], left_leg=[-10, 0, -4], right_leg=[8, 0, 4])
+TK_HOIST = P(right_arm=[-158, 6, 8], right_arm_bend=[36, 0], left_arm=[-20, 0, -18], torso=[-10, 4, 0], head=[-20, 0, 0], body=[0, 0.6, 0])
+seq("art_tk_lift", 0.95, [
+    (0, NEUTRAL, LIN), (0.14, TK_HOOK, BACK), (0.32, TK_HOIST, EXPO)] + shake(TK_HOIST, 0.36, 0.52, 0.04, 1.5, bones=("right_arm",)) + [
+    (0.95, NEUTRAL, SINE),
+])
+
+# 号令悬浮武器：剑指高举 → 向前一挥指向目标
+TK_SIGN = P(right_arm=[-160, -8, 10], right_arm_bend=[10, 0], torso=[-6, 10, 0], head=[-10, -6, 0], body=[0, 0.2, 0])
+TK_POINT = P(right_arm=[-88, 22, -8], right_arm_bend=[0, 0], left_arm=[16, 0, -18], torso=[10, -14, 0], head=[-4, 10, 0],
+             body=[0, -1.5, 0], left_leg=[-14, 0, -4], right_leg=[10, 0, 4])
+seq("art_tk_command", 0.75, [
+    (0, NEUTRAL, LIN), (0.1, TK_SIGN, BACK), (0.17, TK_POINT, EXPO), (0.42, TK_POINT, LIN), (0.75, NEUTRAL, SINE),
 ])
 
 

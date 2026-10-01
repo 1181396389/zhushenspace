@@ -422,7 +422,7 @@ public class SkillManager {
 
         // 摔绊：待触发窗口内命中 → 目标倒地
         if (st.tripPendingEnd > 0) {
-            if (System.currentTimeMillis() <= st.tripPendingEnd) {
+            if (System.currentTimeMillis() <= st.tripPendingEnd && !resistTrip(player, event.getEntity())) {
                 applyKnockdown(event.getEntity());
             }
             st.tripPendingEnd = 0;
@@ -438,6 +438,25 @@ public class SkillManager {
                 st.chargeDebuffEnd = System.currentTimeMillis() + CHARGE_DEBUFF_MS;
             }
         }
+    }
+
+    /**
+     * 对抗摔绊：目标拥有摔绊专长加值（狼孩）时进行对抗——
+     * 攻击者 (力量 + 肉搏 + 专长加值) 对 目标 (敏捷 + 运动 + 专长加值)，各自 20%~100% 浮动；目标胜出则不倒地。
+     */
+    private static boolean resistTrip(ServerPlayer attacker, LivingEntity target) {
+        int tb = FeatEffects.tripBonus(target);
+        if (tb <= 0 || !(target instanceof ServerPlayer tp)) return false;
+        float mine = (StatusManager.attr(attacker, com.zhushen.space.data.AttributeType.STRENGTH)
+                + attacker.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.BRAWL.ordinal()) + FeatEffects.tripBonus(attacker))
+                * DamageVariance.roll(attacker.getRandom());
+        float theirs = (StatusManager.attr(tp, com.zhushen.space.data.AttributeType.AGILITY)
+                + tp.getData(ModAttachments.PLAYER_SKILLS).get(SkillType.ATHLETICS.ordinal()) + tb)
+                * DamageVariance.roll(tp.getRandom());
+        if (theirs < mine) return false;
+        attacker.displayClientMessage(net.minecraft.network.chat.Component.translatable("msg.zhushenspace.trip.resisted", tp.getDisplayName()), true);
+        tp.displayClientMessage(net.minecraft.network.chat.Component.translatable("msg.zhushenspace.trip.resisted_self"), true);
+        return true;
     }
 
     /** 跳跃：短时间跳跃增益仅维持一次跳跃，起跳即移除 */

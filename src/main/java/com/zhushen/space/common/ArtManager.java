@@ -208,7 +208,7 @@ public final class ArtManager {
         String err = null;
         switch (pl.action()) {
             case 0 -> {
-                if (d.owns(s)) return;
+                if (d.owns(s) || s.innate()) return;
                 err = prereq(p, s);
                 if (err == null) {
                     if (s.branchTier >= 0 && cur.branch(s.branchTier) < s.branchCost || cur.score() < s.scoreCost) {
@@ -604,6 +604,8 @@ public final class ArtManager {
             case LIGHT -> MagicSpells.light(p, s);
             case ILLUMINATION -> MagicSpells.illumination(p, s);
             case FROST_CLAW -> MagicSpells.frostClaw(p, s);
+            case TK_ATTACK -> Telekinesis.attack(p, s);
+            case TK_MANIP -> Telekinesis.manipulate(p, s);
         };
         castBoost = 0;
         if (ok && isSpell(s)) { announce(p, s); PoolEffects.onSpellCast(p, s); }
@@ -622,7 +624,7 @@ public final class ArtManager {
             if (dao > 0) return dao;
         }
         return switch (s) {
-            case SPIRIT_SLASH, MIND_BLAST, BIO_LIGHTNING -> PoolEffects.checkBonus(p, AttributeType.RESOLVE, AttributeType.COMPOSURE);
+            case SPIRIT_SLASH, MIND_BLAST, BIO_LIGHTNING, TK_ATTACK -> PoolEffects.checkBonus(p, AttributeType.RESOLVE, AttributeType.COMPOSURE);
             case HADOKEN, WIND_SLASH -> PoolEffects.checkBonus(p, AttributeType.STRENGTH);
             case MAGIC_BURST, THUNDER_SWORD, FROST_CLAW ->
                     PoolEffects.checkBonus(p, FeatEffects.has(p, s.pool.feat) ? AttributeType.CHARM : AttributeType.INTELLIGENCE);

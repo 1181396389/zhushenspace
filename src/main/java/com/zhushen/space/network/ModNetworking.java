@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("23"); // 协议版本：减伤关键字同步 damage_keywords
+        PayloadRegistrar registrar = event.registrar("24"); // 协议版本：念动力 tk_action / tk_state / tk_strike
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -46,6 +46,15 @@ public class ModNetworking {
                         p.owned(), p.opt(), p.cur(), p.res(), p.holdback(), p.amp(), p.xp(), p.flags())));
         registrar.playToClient(com.zhushen.space.network.MagicSensePayload.TYPE, com.zhushen.space.network.MagicSensePayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientPoolFx.sense(p.ids(), p.ticks())));
+        // ===== 念动力 =====
+        registrar.playToServer(TkActionPayload.TYPE, TkActionPayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> {
+                    if (ctx.player() instanceof ServerPlayer sp) com.zhushen.space.common.Telekinesis.handle(sp, p.action(), p.sneak());
+                }));
+        registrar.playToClient(TkStatePayload.TYPE, TkStatePayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientTelekinesis.state(p)));
+        registrar.playToClient(TkStrikePayload.TYPE, TkStrikePayload.STREAM_CODEC,
+                (p, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientTelekinesis.strike(p)));
         registrar.playToServer(ArtActionPayload.TYPE, ArtActionPayload.STREAM_CODEC,
                 (p, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer sp) com.zhushen.space.common.ArtManager.handle(sp, p);

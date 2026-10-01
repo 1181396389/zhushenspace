@@ -47,7 +47,9 @@ public final class FeatEffects {
         DAO(FeatType.INNATE_DAO_BODY, "dao", AttributeType.PERCEPTION, AttributeType.CHARM),
         PSYCHIC(FeatType.PSYCHIC_CONSTITUTION, "psychic", AttributeType.RESOLVE, AttributeType.COMPOSURE),
         NEILI(FeatType.MARTIAL_PRODIGY, "neili", AttributeType.ENDURANCE, AttributeType.PERCEPTION),
-        CHAKRA(FeatType.CHAKRA_CONSTITUTION, "chakra", AttributeType.PERCEPTION, AttributeType.ENDURANCE);
+        CHAKRA(FeatType.CHAKRA_CONSTITUTION, "chakra", AttributeType.PERCEPTION, AttributeType.ENDURANCE),
+        /** 念动力（特异本质）：池 = 决心 + 沉着，见 Telekinesis */
+        TELEKINESIS(FeatType.TELEKINESIS_TALENT, "telekinesis", AttributeType.RESOLVE, AttributeType.COMPOSURE);
         public final FeatType feat;
         public final String id;
         public final AttributeType a, b;
@@ -104,6 +106,14 @@ public final class FeatEffects {
             int c = FeatType.choice(mask(p, FeatType.BARBARIAN));
             if (c >= 0 && c <= 2) b[c]++;
         }
+        if (has(p, FeatType.WOLF_CHILD)) {
+            // 狼孩 / 人猿泰山：智力变为 1 点，并选择力量 / 敏捷 / 耐力 +1（不改变加点上限）
+            int m = mask(p, FeatType.WOLF_CHILD);
+            int intI = AttributeType.INTELLIGENCE.ordinal();
+            int raw = p.getData(ModAttachments.PLAYER_ATTRIBUTES).points()[intI];
+            b[intI] += 1 - raw;
+            b[FeatType.wildAttr(m)]++;
+        }
         if (has(p, FeatType.GIANT_BODY)) {
             int v = volume(p) - 5;
             b[AttributeType.STRENGTH.ordinal()] += v / 2;
@@ -119,7 +129,10 @@ public final class FeatEffects {
     /** 由 AttributeApplier 调用 */
     public static void applyModifiers(Player p) {
         set(p, Attributes.MAX_HEALTH, "feat_wastelander_hp", has(p, FeatType.WASTELANDER) ? 2 : 0, AttributeModifier.Operation.ADD_VALUE);
-        boolean barb = has(p, FeatType.BARBARIAN);
+        set(p, Attributes.MAX_HEALTH, "feat_roach_hp", has(p, FeatType.UNKILLABLE_ROACH) ? 2 : 0, AttributeModifier.Operation.ADD_VALUE);
+        boolean barb = terrainImmune(p);
+        // 狼孩：基础移动速度 +5 米
+        set(p, Attributes.MOVEMENT_SPEED, "feat_wolf_speed", wolf(p) ? WOLF_SPEED : 0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE);
         set(p, Attributes.MOVEMENT_EFFICIENCY, "feat_barbarian_terrain", barb ? 1 : 0, AttributeModifier.Operation.ADD_VALUE);
         set(p, Attributes.WATER_MOVEMENT_EFFICIENCY, "feat_barbarian_water", barb ? 1 : 0, AttributeModifier.Operation.ADD_VALUE);
         // 巨大身材：身高约 3 米（1.8 → 3.0）；天生防御 +1、闪避防御 -1（护甲净变化 0，另由敏捷 -1 体现）
@@ -133,6 +146,42 @@ public final class FeatEffects {
     public static int dodgeDefenseBonus(Player p) {
         int v = volume(p) - 5;
         return v >= 0 ? -(v / 2) : -v;
+    }
+
+    /** 狼孩：基础移速 +5 米 */
+    public static final double WOLF_SPEED = 0.5;
+    /** 狼孩：摔绊检定 / 对抗摔绊 +3DP 专长加值 */
+    public static final int WOLF_TRIP_BONUS = 9;
+
+    /** 自然困难地形免疫：蛮族、狼孩 / 人猿泰山 */
+    public static boolean terrainImmune(Player p) { return has(p, FeatType.BARBARIAN) || has(p, FeatType.WOLF_CHILD); }
+
+    /** 狼孩变体 */
+    public static boolean wolf(Player p) { return has(p, FeatType.WOLF_CHILD) && FeatType.wildVariant(mask(p, FeatType.WOLF_CHILD)) == 0; }
+
+    /** 人猿泰山变体 */
+    public static boolean tarzan(Player p) { return has(p, FeatType.WOLF_CHILD) && FeatType.wildVariant(mask(p, FeatType.WOLF_CHILD)) == 1; }
+
+    /** 文盲（未消除） */
+    public static boolean illiterate(Player p) { return has(p, FeatType.WOLF_CHILD) && !FeatType.wildLiterate(mask(p, FeatType.WOLF_CHILD)); }
+
+    /** 怕火（未消除） */
+    public static boolean fearsFire(Player p) { return has(p, FeatType.WOLF_CHILD) && !FeatType.wildFearless(mask(p, FeatType.WOLF_CHILD)); }
+
+    /** 摔绊检定 / 对抗摔绊的专长加值（狼孩 +9，其余 0） */
+    public static int tripBonus(net.minecraft.world.entity.Entity e) {
+        return e instanceof Player p && wolf(p) ? WOLF_TRIP_BONUS : 0;
+    }
+
+    /** 狼孩 / 人猿泰山：天生武器（徒手）造成严重伤害——由 DamageRules 的攻击方提供者调用 */
+    public static void wildAttack(DamageRules.Hit h, DamageRules.Profile pr) {
+        if (h.spec != null || !(h.attacker instanceof Player p) || h.source.getDirectEntity() != p) return;
+        if (!has(p, FeatType.WOLF_CHILD) || !p.getMainHandItem().isEmpty()) return;
+        for (DamageRules.Part part : h.parts) {
+            if (!part.unavoidable && part.severity == com.zhushen.space.data.PlayerHealthData.Severity.B) {
+                part.severity = com.zhushen.space.data.PlayerHealthData.Severity.L;
+            }
+        }
     }
 
     /** 蛮族：未穿重甲时基础移速 +4 米（1 米 = 基础移速的 10%） */
@@ -181,13 +230,18 @@ public final class FeatEffects {
 
     private static Field stuck;
 
+    /** 客户端：本地玩家是否拥有某专长（仅在客户端线程调用） */
+    private static boolean clientHas(FeatType f) {
+        int[] m = com.zhushen.space.client.ClientBuildData.featMask;
+        return m.length > f.ordinal() && (m[f.ordinal()] & FeatType.LEVEL_BITS) != 0;
+    }
+
     @SubscribeEvent
     public static void onTick(PlayerTickEvent.Post e) {
         Player p = e.getEntity();
         boolean barb = p.level().isClientSide
-                ? (com.zhushen.space.client.ClientBuildData.featMask.length > FeatType.BARBARIAN.ordinal()
-                   && (com.zhushen.space.client.ClientBuildData.featMask[FeatType.BARBARIAN.ordinal()] & FeatType.LEVEL_BITS) != 0)
-                : has(p, FeatType.BARBARIAN);
+                ? (clientHas(FeatType.BARBARIAN) || clientHas(FeatType.WOLF_CHILD))
+                : terrainImmune(p);
         if (barb) {
             // 蛛网等困难地形：清除「卡住」减速
             try {

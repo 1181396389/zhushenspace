@@ -52,7 +52,7 @@ public class EnergyHudRenderer {
     private static final Map<String, String> GLYPH = Map.ofEntries(
             Map.entry("spirit", "灵"), Map.entry("mind", "精"), Map.entry("yokai", "妖"), Map.entry("buddha", "佛"),
             Map.entry("magic", "魔"), Map.entry("dao", "道"), Map.entry("psychic", "能"), Map.entry("neili", "内"),
-            Map.entry("chakra", "查"), Map.entry("sage", "仙"), Map.entry("willpower", "意"));
+            Map.entry("chakra", "查"), Map.entry("telekinesis", "念"), Map.entry("sage", "仙"), Map.entry("willpower", "意"));
 
     /** 计算整组能量条的位置与尺寸（位置来自配置，默认屏幕左侧垂直居中，并夹紧在屏幕内） */
     public static float[] layout(int screenW, int screenH, int count, float scale) {

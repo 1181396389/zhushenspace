@@ -586,6 +586,7 @@ public class GodPanelScreen extends Screen {
         int k = f.ordinal();
         if (f == FeatType.SPECIAL_IDENTITY) return ((featCur[k] & 2) != 0 ? 1 : 0) + ((featCur[k] & 8) != 0 ? 2 : 0);
         if (f == FeatType.BARBARIAN) return (featCur[k] & FeatType.LEVEL_BITS) != 0 ? 1 : 0;
+        if (f == FeatType.WOLF_CHILD) return (featCur[k] & FeatType.LEVEL_BITS) != 0 ? 4 : 0;
         return 0;
     }
 
@@ -754,6 +755,30 @@ public class GodPanelScreen extends Screen {
                             Component.translatable(AttributeType.values()[Math.max(0, c)].nameKey())),
                     accent, featEditable(f) && featSaved[k] == 0);
         }
+        if (f == FeatType.WOLF_CHILD && (featCur[k] & FeatType.LEVEL_BITS) != 0) {
+            int m = featCur[k], sm = featSaved[k];
+            boolean baseEdit = featEditable(f) && (sm & FeatType.LEVEL_BITS) == 0;
+            int[] r = featChoiceRect(0, lay);
+            JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                    Component.translatable("build.zhushenspace.wolf_variant",
+                            Component.translatable(FeatType.wildVariant(m) == 1 ? "build.zhushenspace.wolf_tarzan" : "build.zhushenspace.wolf_wolf")),
+                    accent, baseEdit);
+            r = featChoiceRect(1, lay);
+            JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                    Component.translatable("build.zhushenspace.barbarian_attr",
+                            Component.translatable(AttributeType.values()[FeatType.wildAttr(m)].nameKey())),
+                    accent, baseEdit);
+            r = featChoiceRect(2, lay);
+            JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                    Component.translatable(FeatType.wildLiterate(m) ? "build.zhushenspace.wolf_literate_on" : "build.zhushenspace.wolf_literate_off",
+                            FeatType.WILD_BUYOFF_XP),
+                    accent, featEditable(f) && !(FeatType.wildLiterate(sm) && (sm & FeatType.LEVEL_BITS) != 0));
+            r = featChoiceRect(3, lay);
+            JjkStyle.button(g, font, mouseX, mouseY, r[0], r[1], r[2], r[3],
+                    Component.translatable(FeatType.wildFearless(m) ? "build.zhushenspace.wolf_fearless_on" : "build.zhushenspace.wolf_fearless_off",
+                            FeatType.WILD_BUYOFF_XP),
+                    accent, featEditable(f) && !(FeatType.wildFearless(sm) && (sm & FeatType.LEVEL_BITS) != 0));
+        }
         // 说明（悬停等级优先，否则当前最高等级，否则最低等级），可滚动
         int showL = featHoverLevel >= 0 ? featHoverLevel : Math.max(f.minLevel, featTopLevel(k));
         List<FormattedCharSequence> lines = new ArrayList<>();
@@ -809,6 +834,7 @@ public class GodPanelScreen extends Screen {
             if (!f.validMask(m)) { ZsTheme.click(0.5f); return; }
         }
         if (f == FeatType.BARBARIAN) m = (m & FeatType.LEVEL_BITS) == 0 ? 0 : FeatType.withChoice(m, Math.max(0, FeatType.choice(m)));
+        if (f == FeatType.WOLF_CHILD) m = (m & FeatType.LEVEL_BITS) == 0 ? 0 : FeatType.withChoice(m, Math.max(0, FeatType.choice(m)));
         featCur[k] = m;
         if (f == FeatType.SPECIAL_IDENTITY) {
             if ((m & 2) == 0) si1Cur = -1;
@@ -879,6 +905,29 @@ public class GodPanelScreen extends Screen {
                 int c = (Math.max(0, FeatType.choice(featCur[k])) + (button == 0 ? 1 : 2)) % 3;
                 featCur[k] = FeatType.withChoice(featCur[k], c);
                 ZsTheme.click(1.0f);
+                return true;
+            }
+        }
+        if (f == FeatType.WOLF_CHILD && featEditable(f) && (featCur[k] & FeatType.LEVEL_BITS) != 0 && (button == 0 || button == 1)) {
+            int m = featCur[k], sm = featSaved[k];
+            boolean saved = (sm & FeatType.LEVEL_BITS) != 0;
+            int v = FeatType.wildVariant(m), a = FeatType.wildAttr(m);
+            boolean lit = FeatType.wildLiterate(m), fear = FeatType.wildFearless(m);
+            int hit = -1;
+            for (int i = 0; i < 4; i++) {
+                int[] r = featChoiceRect(i, lay);
+                if (over(mouseX, mouseY, r[0], r[1], r[2], r[3])) hit = i;
+            }
+            boolean ok = false;
+            if (hit == 0 && !saved) { v ^= 1; ok = true; }                       // 变体：建卡保存后锁定
+            else if (hit == 1 && !saved) { a = (a + (button == 0 ? 1 : 2)) % 3; ok = true; }
+            else if (hit == 2 && !(saved && FeatType.wildLiterate(sm))) { lit = !lit; ok = true; }   // 已消除的缺陷不可恢复
+            else if (hit == 3 && !(saved && FeatType.wildFearless(sm))) { fear = !fear; ok = true; }
+            if (hit >= 0) {
+                if (ok) {
+                    featCur[k] = FeatType.withChoice(m, FeatType.wildChoice(v, a, lit, fear));
+                    ZsTheme.click(1.0f);
+                } else ZsTheme.click(0.5f);
                 return true;
             }
         }
@@ -2110,7 +2159,11 @@ public class GodPanelScreen extends Screen {
                 ? Component.translatable("screen.zhushenspace.art.price_score", s.scoreCost).getString()
                 : Component.translatable("screen.zhushenspace.shop.move_cost_short",
                 PlayerCurrencyData.tierLetter(s.branchTier), s.branchCost, s.scoreCost).getString();
-        if (owned) {
+        if (s.innate()) {
+            // 天生技艺：拥有对应能量池即习得，不可购买
+            price = Component.translatable("screen.zhushenspace.art.innate").getString();
+            g.drawString(font, price, cx + cw - font.width(price) - 6, ry + 8, owned ? GOLD : 0xFF8A94A4, true);
+        } else if (owned) {
             String o = Component.translatable("screen.zhushenspace.shop.skill_owned").getString();
             g.drawString(font, o, cx + cw - font.width(o) - 6, ry + 8, GOLD, true);
         } else {
@@ -2171,7 +2224,7 @@ public class GodPanelScreen extends Screen {
             if (mouseY >= ry && mouseY < ry + h) {
                 if (l.chips() == null) {
                     int cx = panelX + 5, cw = panelW - 10;
-                    if (!ClientArtData.owns(l.art()) && over(mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12)) {
+                    if (!l.art().innate() && !ClientArtData.owns(l.art()) && over(mouseX, mouseY, cx + cw - 44, ry + 6, 40, 12)) {
                         PacketDistributor.sendToServer(new ArtActionPayload(0, l.art().ordinal(), 0));
                         playClick(1.0f);
                         return true;

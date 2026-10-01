@@ -25,7 +25,9 @@ import org.joml.Vector3f;
 public class ArtVfx extends Entity {
     public static final int MIND_BEAM = 0, MIND_QUAKE = 1, ARCANE = 2, ELEMENT = 3, BIO_BOLT = 4, PHOENIX = 5,
             HEAL = 6, BREATH = 7, YAKSHA = 8, WARD = 9, VANISH = 10, NETHER = 11, PALM = 12, REVIVE = 13,
-            THUNDER_BLADE = 14, THUNDER_MARK = 15, THUNDER_STRIKE = 16, LUMEN = 17, LIGHT_ORBS = 18, FROST_CLAW = 19;
+            THUNDER_BLADE = 14, THUNDER_MARK = 15, THUNDER_STRIKE = 16, LUMEN = 17, LIGHT_ORBS = 18, FROST_CLAW = 19,
+            /** 念动力：攻击（压缩 → 内爆）/ 操控起势 / 托举中的物体或生物 / 悬浮武器 */
+            TK_CRUSH = 20, TK_AURA = 21, TK_GRIP = 22, TK_BLADES = 23;
 
     private static final EntityDataAccessor<Integer> KIND = SynchedEntityData.defineId(ArtVfx.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> COLOR = SynchedEntityData.defineId(ArtVfx.class, EntityDataSerializers.INT);

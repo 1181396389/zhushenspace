@@ -128,6 +128,7 @@ public class ModSounds {
             case DAO -> DAO_SFX;
             case NEILI -> NEILI_SFX;
             case CHAKRA -> CHAKRA_SFX;
+            case TELEKINESIS -> PSYCHIC_SFX;
         };
     }
 

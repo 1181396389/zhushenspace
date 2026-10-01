@@ -343,6 +343,7 @@ public class TaiChiManager {
             case PRESS -> { // 挤：破魔（无视最多 6 点伤害吸收：关键字吸收与吸收生命值）
                 amount += Math.min(6f, target.getAbsorptionAmount());
                 DamageRules.breakNext(target, DamageRules.Break.points(DamageRules.Stage.ABSORB, 6));
+                Defense.breakMagic(target, 6); // 破魔 6：同样削减念动力场等力场防御
             }
             case PUSH -> amount += 3; // 按：下按
             case PULL -> { // 采：削减生机
@@ -663,8 +664,9 @@ public class TaiChiManager {
         TaiChiFx.shake(player, attacker, 0.45f, 6);
         int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
-        float mine = contestPower(player) + will;
-        float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        // 狼孩：摔绊检定 / 对抗摔绊 +9 专长加值
+        float mine = contestPower(player) + will + FeatEffects.tripBonus(player);
+        float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE) + FeatEffects.tripBonus(attacker);
         float margin = mine - theirs;
 
         if (margin > 0) {
@@ -710,8 +712,9 @@ public class TaiChiManager {
         TaiChiFx.shake(player, attacker, 0.5f, 6);
         int will = willContestStrike(player, attacker); // 意志加持：对抗 +9 优势 + 9 点固定伤害
 
-        float mine = contestPower(player) + will;
-        float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        // 狼孩：摔绊检定 / 对抗摔绊 +9 专长加值
+        float mine = contestPower(player) + will + FeatEffects.tripBonus(player);
+        float theirs = (float) attacker.getAttributeValue(Attributes.ATTACK_DAMAGE) + FeatEffects.tripBonus(attacker);
         float margin = mine - theirs;
 
         if (margin > 0) {
@@ -820,6 +823,10 @@ public class TaiChiManager {
 
         float mine = contestPower(player);
         float theirs = (float) target.getAttributeValue(Attributes.ATTACK_DAMAGE);
+        if (chain == SkillAbility.SEA_BOTTOM_NEEDLE) {
+            mine += FeatEffects.tripBonus(player);
+            theirs += FeatEffects.tripBonus(target);
+        }
         boolean win = mine > theirs;
 
         if (chain == SkillAbility.LAN_QUE_WEI && win && !target.getMainHandItem().isEmpty()) {
@@ -917,6 +924,7 @@ public class TaiChiManager {
             case PUSH -> damage += 9f;
             case PRESS -> {
                 damage += 6f; // 破魔：额外无视最多 6 点伤害吸收
+                Defense.breakMagic(target, 6);
                 if (target.getAbsorptionAmount() > 0) {
                     damage += Math.min(target.getAbsorptionAmount(), 6f);
                 }

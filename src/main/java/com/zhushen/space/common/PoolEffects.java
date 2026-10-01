@@ -6,6 +6,7 @@ import com.zhushen.space.data.AttributeType;
 import com.zhushen.space.data.ModAttachments;
 import com.zhushen.space.data.PlayerArtData;
 import com.zhushen.space.data.PlayerEnergyData;
+import com.zhushen.space.data.SkillType;
 import com.zhushen.space.network.MagicSensePayload;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -46,7 +47,7 @@ public final class PoolEffects {
     public static final String SAGE = "sage";
     /** 轮盘状态位（同步到客户端） */
     public static final int F_BOOST = 1, F_SPIDER = 2, F_WATER = 4, F_SENSE = 8, F_SIGHT = 16, F_REST = 32, F_MEDITATE = 64,
-            F_FULL_DEF = 128;
+            F_FULL_DEF = 128, F_TK_FIELD = 256;
 
     private static final Map<UUID, Long> SENSE_UNTIL = new HashMap<>(), SIGHT_UNTIL = new HashMap<>(),
             SPIDER_NEXT = new HashMap<>(), WATER_NEXT = new HashMap<>(), REST_END = new HashMap<>(),
@@ -84,6 +85,7 @@ public final class PoolEffects {
         if (RestManager.isResting(p)) f |= F_REST;
         if (Defense.fullActive(p)) f |= F_FULL_DEF;
         if (REST_END.containsKey(p.getUUID())) f |= F_MEDITATE;
+        if (ArtManager.data(p).tkField) f |= F_TK_FIELD;
         return f;
     }
 
@@ -119,6 +121,28 @@ public final class PoolEffects {
             if (id != null && cur(p, id) >= 1 && (!spend || EnergyManager.consume(p, id, 1))) return 3;
         }
         return 0;
+    }
+
+    /**
+     * 技能检定的能量加值：运动 / 肉搏 / 白刃检定可改用念动力（花 1 点念动力，加值 = 念动力有效力量）。
+     * 能量加值不叠加：念动力加值高于常规 +1DP，或没有其他可用的池时才使用念动力；否则按属性走常规池。
+     */
+    public static int skillBonus(ServerPlayer p, SkillType skill, AttributeType... attrs) {
+        return skillBonus(p, true, skill, attrs);
+    }
+
+    /** 同 {@link #skillBonus}，但不扣除能量（HUD 显示用） */
+    public static int peekSkillBonus(ServerPlayer p, SkillType skill, AttributeType... attrs) {
+        return skillBonus(p, false, skill, attrs);
+    }
+
+    private static int skillBonus(ServerPlayer p, boolean spend, SkillType skill, AttributeType... attrs) {
+        if (!ArtManager.data(p).boost) return 0;
+        int tk = Telekinesis.applies(skill) && cur(p, Telekinesis.POOL) >= 1 ? Telekinesis.str(p) : 0;
+        if (tk > 3) return !spend || EnergyManager.consume(p, Telekinesis.POOL, 1) ? tk : bonus(p, true, attrs);
+        int std = bonus(p, spend, attrs);
+        if (std > 0 || tk <= 0) return std;
+        return !spend || EnergyManager.consume(p, Telekinesis.POOL, 1) ? tk : 0;
     }
 
     /** 道力：道术施法检定额外消耗 1 点 → +3DP（=9）。开启能量加值时自动使用 */
@@ -203,6 +227,12 @@ public final class PoolEffects {
             case 21 -> StatusManager.standUp(p);                      // 跳跃键：爬起来
             case 22 -> StatusManager.firstAid(p);                     // 急救：止血（对自己或触及范围内的目标）
             case 23 -> Defense.toggleFull(p);                         // 全力防御：开启期间防御 + 基础防御，发起攻击即解除
+            case 24 -> {                                               // 念动力场：受到攻击时花 1 点获得力场防御
+                if (!has(p, Telekinesis.POOL)) { ArtManager.deny(p, "msg.zhushenspace.art.no_pool"); break; }
+                PlayerArtData d = ArtManager.data(p);
+                d.tkField = !d.tkField;
+                p.displayClientMessage(Component.translatable(d.tkField ? "msg.zhushenspace.tk.field_on" : "msg.zhushenspace.tk.field_off"), true);
+            }
             default -> {}
         }
         ArtManager.sync(p);

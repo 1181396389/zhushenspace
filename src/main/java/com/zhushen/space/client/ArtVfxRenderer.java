@@ -166,6 +166,10 @@ public final class ArtVfxRenderer extends EntityRenderer<ArtVfx> {
             case ArtVfx.LUMEN -> lumen(c);
             case ArtVfx.LIGHT_ORBS -> lightOrbs(c);
             case ArtVfx.FROST_CLAW -> frostClaw(c);
+            case ArtVfx.TK_CRUSH -> tkCrush(c);
+            case ArtVfx.TK_AURA -> tkAura(c);
+            case ArtVfx.TK_GRIP -> tkGrip(c);
+            case ArtVfx.TK_BLADES -> tkBlades(c);
             default -> {}
         }
         stack.popPose();
@@ -1769,6 +1773,268 @@ public final class ArtVfxRenderer extends EntityRenderer<ArtVfx> {
                     c.pop();
                 }
             }
+        }
+    }
+
+    // ───────────────────────── 念动力：压缩内爆 / 起势 / 念力之握 / 悬浮武器 ─────────────────────────
+
+    private static final int TK_DEEP = 0xB23A00, TK_HOT = 0xFFE2B0;
+
+    /** 念动力攻击：三轴空间褶皱向目标收缩 → 内爆闪光 + 碎片 + 冲击环（variant 1 = 打空，落在准星处） */
+    private void tkCrush(C c) {
+        float t = c.t, T = 5f;
+        int col = c.col;
+        float cy = c.variant == 1 ? 0f : c.h * 0.55f;
+        float R0 = c.variant == 1 ? 1.2f : Math.max(1.1f, c.h * 0.9f);
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float fpA = c.selfFP ? 0.35f : 1f;
+        int seed = c.e.getId() * 17;
+        if (t < T + 0.5f) {
+            float f = clamp01(t / T), R = R0 * (1f - easeOut(f)) + 0.18f;
+            float a = (0.35f + 0.65f * f) * fpA;
+            for (int i = 0; i < 3; i++) {
+                c.s.pushPose();
+                c.s.translate(0, cy, 0);
+                c.s.mulPose(new Quaternionf().rotateY(i * 2.09f + t * 0.4f).rotateX(1.1f + i * 0.6f));
+                Matrix4f m = c.m();
+                ring(g, m, R, R + 0.04f + 0.05f * f, c.c(WHITE, 0.85f * a), c.c(col, 0.6f * a), 44);
+                ring(g, m, R + 0.04f, R + 0.32f, c.c(col, 0.35f * a), c.c(TK_DEEP, 0f), 44);
+                c.pop();
+            }
+            // 向心速度线（被看不见的手攥紧）
+            c.bb(0, cy, 0);
+            Matrix4f m = c.m();
+            for (int k = 0; k < 14; k++) {
+                float ang = TAU * k / 14f + hash(seed + k) * 0.4f;
+                float r1 = R * (1.25f + 0.5f * hash(seed + k * 3)) + 0.25f;
+                float r0 = Math.max(0.12f, r1 - 0.35f - 0.45f * f);
+                needle(vc, m, Mth.cos(ang) * r1, Mth.sin(ang) * r1, Mth.cos(ang) * r0, Mth.sin(ang) * r0, 0.03f,
+                        c.c(TK_HOT, 0.85f * a), c.c(col, 0f));
+            }
+            disc(g, m, 0, 0, 0.18f + 0.3f * f, c.c(WHITE, 0.8f * f * fpA), c.c(col, 0f), 20);
+            c.pop();
+        }
+        if (t >= T - 0.5f) {
+            float u = t - T, k = clamp01(1f - u / 11f);
+            if (k <= 0.01f) return;
+            c.bb(0, cy, 0);
+            Matrix4f m = c.m();
+            // 内爆：先缩成一点，再炸开
+            if (u < 3f) {
+                float f = 1f - clamp01(u / 3f);
+                disc(g, m, 0, 0, 1.3f * f + 0.2f, c.c(WHITE, f * fpA), c.c(col, 0f), 28);
+                starburst(g, m, 16, 0.08f, 1.8f * (0.5f + 0.5f * f), 0.2f, seed, c.c(WHITE, 0.95f * f * fpA), c.c(col, 0f));
+            }
+            float R = 0.3f + 2.2f * easeOut(u / 9f);
+            ring(g, m, R, R + 0.12f, c.c(WHITE, 0.8f * k * fpA), c.c(col, 0.5f * k * fpA), 48);
+            ring(g, m, R - 0.35f, R, c.c(TK_DEEP, 0f), c.c(col, 0.4f * k * fpA), 48);
+            // 被压碎的碎片：三角形向外飞散并翻滚
+            for (int i = 0; i < 10; i++) {
+                float ang = TAU * i / 10f + hash(seed + i * 7) * 0.6f;
+                float d = (0.25f + 1.6f * hash(seed + i * 5)) * easeOut(u / 8f);
+                float x = Mth.cos(ang) * d, y = Mth.sin(ang) * d - 0.04f * u * u * 0.3f;
+                float sz = 0.06f + 0.06f * hash(seed + i), rot = u * (0.4f + hash(seed + i * 9)) + i;
+                float ca = Mth.cos(rot) * sz, sa = Mth.sin(rot) * sz;
+                tri(vc, m, x + ca, y + sa, 0, c.c(TK_HOT, k), x - sa, y + ca, 0, c.c(col, k), x - ca * 0.8f, y - sa * 0.8f, 0, c.c(TK_DEEP, k));
+            }
+            c.pop();
+        }
+    }
+
+    /** 念动力操控起势：足下冲击环 + 地面碎石离地盘旋上升 + 竖直的空间扭曲线 */
+    private void tkAura(C c) {
+        float t = c.t, A = c.env(2, 10);
+        int col = c.col, seed = c.e.getId() * 31;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float fpA = c.selfFP ? 0.45f : 1f;
+        // 足下冲击环
+        if (t < 14) {
+            float R = 0.4f + 2.8f * easeOut(t / 12f), k = clamp01(1f - t / 14f) * fpA;
+            c.flat(0.04f);
+            Matrix4f m = c.m();
+            ring(g, m, R, R + 0.1f, c.c(WHITE, 0.85f * k), c.c(col, 0.6f * k), 48);
+            ring(g, m, R - 0.6f, R, c.c(TK_DEEP, 0f), c.c(col, 0.45f * k), 48);
+            c.pop();
+        }
+        // 碎石：离地、盘旋上升、最后悬停微颤
+        for (int i = 0; i < 12; i++) {
+            float h0 = hash(seed + i * 3), h1 = hash(seed + i * 5 + 1);
+            float rise = easeOut(clamp01((t - h0 * 6f) / 20f));
+            if (rise <= 0) continue;
+            float ang = TAU * i / 12f + h1 + rise * 1.6f + t * 0.02f;
+            float r = 0.8f + 0.7f * h1;
+            float y = 0.05f + (0.5f + 1.4f * h0) * rise + 0.04f * Mth.sin(t * 0.5f + i);
+            Vector3f P = new Vector3f(Mth.cos(ang) * r, y, Mth.sin(ang) * r);
+            c.bb(P);
+            Matrix4f m = c.m();
+            float sz = 0.05f + 0.06f * h0, rot = t * 0.15f * (h1 - 0.5f) + i;
+            float a = A * fpA;
+            disc(g, m, 0, 0, sz * 2.6f, c.c(col, 0.35f * a), c.c(col, 0f), 12);
+            float ca = Mth.cos(rot) * sz, sa = Mth.sin(rot) * sz;
+            quad(vc, m, ca, sa, 0, c.c(0x5A3A2A, a), -sa, ca, 0, c.c(0x7A5640, a), -ca, -sa, 0, c.c(0x3A2418, a), sa, -ca, 0, c.c(0x5A3A2A, a));
+            c.pop();
+        }
+        // 扭曲线：沿身体上升的细长光针
+        if (!c.selfFP) {
+            for (int i = 0; i < 8; i++) {
+                float ph = ((t * 0.06f + hash(seed + i * 11)) % 1f);
+                float ang = TAU * i / 8f + hash(seed + i) * 0.5f;
+                float r = 0.55f + 0.2f * hash(seed + i * 13);
+                Vector3f P = new Vector3f(Mth.cos(ang) * r, c.h * (0.1f + ph), Mth.sin(ang) * r);
+                c.bb(P);
+                float a = A * Mth.sin((float) Math.PI * ph);
+                needle(g, c.m(), 0, -0.3f, 0, 0.3f, 0.025f, c.c(TK_HOT, 0.8f * a), c.c(col, 0f));
+                c.pop();
+            }
+        }
+    }
+
+    /** 隔空托着的物体 / 生物：双重旋转的虚线环 + 从施法者手中延伸的念力之线（variant 1 = 推开冲击，2 = 对抗失败碎环） */
+    private void tkGrip(C c) {
+        float t = c.t;
+        int col = c.col, seed = c.e.getId() * 13;
+        VertexConsumer g = c.glow(), vc = c.toon();
+        float cy = Math.max(0.15f, c.h * 0.5f), R = Math.max(0.42f, c.h * 0.62f);
+        float fpA = c.selfFP ? 0.4f : 1f;
+        if (c.variant == 1) {
+            float k = clamp01(1f - t / c.life) * fpA, Rr = 0.3f + 2.0f * easeOut(t / 8f);
+            c.bb(0, cy, 0);
+            Matrix4f m = c.m();
+            ring(g, m, Rr, Rr + 0.14f, c.c(WHITE, 0.9f * k), c.c(col, 0.55f * k), 40);
+            ring(g, m, Rr * 0.6f, Rr * 0.6f + 0.08f, c.c(TK_HOT, 0.7f * k), c.c(col, 0.3f * k), 32);
+            if (t < 3) disc(g, m, 0, 0, 0.9f * (1f - t / 3f), c.c(WHITE, 0.9f * k), c.c(col, 0f), 20);
+            c.pop();
+            return;
+        }
+        if (c.variant == 2) {
+            float k = clamp01(1f - t / c.life) * fpA, burst = easeOut(t / 8f) * 0.6f;
+            c.bb(0, cy, 0);
+            Matrix4f m = c.m();
+            for (int i = 0; i < 6; i++) {
+                float a0 = TAU * i / 6f + 0.12f, a1 = a0 + TAU / 6f - 0.24f, am = (a0 + a1) * 0.5f;
+                c.s.pushPose();
+                c.s.translate(Mth.cos(am) * burst, Mth.sin(am) * burst - 0.15f * t * t * 0.02f, 0);
+                ring(g, c.m(), R, R + 0.07f, c.c(0xFFB0A0, 0.85f * k), c.c(0xFF4A3A, 0.5f * k), a0, a1, 24);
+                c.pop();
+            }
+            c.pop();
+            return;
+        }
+        float A = c.env(4, 6) * fpA;
+        // 双重旋转虚线环
+        for (int j = 0; j < 2; j++) {
+            c.s.pushPose();
+            c.s.translate(0, cy, 0);
+            c.s.mulPose(new Quaternionf().rotateY(t * (j == 0 ? 0.09f : -0.13f)).rotateX(j == 0 ? 1.35f : 0.35f));
+            Matrix4f m = c.m();
+            float rr = R * (j == 0 ? 1f : 0.8f) * (1f + 0.03f * Mth.sin(t * 0.3f + j));
+            for (int i = 0; i < 8; i++) {
+                float a0 = TAU * i / 8f, a1 = a0 + TAU / 8f * 0.62f;
+                ring(g, m, rr, rr + 0.045f, c.c(WHITE, 0.85f * A), c.c(col, 0.6f * A), a0, a1, 24);
+            }
+            ring(g, m, rr - 0.18f, rr, c.c(TK_DEEP, 0f), c.c(col, 0.22f * A), 40);
+            c.pop();
+        }
+        // 托举的光晕
+        c.bb(0, cy, 0);
+        disc(g, c.m(), 0, 0, R * 1.25f, c.c(col, 0.18f * A), c.c(col, 0f), 24);
+        c.pop();
+        // 念力之线：从施法者手中波动着延伸过来
+        if (c.owner instanceof LivingEntity o && c.follow != null) {
+            float partial = c.t - c.e.tickCount;
+            Vec3 eye = o.getEyePosition(partial), look = o.getViewVector(partial);
+            Vec3 hand = eye.add(look.scale(c.ownerFP ? 0.7 : 0.45)).add(0, c.ownerFP ? -0.32 : -0.45, 0);
+            Vec3 an = c.follow.getPosition(partial);
+            Vector3f S = new Vector3f((float) (hand.x - an.x), (float) (hand.y - an.y), (float) (hand.z - an.z));
+            Vector3f E = new Vector3f(0, cy, 0);
+            Vector3f d = new Vector3f(E).sub(S);
+            if (d.lengthSquared() < 0.04f) return;
+            Vector3f[] pp = perp(d);
+            int n = 16;
+            Vector3f[] pts = new Vector3f[n + 1];
+            for (int i = 0; i <= n; i++) {
+                float f = i / (float) n, w = Mth.sin((float) Math.PI * f) * 0.12f;
+                pts[i] = new Vector3f(S).lerp(E, f)
+                        .add(new Vector3f(pp[0]).mul(w * Mth.sin(f * 9f - t * 0.6f)))
+                        .add(new Vector3f(pp[1]).mul(w * Mth.cos(f * 7f - t * 0.45f)));
+            }
+            ribLerp(g, c.m(), pts, 0.05f, 0.11f, c.c(col, 0.15f * A), c.c(col, 0.5f * A), c.cam);
+            ribLerp(vc, c.m(), pts, 0.008f, 0.02f, c.c(WHITE, 0.3f * A), c.c(WHITE, 0.75f * A), c.cam);
+        }
+    }
+
+    /** 悬浮武器：在背后展开成扇形的武器，剑尖朝上缓缓起伏；出击时化作流光刺向目标再飞回 */
+    private void tkBlades(C c) {
+        if (c.follow == null) return;
+        java.util.List<net.minecraft.world.item.ItemStack> ws = ClientTelekinesis.weapons(c.follow.getId());
+        if (ws.isEmpty()) return;
+        float t = c.t, partial = c.t - c.e.tickCount;
+        float A = c.env(6, 8);
+        float spawn = easeOutBack(clamp01(t / 10f));
+        int col = c.col;
+        VertexConsumer g = c.glow();
+        var ir = Minecraft.getInstance().getItemRenderer();
+        double now = c.e.level().getGameTime() + partial;
+        Vec3 an = c.follow.getPosition(partial);
+        for (int i = 0; i < ws.size(); i++) {
+            net.minecraft.world.item.ItemStack st = ws.get(i);
+            if (st.isEmpty()) continue;
+            int k = i / 2;
+            float side = (i % 2 == 0) ? 1f : -1f, ang = side * (0.55f + 0.4f * k);
+            float bob = 0.06f * Mth.sin(t * 0.12f + i * 1.3f);
+            float R = 1.05f * spawn;
+            Vector3f slot = c.bodyPt(Mth.sin(ang) * R, c.h - 0.35f + 0.25f * k + bob, -Mth.cos(ang) * R);
+            Vector3f out = c.bodyPt(Mth.sin(ang), 0, -Mth.cos(ang));
+            Vector3f idle = new Vector3f(out).mul(0.22f).add(0, 1, 0).normalize();
+            Vector3f P = slot, dir = idle;
+            float strikeGlow = 0;
+            ClientTelekinesis.Strike sk = ClientTelekinesis.strikeOf(c.follow.getId(), i);
+            if (sk != null) {
+                Entity tgt = c.e.level().getEntity(sk.target());
+                double el = now - sk.start();
+                float back = 8f;
+                if (tgt != null && el >= 0 && el < sk.flight() + back) {
+                    Vec3 tp = tgt.getPosition(partial).add(0, tgt.getBbHeight() * 0.55, 0).subtract(an);
+                    Vector3f T = new Vector3f((float) tp.x, (float) tp.y, (float) tp.z);
+                    float f;
+                    if (el < sk.flight()) { float u = (float) (el / sk.flight()); f = u * u; strikeGlow = 1f; }
+                    else { float u = (float) ((el - sk.flight()) / back); f = 1f - easeOut(u); strikeGlow = 1f - u; }
+                    Vector3f to = new Vector3f(T).sub(slot);
+                    P = new Vector3f(slot).lerp(T, f).add(0, Mth.sin((float) Math.PI * f) * 0.5f, 0);
+                    Vector3f aim = to.lengthSquared() > 1e-4f ? new Vector3f(to).normalize() : idle;
+                    dir = new Vector3f(idle).lerp(aim, clamp01(f * 3f)).normalize();
+                    // 流光拖尾
+                    if (strikeGlow > 0.05f && f > 0.02f) {
+                        Vector3f tail = new Vector3f(slot).lerp(T, Math.max(0f, f - 0.4f));
+                        ribLerp(g, c.m(), line(tail, P, 8), 0.01f, 0.2f, c.c(col, 0f), c.c(col, 0.6f * strikeGlow * A), c.cam);
+                        ribLerp(g, c.m(), line(tail, P, 8), 0.003f, 0.05f, c.c(WHITE, 0f), c.c(WHITE, 0.8f * strikeGlow * A), c.cam);
+                    }
+                    // 命中闪光
+                    if (el >= sk.flight() && el < sk.flight() + 5) {
+                        float h = 1f - (float) (el - sk.flight()) / 5f;
+                        c.bb(T);
+                        Matrix4f m = c.m();
+                        sparkle(g, m, 0, 0, 0.9f * h + 0.2f, i * 0.7f, c.c(WHITE, h * A), c.c(col, 0f));
+                        bar(g, m, 0, 0, 0.6f + i, 0.8f * h + 0.2f, 0.04f, c.c(TK_HOT, h * A));
+                        c.pop();
+                    }
+                }
+            }
+            // 武器周围的念力光晕
+            float fpHide = c.selfFP && strikeGlow <= 0 ? 0.5f : 1f;
+            c.bb(P);
+            disc(g, c.m(), 0, 0, 0.42f + 0.05f * Mth.sin(t * 0.3f + i), c.c(col, (0.22f + 0.25f * strikeGlow) * A * fpHide), c.c(col, 0f), 18);
+            c.pop();
+            c.s.pushPose();
+            c.s.translate(P.x, P.y, P.z);
+            c.s.mulPose(new Quaternionf().rotationTo(0, 1, 0, dir.x, dir.y, dir.z));
+            c.s.mulPose(new Quaternionf().rotationY(-c.yaw + (float) Math.PI - ang));
+            c.s.mulPose(new Quaternionf().rotationZ(-(float) Math.PI / 4f));
+            float sc = 0.85f * Math.max(0.01f, spawn) * Math.max(0.2f, A);
+            c.s.scale(sc, sc, sc);
+            ir.renderStatic(st, net.minecraft.world.item.ItemDisplayContext.FIXED, net.minecraft.client.renderer.LightTexture.FULL_BRIGHT,
+                    net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY, c.s, c.buf, c.e.level(), c.e.getId() * 7 + i);
+            c.s.popPose();
         }
     }
 }

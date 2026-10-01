@@ -56,6 +56,10 @@ public class ArtWheelScreen extends Screen {
         ENTRIES.add(poolEntry("screen.zhushenspace.wheel.spider", "chakra", PoolEffects.F_SPIDER, 12));
         ENTRIES.add(poolEntry("screen.zhushenspace.wheel.water", "chakra", PoolEffects.F_WATER, 13));
         ENTRIES.add(poolEntry("screen.zhushenspace.wheel.sight", "dao", PoolEffects.F_SIGHT, 14));
+        // 念动力场：开启后每次受到攻击花 1 点念动力，防御 + 有效敏捷
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.tk_field"),
+                () -> tr(ClientArtData.flag(PoolEffects.F_TK_FIELD) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.off"),
+                () -> com.zhushen.space.client.ClientEnergyData.hasPool("telekinesis"), b -> art(24, 0, 0), null));
         // 休息（所有人可用）：短休不限次数；长休每 24 小时一次（也可睡床）。休息中再次点击取消
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.rest"),
                 () -> tr(ClientArtData.flag(PoolEffects.F_REST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.ready"),

@@ -18,6 +18,8 @@ public class PlayerArtData implements INBTSerializable<CompoundTag> {
     public boolean amplify;
     /** 能量加值：检定时自动花能量 +1DP */
     public boolean boost;
+    /** 念动力场：受到攻击时自动花 1 点念动力获得力场防御（轮盘开关） */
+    public boolean tkField;
 
     public boolean owns(ArtSkill s) { return (owned & (1L << s.ordinal())) != 0; }
 
@@ -40,6 +42,7 @@ public class PlayerArtData implements INBTSerializable<CompoundTag> {
         t.putInt("holdback", holdback);
         t.putBoolean("amp", amplify);
         t.putBoolean("boost", boost);
+        t.putBoolean("tkField", tkField);
         return t;
     }
 
@@ -52,6 +55,7 @@ public class PlayerArtData implements INBTSerializable<CompoundTag> {
         holdback = t.contains("holdback") ? t.getInt("holdback") : -1;
         amplify = t.getBoolean("amp");
         boost = t.getBoolean("boost");
+        tkField = t.getBoolean("tkField");
     }
 
     private static void copy(int[] src, int[] dst) {

@@ -188,7 +188,7 @@ public final class CombatFormula {
             float wd = weaponDamage(p, event.getAmount());
             DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
             base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + wd - def - pen
-                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false, victim);
+                    + PoolEffects.skillBonus(p, cat.skill, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false, victim);
             base = Math.max(0f, base) * StatusEffects.successFactor(p); // 肌肉痉挛：失去一半自然成功数
             base = Math.max(0f, base);
             event.setAmount(base);
@@ -212,7 +212,7 @@ public final class CombatFormula {
             DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * WeaponCategory.REQ_PENALTY
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
+                    + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
             base = Math.max(0f, Math.min(base, wd + ath + str)) * StatusEffects.successFactor(p);
             event.setAmount(base);
         } else if (direct instanceof AbstractArrow arrow) {
@@ -234,7 +234,7 @@ public final class CombatFormula {
             DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen - deficit * 2
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
+                    + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
             base = Math.max(0f, Math.min(base, wd * 2 + ath + sp.strReq())) * StatusEffects.successFactor(p);
             event.setAmount(base);
         } else {
@@ -259,10 +259,10 @@ public final class CombatFormula {
             if (deficit > WeaponCategory.MAX_DEFICIT) return 0f;
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
             base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + weaponDamage(p, amount) - pen
-                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH);
+                    + PoolEffects.skillBonus(p, cat.skill, AttributeType.STRENGTH);
         } else if (direct instanceof AbstractArrow || direct instanceof ThrownTrident) {
             base = attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + amount
-                    + PoolEffects.checkBonus(p, AttributeType.AGILITY);
+                    + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY);
         } else {
             return amount;
         }

@@ -193,7 +193,10 @@ public final class Defense {
         float d;
         if (v instanceof ServerPlayer p) {
             d = parts(p, src, att, StatusEffects.isRanged(src)).total();
-            if (consume && att != null && att != p && !src.is(DamageTypeTags.BYPASSES_ARMOR)) d += WillpowerManager.consumeGuard(p);
+            if (consume && att != null && att != p && !src.is(DamageTypeTags.BYPASSES_ARMOR)) {
+                d += WillpowerManager.consumeGuard(p);
+                d += Telekinesis.forceField(p, consumeBreakMagic(p));
+            }
         } else {
             d = v.getArmorValue();
             if (DamageRules.isFlatFooted(v, att)) d -= (float) DamageRules.naturalDefense(v);
@@ -202,12 +205,36 @@ public final class Defense {
         return Math.max(0f, d);
     }
 
+    /** 下一次防御结算时攻击附带的【破魔X】（削减念动力场等力场防御；对指定目标、当刻有效，结算后清零） */
+    private static int breakMagic;
+    private static java.util.UUID breakMagicTarget;
+    private static long breakMagicTick;
+
+    /** 攻击方在计算目标防御之前声明本次攻击对 target 的破魔值 */
+    public static void breakMagic(LivingEntity target, int x) {
+        breakMagic = Math.max(0, x);
+        breakMagicTarget = target.getUUID();
+        breakMagicTick = target.level().getGameTime();
+    }
+
+    private static int consumeBreakMagic(LivingEntity v) {
+        int x = breakMagic;
+        boolean match = breakMagicTarget != null && breakMagicTarget.equals(v.getUUID())
+                && v.level().getGameTime() - breakMagicTick <= 1;
+        breakMagic = 0;
+        breakMagicTarget = null;
+        return match ? x : 0;
+    }
+
     /** 不知道伤害来源时（枪械 Pre 事件等）：整套盔甲 */
     public static float vs(LivingEntity v, Entity attacker, boolean ranged, boolean consume) {
         float d;
         if (v instanceof ServerPlayer p) {
             d = parts(p, null, attacker, ranged).total();
-            if (consume && attacker != null && attacker != p) d += WillpowerManager.consumeGuard(p);
+            if (consume && attacker != null && attacker != p) {
+                d += WillpowerManager.consumeGuard(p);
+                d += Telekinesis.forceField(p, consumeBreakMagic(p));
+            }
         } else {
             d = v.getArmorValue();
             if (DamageRules.isFlatFooted(v, attacker)) d -= (float) DamageRules.naturalDefense(v);
@@ -248,7 +275,7 @@ public final class Defense {
 
     /** 反射豁免 = 敏捷 + 运动 + 传奇敏捷 + 能量加值 ± 修正；area = 范围豁免（对抗范围效果，倒地加值） */
     public static int reflex(ServerPlayer p, boolean area) {
-        return reflex(p, area, PoolEffects.checkBonus(p, AttributeType.AGILITY));
+        return reflex(p, area, PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY));
     }
 
     private static int reflex(ServerPlayer p, boolean area, int bonus) {
@@ -280,7 +307,7 @@ public final class Defense {
         boolean reflexOk = StatusEffects.canReflex(p) && DamageRules.canReflex(p, null);
         if (!reflexOk) flags |= HUD_NO_REFLEX;
         if (flatVs(p, null) || StatusEffects.cantBlock(p)) flags |= HUD_NO_PARRY;
-        int agi = PoolEffects.peekBonus(p, AttributeType.AGILITY);
+        int agi = PoolEffects.peekSkillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY);
         return new DefenseHudPayload(x.total(), x.base(), x.armor(),
                 Math.max(0, will(p, PoolEffects.peekBonus(p, AttributeType.RESOLVE))),
                 Math.max(0, reflex(p, false, agi)),

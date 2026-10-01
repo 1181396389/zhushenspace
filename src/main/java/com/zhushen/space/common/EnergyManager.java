@@ -104,8 +104,10 @@ public class EnergyManager {
                     p[AttributeType.ENDURANCE.ordinal()] + p[AttributeType.PERCEPTION.ordinal()]);
         }
 
-        // 专长能量池（灵力 / 精神力 / 妖力 / 佛力 / 魔力 / 道力 / 灵能 / 内力 / 查克拉）
+        // 专长能量池（灵力 / 精神力 / 妖力 / 佛力 / 魔力 / 道力 / 灵能 / 内力 / 查克拉 / 念动力）
         syncFeatPools(player, data, p);
+        // 念动力：天生技艺随池自动习得 / 失去
+        Telekinesis.syncInnate(player);
 
         // 主能量池 = 基础容量最大的池：传奇加成直接扩充其上限（无池时 applyMainPoolBonus 无事可做）
         data.applyMainPoolBonus(bonus);
@@ -372,6 +374,7 @@ public class EnergyManager {
             case "dao" -> 0xFF7FE0A0;      // 道力：青绿
             case "psychic" -> 0xFFE05AFF;  // 灵能：品红
             case "chakra" -> 0xFF4DA6FF;   // 查克拉：蓝
+            case "telekinesis" -> 0xFFFF9A3C; // 念动力：琥珀橙
             default -> PALETTE[Math.floorMod(id.hashCode(), PALETTE.length)];
         };
     }

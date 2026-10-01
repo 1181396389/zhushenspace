@@ -27,7 +27,17 @@ public enum FeatType {
     INNATE_DAO_BODY("innate_dao_body", Category.NORMAL, 3, 3),
     PSYCHIC_CONSTITUTION("psychic_constitution", Category.NORMAL, 3, 3),
     MARTIAL_PRODIGY("martial_prodigy", Category.NORMAL, 3, 3),
-    CHAKRA_CONSTITUTION("chakra_constitution", Category.NORMAL, 3, 3);
+    CHAKRA_CONSTITUTION("chakra_constitution", Category.NORMAL, 3, 3),
+    /** 不死小强（2 级）：生命上限 +2。前提：耐力 4 */
+    UNKILLABLE_ROACH("unkillable_roach", Category.NORMAL, 2, 2),
+    /**
+     * 狼孩 / 人猿泰山（3 级）。前提：智力 ≤ 2。选择（高 16 位，存 值+1）见 {@link #wildVariant} 等：
+     * bit0 = 变体（0 狼孩 / 1 泰山）；bit1-2 = +1 属性（0 力量 / 1 敏捷 / 2 耐力）；
+     * bit3 = 已消除「文盲」（3 XP）；bit4 = 已消除「怕火」（3 XP）。
+     */
+    WOLF_CHILD("wolf_child", Category.NORMAL, 3, 3),
+    /** 念动力天赋（2 级）：获得念动力能量池（特异本质）。前提：决心 3、沉着 3 */
+    TELEKINESIS_TALENT("telekinesis_talent", Category.NORMAL, 2, 2);
 
     /** 掩码低 16 位 = 等级；高 16 位 = 附带选择（如蛮族的属性，存 值+1） */
     public static final int LEVEL_BITS = 0xFFFF;
@@ -35,6 +45,31 @@ public enum FeatType {
     public static int choice(int mask) { return (mask >>> 16) - 1; }
 
     public static int withChoice(int mask, int choice) { return (mask & LEVEL_BITS) | ((choice + 1) << 16); }
+
+    // ===== 狼孩 / 人猿泰山的选择位 =====
+
+    public static final int WILD_TARZAN = 1, WILD_LITERATE = 8, WILD_FEARLESS = 16;
+    /** 消除一项缺陷的价格 */
+    public static final int WILD_BUYOFF_XP = 3;
+
+    private static int wildBits(int mask) { return Math.max(0, choice(mask)); }
+
+    /** 0 = 狼孩，1 = 人猿泰山 */
+    public static int wildVariant(int mask) { return wildBits(mask) & WILD_TARZAN; }
+
+    /** +1 属性：0 力量 / 1 敏捷 / 2 耐力（即 AttributeType 序号） */
+    public static int wildAttr(int mask) { return Math.min(2, (wildBits(mask) >> 1) & 3); }
+
+    public static boolean wildLiterate(int mask) { return (wildBits(mask) & WILD_LITERATE) != 0; }
+
+    public static boolean wildFearless(int mask) { return (wildBits(mask) & WILD_FEARLESS) != 0; }
+
+    /** 变体与属性（建卡后不可更改的部分） */
+    public static int wildBase(int mask) { return wildBits(mask) & 7; }
+
+    public static int wildChoice(int variant, int attr, boolean literate, boolean fearless) {
+        return (variant & 1) | ((attr & 3) << 1) | (literate ? WILD_LITERATE : 0) | (fearless ? WILD_FEARLESS : 0);
+    }
 
     /** 前提是否满足（attr = 属性整数值，skills = 技能等级） */
     public boolean prereqMet(int[] a, int[] sk) {
@@ -56,6 +91,9 @@ public enum FeatType {
             case INNATE_DAO_BODY -> CHA >= 3 && OCC >= 3;
             case MARTIAL_PRODIGY -> END >= 3 && melee >= 3;
             case CHAKRA_CONSTITUTION -> PER >= 3 && OCC >= 3;
+            case UNKILLABLE_ROACH -> END >= 4;
+            case WOLF_CHILD -> INT <= 2;
+            case TELEKINESIS_TALENT -> RES >= 3 && COM >= 3;
             default -> true; // 先天男娘（男性）、巨大身材（不可选侏儒身材）待性别 / 缺陷系统
         };
     }
@@ -120,6 +158,10 @@ public enum FeatType {
         for (int l = minLevel; l <= maxLevel; l++) {
             if ((mask & (1 << l)) == 0) continue;
             c += creationOnly() ? payLowerPrice(l) : levelPrice(l);
+        }
+        if (this == WOLF_CHILD && (mask & LEVEL_BITS) != 0) {
+            if (wildLiterate(mask)) c += WILD_BUYOFF_XP;
+            if (wildFearless(mask)) c += WILD_BUYOFF_XP;
         }
         return c;
     }

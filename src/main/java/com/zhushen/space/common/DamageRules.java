@@ -276,6 +276,8 @@ public final class DamageRules {
         addProvider((e, pr) -> { if (e.hasEffect(MobEffects.FIRE_RESISTANCE)) pr.immune.add(DamageKind.FIRE); });
         // 操作传奇暴击 + 感知弱点：确定最终伤害后追加
         addFinalMod(AttributeEvents::finalBonus);
+        // 狼孩 / 人猿泰山：天生武器造成严重伤害
+        addAttackProvider(FeatEffects::wildAttack);
     }
 
     public static Profile profile(LivingEntity e) {
