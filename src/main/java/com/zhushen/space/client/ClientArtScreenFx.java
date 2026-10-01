@@ -36,6 +36,13 @@ public final class ClientArtScreenFx {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut e) { impactMs = 0; }
 
+    /** 告诉技艺弹幕本地玩家是谁：自己的弹幕不挡准星 */
+    @SubscribeEvent
+    public static void onClientTick(net.neoforged.neoforge.client.event.ClientTickEvent.Post e) {
+        Minecraft mc = Minecraft.getInstance();
+        com.zhushen.space.entity.art.ArtProjectile.clientSelfId = mc.player != null ? mc.player.getId() : Integer.MIN_VALUE;
+    }
+
     @SubscribeEvent
     public static void onHud(RenderGuiEvent.Pre e) {
         Minecraft mc = Minecraft.getInstance();

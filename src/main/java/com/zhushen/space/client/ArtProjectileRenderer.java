@@ -168,6 +168,7 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
             case ArtProjectile.SWING -> swing(c);
             default -> {}
         }
+        if (ArtProjectile.hasHp(kind)) hpBar(c);
         stack.popPose();
 
         // 大招命中：一次性屏幕白闪 + 冲击集中线 + 震屏（按距离衰减）
@@ -183,11 +184,14 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
 
     // ───────────────────────── 灵斩 / 风斩：新月刀光 ─────────────────────────
 
+    private static final float SPIRIT_ROLL = -1.48f;
+
     private void slash(Ctx c, boolean wind) {
         float t = c.t;
         float grow = 0.55f + 0.45f * easeOut(t / 4f);
         float halfW = (wind ? 2.3f : 1.75f) * grow, sag = wind ? 0.95f : 0.55f, thick = wind ? 0.82f : 0.46f, depth = wind ? 1.1f : 0.8f;
-        float roll = wind ? -0.75f : -0.12f;
+        // 风斩斜劈（“/”向）；灵斩竖劈（刀光竖立，略带倾斜）
+        float roll = wind ? -0.75f : SPIRIT_ROLL;
         int outer = wind ? 0x1FC48A : 0x3AA8FF, mid = wind ? 0x8DF2C8 : 0x9FE4FF;
         float fadeIn = clamp01((t - 0.5f) / 1.5f);
 
@@ -657,9 +661,10 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
     private void swing(Ctx c) {
         float t = c.t;
         boolean wind = c.e.size() > 1.5f;
-        float roll = wind ? -0.75f : -0.12f;
+        float roll = wind ? -0.75f : SPIRIT_ROLL;
         float q = easeOut(t / 2.2f);
-        float t0 = wind ? -1f : 1f - 2f * q, t1 = wind ? -1f + 2f * q : 1f;
+        // 两者都从刀光的上端（参数 t = -1）划向下端
+        float t0 = -1f, t1 = -1f + 2f * q;
         float fade = clamp01(1f - (t - 2.5f) / 4.5f);
         float halfW = wind ? 1.5f : 1.25f, sag = wind ? 0.65f : 0.45f, th = wind ? 0.6f : 0.42f, depth = wind ? 0.6f : 0.5f;
         int col = wind ? 0x5BE3A8 : 0x6FCBFF;
@@ -670,6 +675,53 @@ public final class ArtProjectileRenderer extends EntityRenderer<ArtProjectile> {
         crescent(vc, m, halfW, sag, th, depth, 0f, 0.28f, c.c(0xFFFFFF, 0.95f * fade), c.c(0xFFFFFF, 0.6f * fade), t0, t1, 36);
         vc = c.glow();
         crescent(vc, m, halfW * 1.06f, sag + 0.06f, th * 1.5f, depth, -0.2f, 1f, c.c(col, 0.45f * fade), c.c(col, 0f), t0, t1, 30);
+        c.s.popPose();
+    }
+
+    // ───────────────────────── 弹幕血条（受击后显示 2 秒） ─────────────────────────
+
+    private void hpBar(Ctx c) {
+        ArtProjectile e = c.e;
+        float hp = e.hpFraction();
+        long now = net.minecraft.Util.getMillis();
+        if (Math.abs(hp - e.clientHp) > 1e-4f) {
+            if (e.clientHpAt == 0) e.clientHpLag = e.clientHp;
+            e.clientHp = hp;
+            e.clientHpAt = now;
+        }
+        if (e.clientHpAt == 0) return;
+        long age = now - e.clientHpAt;
+        if (age > 2000) return;
+        // 白色“延迟扣血”段：停顿 0.3 秒后追上当前血量
+        if (age > 300) e.clientHpLag += (hp - e.clientHpLag) * 0.15f;
+        float a = clamp01((2000 - age) / 500f) * clamp01(age / 60f + 0.4f);
+        int k = e.kind();
+        float up = switch (k) {
+            case ArtProjectile.SPIRIT -> 2.0f;
+            case ArtProjectile.WIND -> 1.7f;
+            case ArtProjectile.WAVE -> e.size() * 1.3f + 0.3f;
+            case ArtProjectile.FIREBALL -> e.size() * e.flightScale() * 1.25f + 0.3f;
+            default -> 0.5f;
+        };
+        float W = 0.62f, H = 0.075f;
+        c.pushBillboardWorld(0, up, 0);
+        Matrix4f m = c.m();
+        VertexConsumer vc = c.toon();
+        int fill = hp > 0.5f ? mix(0xFFE45C, 0x5CFF8A, (hp - 0.5f) * 2f) : mix(0xFF4A3A, 0xFFE45C, hp * 2f);
+        float o = 0.02f;
+        quad(vc, m, -W - o, -H - o, 0, c.c(0x05060A, 0.85f * a), W + o, -H - o, 0, c.c(0x05060A, 0.85f * a),
+                W + o, H + o, 0, c.c(0x05060A, 0.85f * a), -W - o, H + o, 0, c.c(0x05060A, 0.85f * a));
+        float xl = -W + 2f * W * Math.max(hp, e.clientHpLag);
+        float xh = -W + 2f * W * hp;
+        if (e.clientHpLag > hp)
+            quad(vc, m, xh, -H, 0, c.c(0xFFFFFF, 0.9f * a), xl, -H, 0, c.c(0xFFFFFF, 0.9f * a),
+                    xl, H, 0, c.c(0xFFFFFF, 0.9f * a), xh, H, 0, c.c(0xFFFFFF, 0.9f * a));
+        if (hp > 0f) {
+            int dark = mix(fill, 0x000000, 0.35f);
+            quad(vc, m, -W, -H, 0, c.c(dark, a), xh, -H, 0, c.c(dark, a), xh, H, 0, c.c(fill, a), -W, H, 0, c.c(fill, a));
+            quad(vc, m, -W, H * 0.25f, 0, c.c(0xFFFFFF, 0.35f * a), xh, H * 0.25f, 0, c.c(0xFFFFFF, 0.35f * a),
+                    xh, H * 0.75f, 0, c.c(0xFFFFFF, 0.0f), -W, H * 0.75f, 0, c.c(0xFFFFFF, 0.0f));
+        }
         c.s.popPose();
     }
 

@@ -243,6 +243,33 @@ public final class CombatFormula {
         zeroArmor(event);
     }
 
+    /**
+     * 打在技艺弹幕（非生物实体）上的伤害：沿用本公式的攻击值部分，目标防御视为 0，不计距离减值；
+     * 结果同样走 20%~100% 浮动。其他来源（枪械等）保持原值。
+     */
+    public static float objectHit(ServerPlayer p, DamageSource src, float amount) {
+        Entity direct = src.getDirectEntity();
+        float base;
+        if (direct == p) {
+            ItemStack stack = p.getMainHandItem();
+            WeaponCategory cat = classify(stack);
+            if (cat.group == WeaponCategory.Group.GUN || cat.group == WeaponCategory.Group.BOW
+                    || cat.group == WeaponCategory.Group.THROWN) cat = WeaponCategory.GENERIC;
+            int deficit = strengthDeficit(p, stack);
+            if (deficit > WeaponCategory.MAX_DEFICIT) return 0f;
+            int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
+            base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + weaponDamage(p, amount) - pen
+                    + PoolEffects.checkBonus(p, AttributeType.STRENGTH);
+        } else if (direct instanceof AbstractArrow || direct instanceof ThrownTrident) {
+            base = attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + amount
+                    + PoolEffects.checkBonus(p, AttributeType.AGILITY);
+        } else {
+            return amount;
+        }
+        base = Math.max(0f, base) * StatusEffects.successFactor(p);
+        return base * DamageVariance.roll(p.getRandom());
+    }
+
     private static void zeroArmor(LivingIncomingDamageEvent event) {
         event.addReductionModifier(DamageContainer.Reduction.ARMOR, (container, reduction) -> 0f);
     }

@@ -136,6 +136,25 @@ public final class ArtBallistics {
         }
     }
 
+    /** 两发敌对弹幕对撞的火花 */
+    public static void clashFx(ServerPlayer p, Vec3 at) {
+        ArtProjectile.fx(p, ArtProjectile.HIT_SEAL, 0xFFFFFFFF, 1f, at, p.getViewVector(1), 10);
+        ArtFx.soundAt(p, at, net.minecraft.sounds.SoundEvents.ANVIL_LAND, 0.35f, 1.8f);
+    }
+
+    /** 弹幕血量归零被击碎 */
+    public static void shatterFx(ArtProjectile e, ServerPlayer p) {
+        Vec3 at = e.position(), dir = e.getLookAngle();
+        switch (e.kind()) {
+            case ArtProjectile.SPIRIT -> ArtProjectile.fx(p, ArtProjectile.HIT_SLASH, 0xFF8FE3FF, 1f, at, dir, 11);
+            case ArtProjectile.WIND -> ArtProjectile.fx(p, ArtProjectile.HIT_WIND, 0xFF5BE3A8, 1f, at, dir, 17);
+            case ArtProjectile.WAVE -> ArtProjectile.fx(p, ArtProjectile.HIT_SEAL, 0xFF5FC8FF, 1f, at, dir, 10);
+            case ArtProjectile.FIREBALL -> ArtProjectile.fx(p, ArtProjectile.HIT_SEAL, 0xFFFF8A2A, 1f, at, dir, 10);
+            default -> ArtProjectile.fx(p, ArtProjectile.HIT_SEAL, e.color(), 1f, at, dir, 10);
+        }
+        ArtFx.soundAt(p, at, net.minecraft.sounds.SoundEvents.GLASS_BREAK, 0.5f, 1.3f);
+    }
+
     /** 命中 / 击中方块时的视觉特效 */
     private static void hitFx(ArtProjectile projectile, ServerPlayer p, Shot shot, Vec3 point) {
         Vec3 dir = projectile.getLookAngle();
@@ -176,7 +195,8 @@ public final class ArtBallistics {
             if (shot.skill() == ArtSkill.WIND_SLASH) defense = Math.max(0, defense - (float) DamageRules.naturalDefense(t));
             value = Math.min(shot.cap(), Math.max(0, (shot.check() - defense) * shot.roll() + shot.bonus())) * shot.charge();
         }
-        value = Math.max(0, value) * shot.restraint();
+        // 弹幕被削弱（受击 / 对撞）后剩余血量越少，命中伤害越低
+        value = Math.max(0, value) * shot.restraint() * Math.max(0f, Math.min(1f, projectile.hpFraction()));
         if (value <= 0) { p.displayClientMessage(net.minecraft.network.chat.Component.translatable("msg.zhushenspace.art.miss"), true); return; }
         DamageKind kind = switch (shot.skill()) {
             case WIND_SLASH -> DamageKind.SLASH;

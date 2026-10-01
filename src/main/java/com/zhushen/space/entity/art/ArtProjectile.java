@@ -27,6 +27,14 @@ public class ArtProjectile extends Entity {
     /** 施法者实体 id 与"蓄力中跟随施法者视线"标记：客户端据此逐帧把八卦阵钉在施法者面前，转头时不再拖影 / 抖动 */
     private static final EntityDataAccessor<Integer> OWNER_ID = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> ANCHOR = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.INT);
+    /** 弹幕剩余血量比例（客户端据此显示受击血条） */
+    private static final EntityDataAccessor<Float> HP = SynchedEntityData.defineId(ArtProjectile.class, EntityDataSerializers.FLOAT);
+    private float hp, maxHp;
+    /** 客户端：本地玩家实体 id（自己的弹幕不挡准星）；由客户端每 tick 写入 */
+    public static volatile int clientSelfId = Integer.MIN_VALUE;
+    /** 客户端：血条显示状态 */
+    public float clientHp = 1f, clientHpLag = 1f;
+    public long clientHpAt;
     /** 客户端：本实体触发的屏幕闪光 / 震屏是否已播放（每个实体只播一次） */
     public boolean clientFxFired;
     private UUID owner;
@@ -40,7 +48,7 @@ public class ArtProjectile extends Entity {
         super(type, level); setNoGravity(true); noPhysics = true;
     }
     @Override protected void defineSynchedData(SynchedEntityData.Builder b) {
-        b.define(KIND, WAVE); b.define(COLOR, 0xFFA5F8E1); b.define(SIZE, 1f); b.define(DISTANCE, 0f); b.define(OWNER_ID, -1); b.define(ANCHOR, ANCHOR_NONE);
+        b.define(KIND, WAVE); b.define(COLOR, 0xFFA5F8E1); b.define(SIZE, 1f); b.define(DISTANCE, 0f); b.define(OWNER_ID, -1); b.define(ANCHOR, ANCHOR_NONE); b.define(HP, 1f);
     }
     public int kind() { return entityData.get(KIND); }
     public int color() { return entityData.get(COLOR); }
@@ -48,6 +56,16 @@ public class ArtProjectile extends Entity {
     public int ownerId() { return entityData.get(OWNER_ID); }
     public int anchor() { return entityData.get(ANCHOR); }
     public boolean anchored() { return anchor() != ANCHOR_NONE; }
+    public float hpFraction() { return entityData.get(HP); }
+    /** 有血量的实体弹幕（可被攻击击毁、可与敌方弹幕对撞） */
+    public static boolean hasHp(int kind) { return kind == WIND || kind == SPIRIT || kind == WAVE || kind == FIREBALL || kind == LASER; }
+    public boolean hasHp() { return hasHp(kind()); }
+    /** 当前碰撞半径（与命中判定一致；火球随飞行距离长大） */
+    public double hitRadius() {
+        int k = kind();
+        double r = k == FIREBALL ? 0.65 * size() : k == WIND || k == SPIRIT ? 0.65 : k == WAVE ? 0.4 : k == LASER ? 0.12 : 0.25;
+        return r * flightScale();
+    }
     public static boolean isFx(int kind) {
         return kind == BURST || kind == RING || kind == HIT_SLASH || kind == HIT_WIND || kind == HIT_WAVE || kind == HIT_SEAL || kind == SWING;
     }
@@ -93,6 +111,11 @@ public class ArtProjectile extends Entity {
                                        Vec3 direction, double speed, ArtBallistics.Shot shot) {
         ArtProjectile e = make(p, kind, color, size, origin, direction);
         e.shot = shot; e.setDeltaMovement(direction.normalize().scale(speed));
+        if (shot != null) {
+            // 血量 = 施放威力（检定 × 蓄力倍率 × 留手比例）；八阵图的三道激光各取一半
+            float power = Math.max(1f, shot.check() * shot.charge() * Math.max(0.1f, shot.restraint()));
+            e.maxHp = e.hp = Math.max(2f, kind == LASER ? power * 0.5f : power);
+        }
         p.level().addFreshEntity(e); return e;
     }
     public static ArtProjectile seal(ServerPlayer p, int color) {
@@ -200,6 +223,31 @@ public class ArtProjectile extends Entity {
                 closest = start.distanceToSqr(contact.get()); stop = contact.get(); target = t;
             }
         }
+        // 敌方弹幕对撞：比方块 / 目标更早接触时先结算，双方各扣去较小一方的剩余血量
+        ArtProjectile rival = null;
+        Vec3 rivalAt = null;
+        double rivalDist = start.distanceToSqr(stop);
+        for (ArtProjectile o : level.getEntitiesOfClass(ArtProjectile.class, new AABB(start, stop).inflate(endRadius + 3),
+                o -> o != this && o.isAlive() && !o.consumed && o.hasHp() && o.maxHp > 0 && hostile(level, p, o))) {
+            Vec3 oc = o.position();
+            double rr = o.hitRadius() + endRadius;
+            AABB box = new AABB(oc, oc).inflate(rr);
+            Optional<Vec3> contact = box.contains(start) ? Optional.of(start) : box.clip(start, stop);
+            if (contact.isPresent() && start.distanceToSqr(contact.get()) <= rivalDist) {
+                rivalDist = start.distanceToSqr(contact.get()); rival = o; rivalAt = contact.get();
+            }
+        }
+        if (rival != null && (target == null || rivalDist <= start.distanceToSqr(stop))) {
+            float m = Math.min(hp, rival.hp);
+            Vec3 mid = rivalAt.add(rival.position()).scale(0.5);
+            ArtBallistics.clashFx(p, mid);
+            rival.damageHp(m, null);
+            damageHp(m, null);
+            if (isRemoved()) return;
+            traveled += start.distanceTo(rivalAt); entityData.set(DISTANCE, (float) traveled); setPos(rivalAt);
+            if (traveled >= shot.range()) discard();
+            return;
+        }
         if (target != null || blocked) {
             consumed = true; setPos(stop);
             // Mark consumed before damage callbacks. One collision per projectile.
@@ -213,7 +261,57 @@ public class ArtProjectile extends Entity {
         if (traveled >= shot.range()) discard();
     }
     @Override public boolean shouldBeSaved() { return false; }
-    @Override public boolean isPickable() { return false; }
+    /** 可被近战 / 箭矢等瞄准与命中；本地玩家自己的弹幕不挡准星 */
+    @Override public boolean isPickable() {
+        if (!hasHp() || consumed || isRemoved()) return false;
+        return !level().isClientSide || ownerId() != clientSelfId;
+    }
+    @Override public float getPickRadius() { return 0.15f; }
+
+    /** 受到攻击：扣血量，归零即消散（施法者与其盟友的攻击无效） */
+    @Override public boolean hurt(net.minecraft.world.damagesource.DamageSource src, float amount) {
+        if (level().isClientSide || !hasHp() || consumed || isRemoved() || maxHp <= 0 || amount <= 0) return false;
+        Entity attacker = src.getEntity();
+        ServerLevel level = (ServerLevel) level();
+        ServerPlayer p = owner == null ? null : level.getServer().getPlayerList().getPlayer(owner);
+        if (attacker != null && owner != null && attacker.getUUID().equals(owner)) return false;
+        if (attacker != null && p != null && (attacker.isAlliedTo(p) || p.isAlliedTo(attacker))) return false;
+        float dmg = attacker instanceof ServerPlayer sp ? CombatFormula.objectHit(sp, src, amount) : amount;
+        if (dmg <= 0) return false;
+        damageHp(dmg, p);
+        return true;
+    }
+
+    /** 扣除血量；归零时播放击碎特效并移除 */
+    void damageHp(float d, ServerPlayer fxOwner) {
+        if (consumed || isRemoved() || maxHp <= 0) return;
+        hp = Math.max(0f, hp - d);
+        entityData.set(HP, hp / maxHp);
+        if (hp <= 0f) {
+            consumed = true;
+            ServerPlayer p = fxOwner;
+            if (p == null && owner != null && level() instanceof ServerLevel sl) p = sl.getServer().getPlayerList().getPlayer(owner);
+            if (p != null) ArtBallistics.shatterFx(this, p);
+            discard();
+        }
+    }
+
+    private boolean hostile(ServerLevel level, ServerPlayer p, ArtProjectile o) {
+        if (o.owner == null || o.owner.equals(owner)) return false;
+        ServerPlayer op = level.getServer().getPlayerList().getPlayer(o.owner);
+        return op == null || !(p.isAlliedTo(op) || op.isAlliedTo(p));
+    }
+
+    /** 碰撞箱以弹幕中心为中心、按当前碰撞半径缩放（便于近战与箭矢命中） */
+    @Override protected AABB makeBoundingBox() {
+        double r = Math.max(0.25, hitRadius() + 0.2);
+        Vec3 c = position();
+        return new AABB(c.x - r, c.y - r, c.z - r, c.x + r, c.y + r, c.z + r);
+    }
+    @Override public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (KIND.equals(key) || SIZE.equals(key) || DISTANCE.equals(key)) setBoundingBox(makeBoundingBox());
+    }
     @Override public boolean isPushable() { return false; }
     @Override protected void readAdditionalSaveData(CompoundTag tag) {}
     @Override protected void addAdditionalSaveData(CompoundTag tag) {}

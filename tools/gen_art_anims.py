@@ -52,19 +52,20 @@ def add(v, d):
 
 NEUTRAL = P()
 
-# ===== 灵斩：居合拔刀横斩（左腰 → 右上方，一闪） =====
+# ===== 灵斩：单手举刀过顶 → 一刀竖劈（刀光竖立飞出），左手剑指护胸 → 甩向身后 =====
 SPIRIT_READY = P(
-    right_arm=[-38, 64, -10], left_arm=[16, 0, -12], torso=[5, -24, 0], head=[0, 18, 0],
-    body=[0, -2.5, 0], left_leg=[-24, 0, -5], right_leg=[16, 0, 6],
-    right_arm_bend=[35, 0])
+    right_arm=[-168, 8, 6], left_arm=[-62, -38, -4], torso=[-10, 4, 0], head=[-6, 0, 0],
+    body=[0, -0.5, 0], left_leg=[-10, 0, -3], right_leg=[6, 0, 3],
+    right_arm_bend=[40, 0], left_arm_bend=[70, 0])
 SPIRIT_CUT = P(
-    right_arm=[-94, -60, 6], left_arm=[30, 0, -34], torso=[7, 30, 0], head=[-4, -22, 0],
-    body=[0, -3.5, 0], left_leg=[-32, 0, -6], right_leg=[22, 0, 8])
-SPIRIT_HOLD = P(SPIRIT_CUT, right_arm=[-88, -66, 10], torso=[6, 33, 0])
+    right_arm=[-52, 6, 0], left_arm=[24, 0, -26], torso=[24, 4, 0], head=[-18, 0, 0],
+    body=[0, -4, 0], left_leg=[-34, 0, -6], right_leg=[24, 0, 8],
+    right_arm_bend=[0, 0], left_arm_bend=[10, 0])
+SPIRIT_HOLD = P(SPIRIT_CUT, right_arm=[-48, 6, 0], torso=[26, 4, 0])
 seq("art_spirit_slash", 0.9, [
     (0, NEUTRAL, LIN),
-    (0.13, SPIRIT_READY, CUBIC),       # 手按刀柄、拧腰蓄势
-    (0.19, SPIRIT_CUT, EXPO),          # 一闪（刀光在 0.2s 离手）
+    (0.13, SPIRIT_READY, BACK),        # 举刀过顶蓄势
+    (0.19, SPIRIT_CUT, EXPO),          # 竖劈（刀光在 0.2s 离手）
     (0.5, SPIRIT_HOLD, LIN),           # 残心
     (0.9, NEUTRAL, SINE),
 ])
