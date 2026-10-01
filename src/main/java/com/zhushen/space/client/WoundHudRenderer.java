@@ -52,6 +52,8 @@ public class WoundHudRenderer {
     /** 计算面板位置与尺寸（位置来自配置，默认屏幕右上角，并夹紧在屏幕内） */
     public static float[] layout(int screenW, int screenH, float scale) {
         ClientUiConfig.Data cfg = ClientUiConfig.get();
+        // 默认位置：由 HudLayout 统一排进右侧栏（可能整栏等比缩小）
+        if ((cfg.woundX < 0 || cfg.woundY < 0) && HudLayout.wound != null) return HudLayout.wound.clone();
         float w = W * scale;
         float h = H * scale;
         float x = cfg.woundX < 0 ? screenW - w - 6 : clamp(cfg.woundX, 0, Math.max(0, screenW - w));
@@ -90,8 +92,8 @@ public class WoundHudRenderer {
 
     public static void render(GuiGraphics g, Font font, int screenW, int screenH,
                               int maxHp, int b, int l, int a, float open) {
-        float scale = ClientUiConfig.get().woundScale;
-        float[] pos = layout(screenW, screenH, scale);
+        float[] pos = layout(screenW, screenH, ClientUiConfig.get().woundScale);
+        float scale = pos[2] / W;
         int total = b + l + a;
         int intact = Math.max(0, maxHp - total);
         boolean unconscious = intact <= 0 && l > 0;

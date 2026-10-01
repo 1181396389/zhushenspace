@@ -46,8 +46,10 @@ import java.util.UUID;
  *   <li>「现象」：技艺 = 该技艺；生物攻击 = 该种生物 · 伤害类型；玩家的普通伤害 = 玩家 · 伤害类型；
  *       环境 = 环境 · 伤害类型；不良状态 = 该状态的点数。</li>
  *   <li>每次承受现象累积进度，进度满则法阵转动一格（每轮至多转动一次），该现象的伤害 / 状态点数降低一档；
- *       至多转动 {@link #MAX_TURNS} 次（上限 {@code MAX_TURNS × PER_TURN} = 50%），永远不会完全免疫。</li>
- *   <li>B 级限制：同时只能记住 {@link #MAX_TRACKED} 种现象（遇到新现象时遗忘最久未遇到的那一种）。</li>
+ *       转满 {@link #MAX_TURNS} 格（法轮转完一整圈）即完全适应：该现象不再造成伤害 / 状态点数。</li>
+ *   <li>可以同时适应任意多种现象。</li>
+ *   <li>遗忘：某种现象 {@link #DECAY_DELAY} 刻内没有再遇到，便开始失去适应——先失去累积中的进度，
+ *       之后每轮倒转一格，直到完全遗忘。</li>
  *   <li>法阵视为物品：精神 / 毒素伤害无视物品带来的伤害降低，因此法阵无法降低它们的伤害（仍可适应它们造成的状态）。</li>
  *   <li>法阵取下 / 未穿戴完毕、死亡、长休后适应清空。</li>
  * </ul>
@@ -56,11 +58,17 @@ import java.util.UUID;
 public final class AdaptationManager {
     private AdaptationManager() {}
 
-    public static final int MAX_TURNS = 4;
-    public static final double PER_TURN = 0.125;
-    public static final int MAX_TRACKED = 3;
+    /** 八柄法轮：转满 8 格（一整圈）= 完全适应 */
+    public static final int MAX_TURNS = 8;
+    public static final double PER_TURN = 1.0 / MAX_TURNS;
     /** 每轮（3 秒）至多转动一次 */
     public static final int TURN_COOLDOWN = 60;
+    /** 多久没有遇到同一种现象便开始遗忘（20 轮 = 60 秒） */
+    public static final int DECAY_DELAY = 1200;
+    /** 遗忘中：每轮倒转一格 */
+    public static final int DECAY_STEP = 60;
+    /** 同步给 HUD 的现象数上限（按最近遇到排序） */
+    private static final int SYNC_LIMIT = 24;
 
     private static final class Phen {
         final String key;
@@ -68,6 +76,7 @@ public final class AdaptationManager {
         int turns;
         float progress;
         long lastSeen;
+        long lastDecay;
 
         Phen(String key, List<String> label) { this.key = key; this.label = label; }
     }
@@ -95,7 +104,9 @@ public final class AdaptationManager {
             Phenom ph = phenomenon(h.source, h.kinds);
             if (ph == null || !PowerRank.adaptableByB(ph.rank)) return 0;
             Phen x = s.phens.get(ph.key);
-            return x == null ? 0 : x.turns * PER_TURN;
+            if (x == null) return 0;
+            touch(p, x);
+            return x.turns * PER_TURN;
         });
     }
 
@@ -155,19 +166,25 @@ public final class AdaptationManager {
     private static Phen track(ServerPlayer p, State s, String key, List<String> label) {
         Phen x = s.phens.get(key);
         if (x == null) {
-            if (s.phens.size() >= MAX_TRACKED) {
-                Phen old = null;
-                for (Phen y : s.phens.values()) if (old == null || y.lastSeen < old.lastSeen) old = y;
-                if (old != null) {
-                    s.phens.remove(old.key);
-                    p.displayClientMessage(Component.translatable("msg.zhushenspace.adapt.forget", label(old.label)), false);
-                }
-            }
             x = new Phen(key, label);
             s.phens.put(key, x);
         }
         x.lastSeen = now(p);
         return x;
+    }
+
+    /**
+     * 结算中遇到已适应的现象：刷新「最近遇到」时刻。完全适应的伤害会被抵消为 0（没有受伤后事件），
+     * 也必须算作遇到过，否则会被遗忘。
+     */
+    private static void touch(ServerPlayer p, Phen x) {
+        long t = now(p);
+        boolean wasIdle = t - x.lastSeen >= DECAY_DELAY / 2;
+        x.lastSeen = t;
+        if (x.turns >= MAX_TURNS) {
+            p.serverLevel().sendParticles(ParticleTypes.END_ROD, p.getX(), p.getY() + p.getBbHeight() * 0.6, p.getZ(), 5, 0.3, 0.3, 0.3, 0.02);
+        }
+        if (wasIdle) sync(p);
     }
 
     private static void deny(ServerPlayer p, State s, String msg, Object... args) {
@@ -183,12 +200,17 @@ public final class AdaptationManager {
         if (t - s.lastTurn < TURN_COOLDOWN) return false;
         x.turns++;
         x.progress = x.turns >= MAX_TURNS ? 1f : 0f;
+        x.lastDecay = t;
         s.lastTurn = t;
         s.wheel++;
         ServerLevel lvl = p.serverLevel();
         double y = p.getY() + p.getBbHeight() + 0.45;
         lvl.playSound(null, p.getX(), y, p.getZ(), com.zhushen.space.sound.ModSounds.MAHORAGA_TURN.get(), SoundSource.PLAYERS, 1.0f, 1.0f);
         lvl.sendParticles(ParticleTypes.END_ROD, p.getX(), y, p.getZ(), 18, 0.45, 0.04, 0.45, 0.015);
+        if (x.turns >= MAX_TURNS) {
+            lvl.sendParticles(ParticleTypes.FLASH, p.getX(), y, p.getZ(), 1, 0, 0, 0, 0);
+            lvl.sendParticles(ParticleTypes.END_ROD, p.getX(), y, p.getZ(), 40, 0.7, 0.05, 0.7, 0.04);
+        }
         p.displayClientMessage(Component.translatable(x.turns >= MAX_TURNS ? "msg.zhushenspace.adapt.max" : "msg.zhushenspace.adapt.turn",
                 label(x.label), x.turns, MAX_TURNS), true);
         return true;
@@ -254,10 +276,31 @@ public final class AdaptationManager {
             sync(p);
             return;
         }
-        boolean turned = false;
-        for (Phen x : s.phens.values()) if (tryTurn(p, s, x)) { turned = true; break; }
-        if (turned) sync(p);
+        boolean changed = false;
+        for (Phen x : s.phens.values()) if (tryTurn(p, s, x)) { changed = true; break; }
+        // 遗忘：久未遇到的现象先失去累积进度，之后每轮倒转一格
+        long t = now(p);
+        var it = s.phens.values().iterator();
+        while (it.hasNext()) {
+            Phen x = it.next();
+            if (t - x.lastSeen < DECAY_DELAY || t - x.lastDecay < DECAY_STEP) continue;
+            x.lastDecay = t;
+            changed = true;
+            if (x.progress > 0 && x.turns < MAX_TURNS) {
+                x.progress = 0;
+            } else if (x.turns > 0) {
+                x.turns--;
+                x.progress = 0;
+                s.wheel--;
+            }
+            if (x.turns == 0 && x.progress <= 0) {
+                it.remove();
+                p.displayClientMessage(Component.translatable("msg.zhushenspace.adapt.forget", label(x.label)), true);
+            }
+        }
+        if (changed) sync(p);
     }
+
 
     /** 长休 / 死亡等：清空适应 */
     public static void reset(ServerPlayer p) {
@@ -287,7 +330,16 @@ public final class AdaptationManager {
         State s = STATES.get(p.getUUID());
         int wheel = s == null ? 0 : s.wheel;
         List<SyncAdaptPayload.Entry> list = new ArrayList<>();
-        if (s != null) for (Phen x : s.phens.values()) list.add(new SyncAdaptPayload.Entry(x.label, x.turns, x.progress));
+        if (s != null) {
+            long t = now(p);
+            List<Phen> order = new ArrayList<>(s.phens.values());
+            order.sort((a, b) -> Long.compare(b.lastSeen, a.lastSeen));
+            for (Phen x : order) {
+                if (list.size() >= SYNC_LIMIT) break;
+                int grace = (int) Math.max(0, DECAY_DELAY - (t - x.lastSeen));
+                list.add(new SyncAdaptPayload.Entry(x.label, x.turns, x.progress, grace));
+            }
+        }
         PacketDistributor.sendToPlayer(p, new SyncAdaptPayload(p.getId(), wheel, list));
         PacketDistributor.sendToPlayersTrackingEntity(p, new SyncAdaptPayload(p.getId(), wheel, List.of()));
     }

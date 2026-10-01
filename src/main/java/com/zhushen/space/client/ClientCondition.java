@@ -7,6 +7,8 @@ import com.zhushen.space.data.LimbPart;
 import com.zhushen.space.data.StatusType;
 import com.zhushen.space.network.ArtActionPayload;
 import com.zhushen.space.network.SyncConditionPayload;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import com.zhushen.space.screen.ZsShapes;
@@ -364,45 +366,128 @@ public final class ClientCondition {
             g.drawCenteredString(font, Component.translatable("hud.zhushenspace.breath.out"), w / 2, h / 2 + 32, 0xFF80C0FF);
         }
 
-        // --- 生存条（快捷栏右侧：水分 / 体力 / 精力） ---
-        int x0 = w / 2 + 91 + 6, bottom = h - 1;
-        survivalBars(g, font, x0, bottom, Math.max(40, Math.min(78, w - x0 - 4)), ms);
+        // --- 生存条（技能栏右侧：体力 / 水分 / 精力）与不良状态标签：位置由 HudLayout 统一排版 ---
+        HudLayout.ensure(w, h);
+        int x0 = HudLayout.clusterX, bottom = h - 1;
+        survivalBars(g, font, x0, bottom, HudLayout.survivalW, ms);
+        drawChips(g, font, x0, h - 23 - CHIP_H, HudLayout.chipsW, ms);
+    }
 
-        // --- 不良状态 / 倒地 ---
-        int y = bottom - 33;
+    // ===== 不良状态标签 =====
+
+    /** 状态标签：文字、颜色、点数进度（-1 = 无）、重度阈值位置（-1 = 无）、是否严重（描边脉动） */
+    public record Chip(String text, int color, float fill, float heavyMark, boolean severe) {}
+
+    public static final int CHIP_H = 11, CHIP_GAP = 2, CHIP_MAX_ROWS = 4;
+
+    /** 当前要显示的状态标签：倒地提示 → 固有不良状态 → 点数类不良状态 */
+    static List<Chip> chips() {
+        List<Chip> out = new ArrayList<>();
+        Minecraft mc = Minecraft.getInstance();
+        if (!active(mc.player)) return out;
         if (prone()) {
-            g.drawString(font, Component.translatable(standing() ? "hud.zhushenspace.prone.standing" : "hud.zhushenspace.prone.hint"),
-                    x0, y, 0xFFFFD27F, true);
-            y -= 10;
+            out.add(new Chip(Component.translatable(standing() ? "hud.zhushenspace.prone.standing" : "hud.zhushenspace.prone.hint").getString(),
+                    0xFFFFD27F, -1, -1, false));
         }
-        // 固有不良状态（不含已由点数行显示的）
-        StringBuilder conds = new StringBuilder();
         for (Condition c : Condition.values()) {
             if (!has(c)) continue;
-            if (conds.length() > 0) conds.append(' ');
-            conds.append(Component.translatable(c.nameKey()).getString());
-            if (c == Condition.OPEN_WOUND && openWounds > 1) conds.append('×').append(openWounds);
-        }
-        if (conds.length() > 0) {
-            String line = conds.toString();
-            while (line.length() > 0) {
-                String part = font.plainSubstrByWidth(line, 150);
-                if (part.isEmpty()) break;
-                g.drawString(font, part, x0, y, 0xFFFF7A7A, true);
-                y -= 10;
-                line = line.substring(part.length()).trim();
-            }
+            String t = Component.translatable(c.nameKey()).getString();
+            if (c == Condition.OPEN_WOUND && openWounds > 1) t += "×" + openWounds;
+            out.add(new Chip(t, 0xFFFF7A7A, -1, -1, true));
         }
         for (StatusType t : StatusType.values()) {
             boolean perm = permanent(t);
             int tr = tier(t);
             if (tr == 0 && !perm) continue;
             int color = perm || tr >= 3 ? 0xFFFF4040 : tr == 2 ? 0xFFFF9A3C : 0xFFFFE070;
-            Component name = points(t) <= 0 ? Component.translatable(t.tierKey(StatusType.Tier.DESTRUCTIVE))
-                    : Component.translatable("hud.zhushenspace.status.line", Component.translatable(t.tierKey(StatusType.Tier.values()[tr])),
-                    points(t), heavy[t.ordinal()], destr[t.ordinal()]);
-            g.drawString(font, name, x0, y, color, true);
-            y -= 10;
+            int pts = points(t);
+            if (pts <= 0) {
+                out.add(new Chip(Component.translatable(t.tierKey(StatusType.Tier.DESTRUCTIVE)).getString(), color, -1, -1, true));
+                continue;
+            }
+            String name = Component.translatable(t.tierKey(StatusType.Tier.values()[tr])).getString() + " " + pts;
+            int d = destr[t.ordinal()], hv = heavy[t.ordinal()];
+            float fill = d > 0 ? Math.min(1f, pts / (float) d) : -1;
+            float mark = d > 0 && hv > 0 ? Math.min(1f, hv / (float) d) : -1;
+            out.add(new Chip(name, color, fill, mark, tr >= 3 || perm));
+        }
+        return out;
+    }
+
+    private static int chipW(Font font, Chip c, int maxW) {
+        return Math.min(maxW, font.width(c.text()) + 9);
+    }
+
+    /** 自左向右排成行（第 0 行贴着生存条，向上增长），最多 {@link #CHIP_MAX_ROWS} 行；放不下的合并为「+N」 */
+    private static List<List<Integer>> flow(Font font, List<Chip> chips, int width) {
+        List<List<Integer>> rows = new ArrayList<>();
+        List<Integer> row = new ArrayList<>();
+        int x = 0;
+        for (int i = 0; i < chips.size(); i++) {
+            int cw = chipW(font, chips.get(i), width);
+            if (!row.isEmpty() && x + cw > width) {
+                rows.add(row);
+                row = new ArrayList<>();
+                x = 0;
+            }
+            row.add(i);
+            x += cw + CHIP_GAP;
+        }
+        if (!row.isEmpty()) rows.add(row);
+        if (rows.size() > CHIP_MAX_ROWS) {
+            List<List<Integer>> cut = new ArrayList<>(rows.subList(0, CHIP_MAX_ROWS));
+            List<Integer> last = new ArrayList<>(cut.get(CHIP_MAX_ROWS - 1));
+            last.add(-1); // 「+N」标记
+            cut.set(CHIP_MAX_ROWS - 1, last);
+            return cut;
+        }
+        return rows;
+    }
+
+    /** HudLayout：状态标签占用的行数 */
+    public static int chipRows(Font font, int width) {
+        List<Chip> c = chips();
+        return c.isEmpty() ? 0 : flow(font, c, width).size();
+    }
+
+    private static void drawChips(GuiGraphics g, Font font, int x0, int baseY, int width, long ms) {
+        List<Chip> chips = chips();
+        if (chips.isEmpty()) return;
+        List<List<Integer>> rows = flow(font, chips, width);
+        int shown = 0;
+        for (List<Integer> r : rows) for (int i : r) if (i >= 0) shown++;
+        float pulse = (float) (0.5 + 0.5 * Math.sin(ms / 260.0));
+        for (int ri = 0; ri < rows.size(); ri++) {
+            int y = baseY - ri * (CHIP_H + CHIP_GAP);
+            int x = x0;
+            for (int i : rows.get(ri)) {
+                if (i < 0) {
+                    String more = "+" + (chips.size() - shown);
+                    int mw = font.width(more) + 6;
+                    if (x + mw > x0 + width) x = x0 + width - mw;
+                    ZsShapes.roundRect(g, x, y, mw, CHIP_H, 2.5f, 0xB0141018, 0xB00C0A10);
+                    g.drawString(font, more, x + 3, y + 2, 0xFFB8B0C8, false);
+                    continue;
+                }
+                Chip c = chips.get(i);
+                int cw = chipW(font, c, width);
+                ZsShapes.roundRect(g, x, y, cw, CHIP_H, 2.5f, 0xC0161219, 0xC00C0A10);
+                if (c.severe()) ZsShapes.roundRectOutline(g, x, y, cw, CHIP_H, 2.5f, 0.8f, ZsShapes.fade(c.color(), 0.35f + 0.45f * pulse));
+                g.fill(x + 1, y + 2, x + 3, y + CHIP_H - 2, c.color());
+                String t = c.text();
+                if (font.width(t) > cw - 8) t = font.plainSubstrByWidth(t, cw - 10) + "…";
+                g.drawString(font, t, x + 5, y + 2, c.color(), true);
+                if (c.fill() >= 0) {
+                    float bx = x + 4, bw = cw - 6, by = y + CHIP_H - 1.6f;
+                    ZsShapes.line(g, bx, by, bx + bw, by, 1f, 0x40FFFFFF, 0x40FFFFFF);
+                    if (c.fill() > 0) ZsShapes.line(g, bx, by, bx + bw * c.fill(), by, 1f, c.color(), ZsShapes.lerp(c.color(), 0xFFFFFFFF, 0.3f));
+                    if (c.heavyMark() > 0 && c.heavyMark() < 1) {
+                        float mx = bx + bw * c.heavyMark();
+                        ZsShapes.line(g, mx, by - 1f, mx, by + 1f, 0.8f, 0xC0FFFFFF, 0xC0FFFFFF);
+                    }
+                }
+                x += cw + CHIP_GAP;
+            }
         }
     }
 

@@ -229,6 +229,8 @@ public class EnergyUiConfigScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        // 预览按战斗模式的统一排版（右侧栏堆叠）
+        com.zhushen.space.client.HudLayout.compute(net.minecraft.client.Minecraft.getInstance(), this.width, this.height, true);
         int cx = this.width / 2;
         // 按钮底板（大黑塔卡片）先画，按钮在其上
         int cardX = cx - 138, cardY = this.height - 132, cardW = 286, cardH = 56;

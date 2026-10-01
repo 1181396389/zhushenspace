@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("27"); // 协议版本：装备位 + 魔虚罗法阵
+        PayloadRegistrar registrar = event.registrar("28"); // 协议版本：装备位 + 魔虚罗法阵
         // 装备位穿脱状态 / 魔虚罗法阵适应 / 商城装备
         registrar.playToClient(SyncGearPayload.TYPE, SyncGearPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->

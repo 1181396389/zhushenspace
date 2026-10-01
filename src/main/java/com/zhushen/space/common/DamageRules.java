@@ -855,7 +855,7 @@ public final class DamageRules {
         double best = 0;
         for (var f : PERCENT) best = Math.max(best, f.applyAsDouble(h));
         if (best <= 0) return;
-        float keep = (float) (1 - Math.min(0.95, best));
+        float keep = (float) (1 - Math.min(1.0, best)); // 适应可达 100%（完全适应）
         for (Part p : h.parts) {
             if (p.unavoidable || p.amount <= 0 || p.kinds.stream().anyMatch(DamageKind::ignoresItems)) continue;
             p.amount *= keep;

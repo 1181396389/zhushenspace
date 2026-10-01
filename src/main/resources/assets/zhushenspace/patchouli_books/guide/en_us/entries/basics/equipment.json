@@ -27,12 +27,12 @@
     {
       "type": "patchouli:text",
       "title": "Mahoraga's Wheel",
-      "text": "A rank B item from the shop that occupies the helmet slot.$(br2)Enduring the same phenomenon (an art, a creature's kind of attack, environmental damage, a condition) turns the wheel one notch; that phenomenon's damage and condition points then drop a step, up to four notches - never full immunity.$(br2)It adapts only to rank B or lower damage and abilities; BB and above cannot be adapted."
+      "text": "A rank B item from the shop that occupies the helmet slot.$(br2)Enduring the same phenomenon (an art, a creature's kind of attack, environmental damage, a condition) turns the wheel one notch; that phenomenon's damage and condition points then drop a step (12.5% per notch).$(br2)A full circle of the eight-handled wheel (eight notches) is $(l)full adaptation$(): the phenomenon no longer deals damage or condition points.$(br2)It adapts only to rank B or lower damage and abilities; BB and above cannot be adapted."
     },
     {
       "type": "patchouli:text",
       "title": "Wheel Limits",
-      "text": "$(li)Adaptation only, none of Mahoraga's other powers$(li)At most one turn per round$(li)Remembers three phenomena at once, forgetting the least recent$(li)It is an item: psychic and toxin damage ignore item reduction, so it can't lessen them$(li)Removing it, death or a long rest clears adaptation$(br2)In combat mode a panel on the right shows the wheel and each phenomenon's progress."
+      "text": "$(li)Adaptation only, none of Mahoraga's other powers$(li)At most one turn per round$(li)Any number of phenomena can be adapted to at once$(li)A phenomenon not met for a minute starts being forgotten: first the pending progress, then one notch back per round$(li)It is an item: psychic and toxin damage ignore item reduction, so it can't lessen their damage (their conditions can still be adapted)$(li)Removing it, death or a long rest clears adaptation$(br2)In combat mode a panel on the right shows each phenomenon's progress."
     }
   ]
 }

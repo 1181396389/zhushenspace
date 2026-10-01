@@ -58,9 +58,13 @@ public final class LimbHudRenderer {
 
     private static int baseH() { return style() == STYLE_HERTA ? PH : style() == STYLE_EXAID ? EH : TH; }
 
-    /** 面板位置：配置优先，默认伤势面板下方右对齐 */
+    /** 当前风格的未缩放尺寸 {w, h}（HudLayout 排版用） */
+    public static float[] baseSize() { return new float[]{baseW(), baseH()}; }
+
+    /** 面板位置：配置优先；默认由 HudLayout 排进右侧栏（伤势面板下方） */
     public static float[] layout(int screenW, int screenH, float scale) {
         ClientUiConfig.Data cfg = ClientUiConfig.get();
+        if ((cfg.limbX < 0 || cfg.limbY < 0) && HudLayout.limb != null) return HudLayout.limb.clone();
         float w = baseW() * scale, h = baseH() * scale;
         float x, y;
         if (cfg.limbX < 0 || cfg.limbY < 0) {
@@ -123,8 +127,8 @@ public final class LimbHudRenderer {
     }
 
     private static void draw(GuiGraphics g, Font font, int sw, int sh, int mask, float open) {
-        float scale = ClientUiConfig.get().limbScale;
-        float[] pos = layout(sw, sh, scale);
+        float[] pos = layout(sw, sh, ClientUiConfig.get().limbScale);
+        float scale = pos[2] / baseW();
         g.pose().pushPose();
         g.pose().translate(pos[0], pos[1], 0);
         g.pose().scale(scale, scale, 1f);
