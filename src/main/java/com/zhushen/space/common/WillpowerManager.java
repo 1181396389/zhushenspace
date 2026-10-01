@@ -253,24 +253,26 @@ public final class WillpowerManager {
             int bonus = consumeCheckBonus(attacker);
             if (bonus > 0) event.setAmount(event.getAmount() + bonus);
         }
-        // 意志守御：受到攻击（有攻击者）时本次护甲 +9、韧性 +9
-        if (victim instanceof ServerPlayer player && src.getEntity() != null && src.getEntity() != player
-                && !src.is(DamageTypeTags.BYPASSES_ARMOR)) {
-            State s = STATES.get(player.getUUID());
-            if (s != null && s.armedGuard) {
-                s.armedGuard = false;
-                if (spend(player)) {
-                    applyGuard(player);
-                    s.guardAppliedTick = now(player);
-                    player.displayClientMessage(Component.translatable("msg.zhushenspace.willpower.guard_used",
-                            (int) GUARD_ARMOR, (int) GUARD_TOUGHNESS), true);
-                    willFx(player, false);
-                } else {
-                    lack(player);
-                }
-                sync(player);
-            }
+        // 意志守御：在目标防御结算时（Defense.of → consumeGuard）生效
+    }
+
+    /**
+     * 意志守御：受到攻击、计算防御时调用。已就绪则消耗 1 点意志力，返回本次额外防御（否则 0）。
+     */
+    public static int consumeGuard(ServerPlayer player) {
+        State s = STATES.get(player.getUUID());
+        if (s == null || !s.armedGuard) return 0;
+        s.armedGuard = false;
+        int v = 0;
+        if (spend(player)) {
+            v = (int) GUARD_ARMOR;
+            player.displayClientMessage(Component.translatable("msg.zhushenspace.willpower.guard_used", v), true);
+            willFx(player, false);
+        } else {
+            lack(player);
         }
+        sync(player);
+        return v;
     }
 
     private static void applyGuard(ServerPlayer player) {

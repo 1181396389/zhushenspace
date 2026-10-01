@@ -111,10 +111,9 @@ final class TaczGunEvents {
         // 散弹等多弹丸：属性 + 技能 − 防御 − 减值 按弹丸数平摊到每颗弹丸
         WeaponCategory cat = categoryOf(event.getGunId());
         int pellets = pellets(event.getGunId());
-        float def = event.getHurtEntity() instanceof net.minecraft.world.entity.LivingEntity le ? le.getArmorValue() : 0f;
-        // 目标的倒地 / 不良状态防御修正（远程）；射手自身的攻击减值（冻结、眼睛）
-        if (event.getHurtEntity() instanceof net.minecraft.server.level.ServerPlayer vp)
-            def = Math.max(0f, def + com.zhushen.space.common.StatusManager.defenseMod(vp, true));
+        // 目标防御（玩家：主神空间防御，含倒地 / 不良状态的远程修正；其他生物：护甲值）
+        float def = event.getHurtEntity() instanceof net.minecraft.world.entity.LivingEntity le
+                ? com.zhushen.space.common.Defense.vs(le, player, true, true) : 0f;
         float bonus = CombatFormula.attr(player, cat.attribute) + level - def - CombatFormula.professionPenalty(player, cat)
                 - com.zhushen.space.common.StatusManager.attackPenalty(player, true, event.getHurtEntity());
         event.setBaseAmount(Math.max(0f, event.getBaseAmount() + bonus / pellets));

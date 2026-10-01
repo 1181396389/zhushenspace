@@ -471,8 +471,8 @@ public class TaiChiManager {
 
         if (!isTaiChiEquipped(player)) return;
         float amount = event.getAmount();
-        if (SkillManager.isBrawlBlockActive(player)) {
-            amount = Math.max(0, amount - TAIJI_BLOCK_ARMOR);
+        if (SkillManager.isBrawlBlockActive(player) && Defense.canParry(player, event.getSource().getEntity())) {
+            amount = Math.max(0, amount - TAIJI_BLOCK_ARMOR); // 摊手：额外格挡防御
         }
         // 听劲：化解来力（受到伤害 -20%）
         if (SkillManager.isTingjinActive(player)) {
@@ -916,7 +916,7 @@ public class TaiChiManager {
                     damage += Math.min(target.getAbsorptionAmount(), 6f);
                 }
             }
-            case ELBOW -> damage += 6f * target.getArmorValue() / 20f; // 破甲 6
+            case ELBOW -> damage += Math.min(6f, Defense.vs(target, player, false, false)); // 破甲 6：抵消至多 6 点目标防御
             // 采：3 点严重伤害的即时部分并入本次攻击（命中后再单独 hurt 会被受击无敌帧吞掉）
             case PULL -> {
                 if (!(target instanceof ServerPlayer)) damage += (float) severeHpLoss(3);

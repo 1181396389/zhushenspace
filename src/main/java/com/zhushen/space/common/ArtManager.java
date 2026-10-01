@@ -63,7 +63,7 @@ import java.util.UUID;
  * 通用规则：
  * - 施法判定 = 关键属性 + 神秘学（天生魔力以风度代替智力）；未说明的判定即施法判定。
  * - 伤害上限（未说明时）：持武器 = 武器×1.5 + 关键属性/3 + 神秘学；否则 = 威力×3 + 关键属性/3 + 神秘学。
- * - 1DP = 3 点伤害；附加成功在波动后直接加；意志豁免 = 决心+镇静，反射豁免 = 敏捷+运动，豁免值从伤害中扣除。
+ * - 1DP = 3 点伤害；附加成功在波动后直接加；意志豁免 = 决心+感受+传奇决心，反射豁免 = 敏捷+运动+传奇敏捷，范围豁免 = 反射豁免+范围加值；豁免值从伤害中扣除。
  * - 【高速X】目标防御 −X；【破甲X】防御再 −X；【破魔X】无视 X 点能量抗力；接触攻击只计天生防御。
  * - 姿势成分：需一只空手，擒抱 / 措手不及时不可施放；语言成分：聊天栏念出法术名。
  * - 留手：设定 %，施放时 +1D51−25，截断 0~100；0 = 施放失败（能量照扣）；成功数 × % 向下取整。
@@ -299,16 +299,15 @@ public final class ArtManager {
     /** 目标防御（高速 / 破甲 / 接触） */
     static float defense(ServerPlayer p, LivingEntity t, int speed, int pierce, boolean touch) {
         DamageSource src = ArtDamage.source(null, p, DamageKind.PURE_ENERGY);
-        float d = touch ? (float) (DamageRules.isFlatFooted(t, p) ? 0 : DamageRules.naturalDefense(t))
-                : CombatFormula.defense(t, src);
+        float d = touch ? Defense.touch(t, p) : CombatFormula.defense(t, src);
         return Math.max(0, d - speed - pierce);
     }
 
     static int willSave(LivingEntity t) {
         if (t instanceof ServerPlayer sp) {
             if (mindImmune(sp)) return 999;
-            return Math.max(0, Math.round((mindValue(sp) + PoolEffects.buddhaSave(sp) + PoolEffects.checkBonus(sp, AttributeType.RESOLVE, AttributeType.COMPOSURE))
-                    * DamageVariance.roll(sp.getRandom())) - StatusEffects.willMod(sp)); // 精神束缚：失去 1 点自然成功数
+            // 意志豁免（决心 + 感受 + 传奇决心 + 其他）；佛力：抵抗心灵影响 +2DP
+            return Defense.roll(sp, Defense.will(sp) + PoolEffects.buddhaSave(sp));
         }
         return 0; // 非玩家生物：意志数据待接入
     }
@@ -322,8 +321,7 @@ public final class ArtManager {
         if (!DamageRules.canReflex(t, attacker)) return 0;
         if (t instanceof ServerPlayer sp) {
             if (!StatusEffects.canReflex(sp)) return 0; // 石化 / 昏迷 / 睡眠 / 冰封 / 无助
-            return Math.max(0, Math.round((attr(sp, AttributeType.AGILITY) + skill(sp, SkillType.ATHLETICS) + PoolEffects.checkBonus(sp, AttributeType.AGILITY)
-                    + StatusManager.reflexBonus(sp, area)) * DamageVariance.roll(sp.getRandom())));
+            return Defense.roll(sp, Defense.reflex(sp, area)); // 反射豁免（area = 范围豁免）
         }
         var st = GrappleManager.stats(t);
         return st == null ? 0 : Math.round((st.agi() + st.athletics()) * DamageVariance.roll(t.getRandom()));

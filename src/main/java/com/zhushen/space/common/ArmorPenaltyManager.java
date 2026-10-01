@@ -22,10 +22,8 @@ import java.util.UUID;
  * 盔甲减值：盔甲对人物动作的影响与限制。
  *
  * 每件盔甲的盔甲减值 = 该件护甲值的一半（向下取整），
- * 全身盔甲减值 1:1 减少基础防御（护甲属性），但不会将基础防御减小到 0 以下
- * （护甲属性下限 0，由属性系统自动钳制）。
- * 增益（全力防御类：自我保护/格挡等）与减值同为加法修饰器，
- * 先加后减，最终防御以 0 为下限——与规则书运算顺序一致。
+ * 全身盔甲减值 1:1 减少基础防御，但不会将基础防御减小到 0 以下（结算见 {@link Defense#base}）。
+ * 这里只同步护甲条显示用的修饰器（不超过基础防御）。
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID)
 public class ArmorPenaltyManager {
@@ -60,7 +58,7 @@ public class ArmorPenaltyManager {
     }
 
     private static void reconcile(ServerPlayer player) {
-        int penalty = penaltyOf(player);
+        int penalty = Math.min(penaltyOf(player), Defense.baseRaw(player));
         int applied = APPLIED.getOrDefault(player.getUUID(), -1);
         if (penalty == applied) return;
 

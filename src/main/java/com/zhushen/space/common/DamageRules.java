@@ -168,7 +168,7 @@ public final class DamageRules {
 
     // ===== 结算 =====
 
-    /** 在公式攻击（HIGHEST）之后、原版护甲之前 */
+    /** 在公式攻击（HIGHEST）与防御（HIGH，{@link Defense}）之后 */
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onIncoming(LivingIncomingDamageEvent e) {
         LivingEntity v = e.getEntity();
@@ -261,6 +261,10 @@ public final class DamageRules {
 
     /** 破甲依次击破 盾牌 / 盔甲 / 天生防御，剩余才击破硬度：这里以当前护甲值近似前三者 */
     private static int armorLayers(LivingEntity v) {
+        if (v instanceof net.minecraft.server.level.ServerPlayer sp) {
+            Defense.Parts x = Defense.parts(sp, null, null, false);
+            return x.armor() + x.natural();
+        }
         return (int) Math.floor(v.getArmorValue());
     }
 
@@ -302,8 +306,9 @@ public final class DamageRules {
         if (m != null && attacker != null) m.remove(attacker.getUUID());
     }
 
-    /** 天生防御（敏捷护甲 + 巨大身材天生防御）：措手不及 / 擒抱中失去 */
+    /** 身体防御（玩家：基础 + 全力 + 闪避 + 天生，见 {@link Defense#body}）：措手不及 / 擒抱中失去其中大部分 */
     public static double naturalDefense(LivingEntity m) {
+        if (m instanceof net.minecraft.server.level.ServerPlayer sp) return Defense.body(sp);
         AttributeInstance a = m.getAttribute(Attributes.ARMOR);
         if (a == null) return 0;
         double v = 0;

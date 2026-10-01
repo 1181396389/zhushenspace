@@ -45,7 +45,8 @@ public final class PoolEffects {
 
     public static final String SAGE = "sage";
     /** 轮盘状态位（同步到客户端） */
-    public static final int F_BOOST = 1, F_SPIDER = 2, F_WATER = 4, F_SENSE = 8, F_SIGHT = 16, F_REST = 32, F_MEDITATE = 64;
+    public static final int F_BOOST = 1, F_SPIDER = 2, F_WATER = 4, F_SENSE = 8, F_SIGHT = 16, F_REST = 32, F_MEDITATE = 64,
+            F_FULL_DEF = 128;
 
     private static final Map<UUID, Long> SENSE_UNTIL = new HashMap<>(), SIGHT_UNTIL = new HashMap<>(),
             SPIDER_NEXT = new HashMap<>(), WATER_NEXT = new HashMap<>(), REST_END = new HashMap<>(),
@@ -81,6 +82,7 @@ public final class PoolEffects {
         if (SENSE_UNTIL.getOrDefault(p.getUUID(), 0L) > now) f |= F_SENSE;
         if (SIGHT_UNTIL.getOrDefault(p.getUUID(), 0L) > now) f |= F_SIGHT;
         if (RestManager.isResting(p)) f |= F_REST;
+        if (Defense.fullActive(p)) f |= F_FULL_DEF;
         if (REST_END.containsKey(p.getUUID())) f |= F_MEDITATE;
         return f;
     }
@@ -191,6 +193,7 @@ public final class PoolEffects {
             case 20 -> SurvivalManager.drinkFromSource(p);            // 潜行空手右键水面：喝生水
             case 21 -> StatusManager.standUp(p);                      // 跳跃键：爬起来
             case 22 -> StatusManager.firstAid(p);                     // 急救：止血（对自己或触及范围内的目标）
+            case 23 -> Defense.toggleFull(p);                         // 全力防御：开启期间防御 + 基础防御，发起攻击即解除
             default -> {}
         }
         ArtManager.sync(p);

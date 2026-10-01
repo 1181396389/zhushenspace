@@ -17,13 +17,13 @@ import net.minecraft.world.entity.player.Player;
  *
  * 每点加成：
  * - 力量：攻击伤害+0.5、攻击速度+0.075、移速+2%、击退抗性+5%
- * - 敏捷：护甲值+1、跳跃高度+0.05、安全坠落高度+1、减速方块（蛛网/灵魂沙等）效率+5%、液体移动效率+10%
+ * - 基础防御（护甲条显示）：敏捷 / 感知取高 + 该属性传奇值（结算见 Defense）
+ * - 敏捷：跳跃高度+0.05、安全坠落高度+1、减速方块（蛛网/灵魂沙等）效率+5%、液体移动效率+10%
  * - 耐力：最大生命+2、氧气储备+20%（药水耐受见 AttributeEvents：每 5 点负面效果时长 -15%）
  * 传奇加成（仅当该属性自身满 5 点时激活，按玩家拥有的传奇点数叠加；任一属性满 5 获得 1 点传奇点数）：
  * - 力量：攻击伤害 +3/点
- * - 敏捷：护甲值 +1/点、护甲韧性 +3/点
  * - 耐力：最大生命 +1/点
- * - 感知：护甲韧性 +1/点（弱点勘破为概率事件，见 AttributeEvents；感知范围 +20m 属于后续功能）
+ * - 感知：弱点勘破为概率事件，见 AttributeEvents；感知范围 +20m 属于后续功能
  * - 操作：暴击率 +1%/点（暴击伤害 1.5 倍，见 AttributeEvents）
  * - 沉着（满级后）：移速 +5%/传奇点，封顶 +25%（原 +20%/点无上限，9 点传奇可达 +180%，过快）
  */
@@ -48,13 +48,14 @@ public class AttributeApplier {
         set(player, Attributes.KNOCKBACK_RESISTANCE, "strength_knockback",
                 p[AttributeType.STRENGTH.ordinal()] * 0.05, AttributeModifier.Operation.ADD_VALUE);
 
-        // ===== 敏捷 =====
-        set(player, Attributes.ARMOR, "agility_armor",
-                p[AttributeType.AGILITY.ordinal()] * 1.0
-                        + legBonus(p[AttributeType.AGILITY.ordinal()], leg, 1.0),
+        // ===== 基础防御：敏捷 / 感知取高 + 该属性的传奇值（护甲条显示用；结算见 Defense）=====
+        int hi = Math.max(p[AttributeType.AGILITY.ordinal()], p[AttributeType.PERCEPTION.ordinal()]);
+        set(player, Attributes.ARMOR, "agility_armor", hi + Math.max(0, hi - (AttributeType.MAX_POINTS - 1)),
                 AttributeModifier.Operation.ADD_VALUE);
-        set(player, Attributes.ARMOR_TOUGHNESS, "agility_armor_toughness",
-                legBonus(p[AttributeType.AGILITY.ordinal()], leg, 3.0), AttributeModifier.Operation.ADD_VALUE);
+        // 原版护甲韧性已不参与结算
+        set(player, Attributes.ARMOR_TOUGHNESS, "agility_armor_toughness", 0, AttributeModifier.Operation.ADD_VALUE);
+
+        // ===== 敏捷 =====
         set(player, Attributes.JUMP_STRENGTH, "agility_jump",
                 p[AttributeType.AGILITY.ordinal()] * 0.05, AttributeModifier.Operation.ADD_VALUE);
         set(player, Attributes.SAFE_FALL_DISTANCE, "agility_safe_fall",
@@ -72,9 +73,7 @@ public class AttributeApplier {
         set(player, Attributes.OXYGEN_BONUS, "endurance_oxygen",
                 p[AttributeType.ENDURANCE.ordinal()] * 0.2, AttributeModifier.Operation.ADD_VALUE);
 
-        // ===== 感知（传奇韧性）=====
-        set(player, Attributes.ARMOR_TOUGHNESS, "perception_armor_toughness",
-                legBonus(p[AttributeType.PERCEPTION.ordinal()], leg, 1.0), AttributeModifier.Operation.ADD_VALUE);
+        set(player, Attributes.ARMOR_TOUGHNESS, "perception_armor_toughness", 0, AttributeModifier.Operation.ADD_VALUE);
 
         // ===== 沉着（传奇移速：每点传奇 +5%，封顶 +25%）=====
         set(player, Attributes.MOVEMENT_SPEED, "composure_speed",

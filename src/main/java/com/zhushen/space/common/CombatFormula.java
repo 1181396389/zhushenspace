@@ -46,7 +46,8 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
  * 投掷：  敏捷 + 运动 + 武器伤害 − 目标防御 − 距离减值 ± 调整；上限 = 武器伤害 + 运动 + 力量；距离上限 = 射程单位 × 力量
  * 弓箭：  敏捷 + 运动 + 武器伤害 − 目标防御 − 距离减值 ± 调整；上限 = 武器伤害 × 2 + 运动 + 弓的力量要求；距离上限 = 8 × 射程单位
  * </pre>
- * 目标防御 = 护甲值（玩家只计覆盖命中部位的盔甲）；公式攻击不再重复计算原版护甲减伤。
+ * 目标防御：玩家按主神空间防御（基础 / 全力 / 格挡 / 闪避 / 天生 / 盔甲 / 洞察 / 其他，见 {@link Defense}），
+ * 其他生物 = 护甲值；原版护甲与保护附魔不再按比例减伤。
  * <p>
  * 器械减值：力量前提每差 1 点 −6（弓为 −2 且距离上限少 1 个射程单位），差超过 3 点无法使用；
  * 需要专业的分类（白刃 / 枪械的细分）没有对应专业 −9。
@@ -119,17 +120,9 @@ public final class CombatFormula {
         return Math.max(0, spec(stack).strReq() - attr(p, AttributeType.STRENGTH));
     }
 
-    /** 目标防御：护甲值（玩家按命中部位） */
+    /** 目标防御（本次攻击结算：消耗攻击附带的措手不及与意志守御） */
     public static float defense(LivingEntity victim, DamageSource src) {
-        float d = victim instanceof ServerPlayer sp ? (float) LimbManager.defenseFor(sp, src) : victim.getArmorValue();
-        // 倒地（远程 +3 / 近战 −6）与轻度不良状态（−4）
-        d += StatusManager.defenseMod(victim, src);
-        // 措手不及 / 擒抱中（面对组外攻击）：失去天生防御（闪避、格挡加值待接入）
-        if (DamageRules.isFlatFooted(victim, src.getEntity())) {
-            d -= (float) DamageRules.naturalDefense(victim);
-            DamageRules.consumeFlat(victim, src.getEntity());
-        }
-        return Math.max(0f, d);
+        return Defense.of(victim, src, true);
     }
 
     private static final ResourceLocation STR_ATTACK =
@@ -167,6 +160,7 @@ public final class CombatFormula {
         if (!(src.getEntity() instanceof ServerPlayer p)) return;
         LivingEntity victim = event.getEntity();
         if (p == victim || event.getAmount() <= 0f) return;
+        Defense.endFull(p); // 发起攻击：全力防御解除
         if (WillpowerManager.isBonusStrike(p)) return;
         if (DamageRules.hasPending(victim)) return; // 模组能力伤害（心灵 / 回声检定等）自行结算
         if (GunDamage.isGun(src)) {
@@ -175,9 +169,10 @@ public final class CombatFormula {
             return;
         }
         Entity direct = src.getDirectEntity();
-        float def = defense(victim, src);
+        float def;
         float base;
         if (direct == p) {
+            def = defense(victim, src);
             ItemStack stack = p.getMainHandItem();
             WeaponCategory cat = classify(stack);
             // 枪托 / 弓身 / 投掷武器拿在手里砸人：视为普通人造物品的白刃攻击
@@ -209,6 +204,7 @@ public final class CombatFormula {
                 zeroArmor(event);
                 return;
             }
+            def = defense(victim, src);
             int n = rangeExcess(dist, sp.range());
             int distPen = n * WeaponCategory.RANGE_PENALTY + (deficit > 0 ? n * WeaponCategory.RANGE_PENALTY : 0);
             float wd = event.getAmount();
@@ -229,6 +225,7 @@ public final class CombatFormula {
                 zeroArmor(event);
                 return;
             }
+            def = defense(victim, src);
             int n = rangeExcess(dist, range);
             int distPen = n * WeaponCategory.RANGE_PENALTY + deficit * n * (n + 1);
             float wd = event.getAmount();

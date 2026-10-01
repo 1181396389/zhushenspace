@@ -76,6 +76,11 @@ public final class DamageVariance {
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        vary(event);
+        Defense.apply(event); // 浮动之后：非玩家攻击扣防御、爆炸扣范围豁免
+    }
+
+    private static void vary(LivingIncomingDamageEvent event) {
         DamageSource source = event.getSource();
         // 敌对怪物（含其弹射物）的攻击：50% ~ 100% 浮动
         if (source.getEntity() instanceof net.minecraft.world.entity.monster.Enemy

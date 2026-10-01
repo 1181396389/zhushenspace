@@ -14,19 +14,19 @@ import java.util.List;
  * - GATE_TAI_CHI：解锁太极拳流派后自动解锁（每式消耗 2 点内力）
  */
 public enum SkillAbility {
-    /** 自我保护：极短时间内护甲增加（敏捷+运动）点数，冷却 30 秒 */
+    /** 自我保护：极短时间内防御增加（敏捷+运动）点数，冷却 30 秒；运动或求生 3 点解锁 */
     SELF_PROTECTION(SkillType.ATHLETICS, 3, 30 * 20, null, "self_protection"),
     /** 跳跃：短时间内提升（力量+运动）的跳跃力，仅维持一次跳跃 */
     LEAP(SkillType.ATHLETICS, 4, 8 * 20, null, "leap"),
     /** 攀爬：可爬升（力量+运动）点数的高度 */
     CLIMB(SkillType.ATHLETICS, 5, 15 * 20, null, "climb"),
-    /** 肉搏格挡：短时间内增加相当于肉搏点数的护甲 */
+    /** 肉搏格挡：短时间内增加相当于肉搏点数的格挡防御 */
     BRAWL_BLOCK(SkillType.BRAWL, 3, 20 * 20, null, "brawl_block"),
     /** 摔绊：命中使目标倒地，飞行中的目标直接坠落 */
     TRIP(SkillType.BRAWL, 4, 12 * 20, null, "trip"),
     /** 冲锋攻击：每移动 1 格 +1 攻击伤害，命中时消耗并暂时失去等量基础防御 */
     CHARGE_ATTACK(SkillType.BRAWL, 5, 30 * 20, null, "charge_attack"),
-    /** 白刃格挡：短时间内增加相当于白刃点数的护甲 */
+    /** 白刃格挡：短时间内增加相当于白刃点数的格挡防御 */
     BLADE_BLOCK(SkillType.BLADE, 3, 20 * 20, null, "blade_block"),
     /** 内力吐息（自动档）：开启后近战攻击（含普攻）消耗 1 点内力，+6 伤害；获得内力池自动解锁 */
     NEILI_BREATH(null, 0, 0, "neili", "neili_breath"),
@@ -170,6 +170,19 @@ public enum SkillAbility {
         return gate;
     }
 
+    /** 另一项可以解锁本能力的技能（自我保护：运动或求生任一达到门槛） */
+    public SkillType altOwner() {
+        return this == SELF_PROTECTION ? SkillType.SURVIVAL : null;
+    }
+
+    /** 由技能点解锁的能力是否已解锁（内力系 / 流派系 / 技艺返回 false） */
+    public boolean unlockedBy(int[] skillPoints) {
+        if (owner == null || skillPoints == null) return false;
+        if (skillPoints[owner.ordinal()] >= requiredLevel) return true;
+        SkillType alt = altOwner();
+        return alt != null && alt.ordinal() < skillPoints.length && skillPoints[alt.ordinal()] >= requiredLevel;
+    }
+
     /** 解锁所需技能点数 */
     public int requiredLevel() {
         return requiredLevel;
@@ -226,7 +239,7 @@ public enum SkillAbility {
                 if (hasNeiliPool) result.add(ability);
             } else if (ability.isSchoolAbility()) {
                 if (taiChiUnlocked) result.add(ability);
-            } else if (skillPoints[ability.owner.ordinal()] >= ability.requiredLevel) {
+            } else if (ability.unlockedBy(skillPoints)) {
                 result.add(ability);
             }
         }

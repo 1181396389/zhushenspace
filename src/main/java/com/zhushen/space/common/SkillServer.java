@@ -54,7 +54,7 @@ public class SkillServer {
                     if (!TaiChiManager.isSkillUsable(player, ability)) {
                         checked[i] = -1;
                     }
-                } else if (data.get(ability.owner().ordinal()) < ability.requiredLevel()) {
+                } else if (!ability.unlockedBy(data.points())) {
                     checked[i] = -1;
                 }
             }

@@ -169,7 +169,7 @@ public final class LimbManager {
         return part;
     }
 
-    /** 攻击判定用的目标防御：护甲值（只计覆盖命中部位的盔甲） */
+    /** 旧接口：护甲值（只计覆盖命中部位的盔甲）。攻击判定已改用 {@link Defense} */
     public static double defenseFor(ServerPlayer victim, DamageSource src) {
         double armor = victim.getAttributeValue(Attributes.ARMOR);
         if (src.is(DamageTypeTags.BYPASSES_ARMOR)) return 0;
@@ -236,17 +236,12 @@ public final class LimbManager {
         return src.is(DamageTypes.GENERIC_KILL) || src.is(DamageTypes.FELL_OUT_OF_WORLD);
     }
 
-    /** 数值阶段末尾：判定部位，并临时扣除不覆盖该部位的盔甲 */
+    /** 数值阶段末尾：判定部位（盔甲按部位计入防御，见 Defense；原版护甲已不再减伤） */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onIncoming(LivingIncomingDamageEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player) || bypass(event.getSource())) return;
         LimbPart part = resolvePart(player, event.getSource());
         PENDING.put(player.getUUID(), new Pending(part, now(player)));
-        if (!event.getSource().is(DamageTypeTags.BYPASSES_ARMOR)) {
-            double[] un = uncoveredArmor(player, part);
-            setModifier(player, Attributes.ARMOR, PART_ARMOR_ID, -un[0], AttributeModifier.Operation.ADD_VALUE);
-            setModifier(player, Attributes.ARMOR_TOUGHNESS, PART_TOUGH_ID, -un[1], AttributeModifier.Operation.ADD_VALUE);
-        }
     }
 
     /** 最终伤害：记入命中部位（头清空 → 昏迷；四肢清空 → 断肢） */

@@ -191,8 +191,13 @@ public final class ArtBallistics {
             value -= Math.max(0, ArtManager.reflexSave(t, p, true) - 18);
         } else {
             int speed = shot.skill() == ArtSkill.HADOKEN || shot.skill() == ArtSkill.EIGHT_FORMATION ? 8 : 0;
-            float defense = ArtManager.defense(p, t, speed, 0, false);
-            if (shot.skill() == ArtSkill.WIND_SLASH) defense = Math.max(0, defense - (float) DamageRules.naturalDefense(t));
+            // 风斩：目标失去基础 / 全力 / 闪避 / 天生防御（先于结算取值，避免与措手不及重复扣除）
+            float body = 0;
+            if (shot.skill() == ArtSkill.WIND_SLASH && t instanceof ServerPlayer tp) {
+                Defense.Parts x = Defense.parts(tp, null, p, true);
+                body = x.base() + x.full() + Math.max(0, x.dodge()) + x.natural();
+            }
+            float defense = Math.max(0, ArtManager.defense(p, t, speed, 0, false) - body);
             value = Math.min(shot.cap(), Math.max(0, (shot.check() - defense) * shot.roll() + shot.bonus())) * shot.charge();
         }
         // 弹幕被削弱（受击 / 对撞）后剩余血量越少，命中伤害越低

@@ -182,18 +182,19 @@ public final class StatusManager {
                 - StatusEffects.savePenalty(p, a, t.attr2);
     }
 
+    /** 强韧豁免 = 耐力 + 求生 + 传奇耐力 + 其他（见 Defense） */
     static int fortBase(ServerPlayer p, StatusType t) {
-        return keySum(p, t);
+        return Defense.fort(p);
     }
 
+    /** 反射豁免 = 敏捷 + 运动 + 传奇敏捷 + 其他 */
     static int reflexBase(ServerPlayer p) {
-        return attr(p, AttributeType.AGILITY) + CombatFormula.skill(p, SkillType.ATHLETICS)
-                + PoolEffects.checkBonus(p, AttributeType.AGILITY) + StatusEffects.reflexMod(p, false);
+        return Defense.reflex(p, false);
     }
 
+    /** 意志豁免 = 决心 + 感受 + 传奇决心 + 其他 */
     static int willBase(ServerPlayer p) {
-        return attr(p, AttributeType.RESOLVE) + attr(p, AttributeType.COMPOSURE)
-                + PoolEffects.checkBonus(p, AttributeType.RESOLVE, AttributeType.COMPOSURE) - StatusEffects.willMod(p);
+        return Defense.will(p);
     }
 
     /** 获得点数时的豁免成功数（按类型的默认豁免；「强韧或意志」等取较高者）× 20%~100% 浮动 */

@@ -44,6 +44,10 @@ public class ArtWheelScreen extends Screen {
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.guard"),
                 () -> tr(ClientWillpower.armedGuard() ? "screen.zhushenspace.wheel.armed" : "screen.zhushenspace.wheel.ready"),
                 () -> true, b -> PacketDistributor.sendToServer(new WillpowerActionPayload(1)), null));
+        // 全力防御：开启期间防御再加一次基础防御，发起攻击即解除
+        ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.full_defense"),
+                () -> tr(ClientArtData.flag(PoolEffects.F_FULL_DEF) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.off"),
+                () -> true, b -> art(23, 0, 0), null));
         // ===== 能量池基础用法 =====
         ENTRIES.add(new Entry(() -> tr("screen.zhushenspace.wheel.boost"),
                 () -> tr(ClientArtData.flag(PoolEffects.F_BOOST) ? "screen.zhushenspace.wheel.on" : "screen.zhushenspace.wheel.off"),

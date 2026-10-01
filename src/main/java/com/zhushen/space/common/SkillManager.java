@@ -194,7 +194,7 @@ public class SkillManager {
         long now = System.currentTimeMillis();
         if (now < st.cooldownEndMs[abilityId]) return; // 冷却检查先行，避免先扣内力再退出
         if (ability.owner() != null) {
-            if (data.get(ability.owner().ordinal()) < ability.requiredLevel()) return;
+            if (!ability.unlockedBy(data.points())) return;
         } else if (ability.isArtAbility()) {
             // 技艺：施放失败（条件不足 / 能量不足 / 无目标）不进入冷却
             if (!ArtManager.cast(player, ability, chargeTicks)) return;

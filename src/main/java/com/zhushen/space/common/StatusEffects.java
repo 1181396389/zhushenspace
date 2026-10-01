@@ -269,7 +269,7 @@ public final class StatusEffects {
         return f;
     }
 
-    /** 失去天生防御：冻伤、冰封、石化、昏迷、睡眠、浮空、无助、视觉障碍（强制措手不及） */
+    /** 失去基础防御与闪避加值：冻伤、冰封、石化、昏迷、睡眠、浮空、无助、视觉障碍（强制措手不及） */
     public static boolean loseNatural(ServerPlayer p) {
         return any(p, Condition.FROSTBITE, Condition.FROZEN, Condition.PETRIFIED, Condition.UNCONSCIOUS, Condition.ASLEEP,
                 Condition.ETERNAL_SLEEP, Condition.FLOATING, Condition.HELPLESS, Condition.VISION_IMPAIRED);
@@ -292,7 +292,7 @@ public final class StatusEffects {
         return defenseMod(p, isRanged(src), src.getEntity());
     }
 
-    /** 防御修正：倒地、轻度不良状态（各 −4）、亢奋（−12）、失去天生防御 */
+    /** 防御修正：倒地、轻度不良状态（各 −4）、亢奋（−12） */
     public static float defenseMod(ServerPlayer p, boolean ranged, Entity attacker) {
         float m = 0;
         PlayerConditionData d = data(p);
@@ -307,7 +307,7 @@ public final class StatusEffects {
         if (light(p, StatusType.DAZE)) n++;
         m -= StatusManager.LIGHT_PENALTY * n;
         if (light(p, StatusType.EXCITEMENT)) m -= 12; // 不会减至负数（防御最终截断为 0）
-        if (loseNatural(p) && !DamageRules.isFlatFooted(p, attacker)) m -= (float) DamageRules.naturalDefense(p);
+        // 失去基础 / 闪避 / 格挡防御的状态由 Defense.parts 处理
         return m;
     }
 

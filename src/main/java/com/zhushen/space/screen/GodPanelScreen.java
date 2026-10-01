@@ -1334,7 +1334,7 @@ public class GodPanelScreen extends Screen {
         lines.add(Component.translatable(type.nameKey()).getVisualOrderText());
         lines.addAll(font.split(Component.translatable(type.descKey()), TOOLTIP_WIDTH));
         for (SkillAbility ability : SkillAbility.values()) {
-            if (ability.owner() != type) continue;
+            if (ability.owner() != type && ability.altOwner() != type) continue;
             boolean unlocked = skillPoints[type.ordinal()] >= ability.requiredLevel();
             Component line = Component.translatable("screen.zhushenspace.skill.unlock_line",
                     ability.requiredLevel(),

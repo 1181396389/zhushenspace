@@ -1,7 +1,7 @@
 package com.zhushen.space.data;
 
 /**
- * 诸神空间 9 大技能定义与加点规则（技能加点页）。
+ * 诸神空间技能定义与加点规则（技能加点页）。
  *
  * 规则：
  * - 技能点默认 0（每封主神邀请函额外 +15）
@@ -9,7 +9,7 @@ package com.zhushen.space.data;
  * - 第 1~3 点每点消耗 1 点，3→4、4→5 各消耗 2 点（满级 5 点共消耗 7 点）
  *
  * 各技能效果：
- * - 运动：无被动；3/4/5 点解锁 自我保护 / 跳跃 / 攀爬
+ * - 运动：反射豁免 = 敏捷 + 运动 + 传奇敏捷 + 其他；3/4/5 点解锁 自我保护 / 跳跃 / 攀爬
  * - 肉搏：每点 +1 徒手攻击力；3/4/5 点解锁 肉搏格挡 / 摔绊 / 冲锋攻击
  * - 白刃：每点 +1 冷兵器（非枪械武器）攻击力；3 点解锁 白刃格挡
  * - 手艺：无被动
@@ -19,6 +19,8 @@ package com.zhushen.space.data;
  * - 表达：无被动
  * - 枪械：TACZ 枪械弹头直击伤害加成（需安装 TACZ，见 compat.TaczGunEvents）：
  *   常规枪每点 +5%；霰弹枪 / 机枪 / 弹匣≥50 步枪每点 +10%；狙击 / 火箭筒每点 +20%（均为独立乘区，不作用于爆炸伤害）
+ * - 感受：意志豁免 = 决心 + 感受 + 传奇决心 + 其他
+ * - 求生：强韧豁免 = 耐力 + 求生 + 传奇耐力 + 其他；3 点解锁自我保护（与运动 3 点任一满足即可）
  *
  * 注意：技能点按枚举序号存档，新技能只能追加在末尾，不能插入中间。
  */
@@ -31,7 +33,11 @@ public enum SkillType {
     SCIENCE("science"),
     ANIMAL_COMMUNICATION("animal_communication"),
     EXPRESSION("expression"),
-    FIREARMS("firearms");
+    FIREARMS("firearms"),
+    /** 感受：计入意志豁免 */
+    FEELING("feeling"),
+    /** 求生：计入强韧豁免；3 点解锁自我保护 */
+    SURVIVAL("survival");
 
     public static final int COUNT = values().length;
     public static final int MAX_POINTS = BuildRules.SKILL_CAP;
