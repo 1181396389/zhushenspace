@@ -94,6 +94,15 @@ public final class PoolEffects {
      * attrs = 本次检定涉及的属性。
      */
     public static int checkBonus(ServerPlayer p, AttributeType... attrs) {
+        return bonus(p, true, attrs);
+    }
+
+    /** 同 {@link #checkBonus}，但不扣除能量（HUD 显示用） */
+    public static int peekBonus(ServerPlayer p, AttributeType... attrs) {
+        return bonus(p, false, attrs);
+    }
+
+    private static int bonus(ServerPlayer p, boolean spend, AttributeType... attrs) {
         if (!ArtManager.data(p).boost) return 0;
         boolean mental = false, mind = false, body = false;
         for (AttributeType t : attrs) {
@@ -107,7 +116,7 @@ public final class PoolEffects {
         }
         String[] order = {mind ? "mind" : null, mental ? "magic" : null, body ? "yokai" : null, "psychic"};
         for (String id : order) {
-            if (id != null && cur(p, id) >= 1 && EnergyManager.consume(p, id, 1)) return 3;
+            if (id != null && cur(p, id) >= 1 && (!spend || EnergyManager.consume(p, id, 1))) return 3;
         }
         return 0;
     }

@@ -42,3 +42,11 @@
 - 范围 = 反射 + 对抗范围效果的加值（倒地 +3）
 
 新增技能：感受（FEELING）、求生（SURVIVAL）。自我保护：运动或求生达到 3 点解锁。
+
+## 防御 HUD（艾克赛德风格，取代原版护甲条）
+
+- 服务端 `Defense.onTick` 每 5 tick 计算 `Defense.hud(p)`（整套盔甲、无特定攻击者；能量加值按「若开启」预览，不消耗），
+  变化时发送 `DefenseHudPayload`（防御、基础、盔甲、意志、反射、强韧、范围、状态位），每 20 秒强制同步一次。
+- 客户端 `DefenseHudRenderer` 取消 `VanillaGuiLayers.ARMOR_LEVEL`，在原护甲条位置绘制并上推 `Gui.leftHeight`；
+  拖动后改为固定位置（`RenderGuiEvent.Post`）。状态位：全力防御（金色）、措手不及 / 失去基础（褪色）、无法反射（反射 / 范围熄灭）。
+- 配置：`defHudEnabled / defX / defY / defScale`（界面设置中拖动、缩放、开关）。

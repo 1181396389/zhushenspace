@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("21"); // 协议版本：技能新增感受 / 求生（技能数组长度变化）
+        PayloadRegistrar registrar = event.registrar("22"); // 协议版本：防御 / 豁免 HUD 同步 defense_hud
         registrar.playToClient(SyncAttributesPayload.TYPE, SyncAttributesPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         ClientAttributeData.update(payload.points(), payload.totalPoints())));
@@ -102,6 +102,10 @@ public class ModNetworking {
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer player) com.zhushen.space.common.ArtCharge.handle(player, payload);
                 }));
+
+        // ===== 防御 / 豁免 HUD =====
+        registrar.playToClient(DefenseHudPayload.TYPE, DefenseHudPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientDefenseData.update(payload)));
 
         // ===== 伤害浮动区间（战斗模式 HUD） =====
         registrar.playToClient(DamagePanelPayload.TYPE, DamagePanelPayload.STREAM_CODEC,

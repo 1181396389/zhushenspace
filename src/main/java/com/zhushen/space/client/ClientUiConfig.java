@@ -46,8 +46,8 @@ public class ClientUiConfig {
         public boolean jjkGame = true;
         /** 战斗模式肢体 HUD：是否显示 */
         public boolean limbHudEnabled = true;
-        /** 肢体 HUD 风格：0 = LV.999 像素终端，1 = Q 版大黑塔桌宠提醒 */
-        public int limbHudStyle = 0;
+        /** 肢体 HUD 风格：0 = LV.999 像素终端，1 = Q 版大黑塔桌宠提醒，2 = 假面骑士 Ex-Aid 胸甲（默认） */
+        public int limbHudStyle = 2;
         /** 大黑塔桌宠是否闲聊（事件提醒始终开启） */
         public boolean limbHudQuips = true;
         /** 肢体 HUD 左上角（-1 = 默认：伤势面板下方） */
@@ -55,6 +55,15 @@ public class ClientUiConfig {
         public float limbY = -1;
         /** 肢体 HUD 缩放（0.5 ~ 2.0） */
         public float limbScale = 1.0f;
+        /** 防御 / 豁免 HUD（取代原版护甲条）：是否显示 */
+        public boolean defHudEnabled = true;
+        /** 防御 HUD 左上角（-1 = 默认：原版护甲条位置，随血量行自动上移） */
+        public float defX = -1;
+        public float defY = -1;
+        /** 防御 HUD 缩放（0.5 ~ 2.0） */
+        public float defScale = 1.0f;
+        /** 配置版本（用于一次性迁移默认值） */
+        public int uiVersion = 0;
     }
 
     public static Data get() {
@@ -75,7 +84,14 @@ public class ClientUiConfig {
         if (data.woundScale < 0.5f || data.woundScale > 2.0f) data.woundScale = 1.0f;
         if (data.damageScale < 0.5f || data.damageScale > 2.0f) data.damageScale = 1.0f;
         if (data.limbScale < 0.5f || data.limbScale > 2.0f) data.limbScale = 1.0f;
-        if (data.limbHudStyle < 0 || data.limbHudStyle > 1) data.limbHudStyle = 0;
+        if (data.defScale < 0.5f || data.defScale > 2.0f) data.defScale = 1.0f;
+        // v1：肢体 HUD 默认改为 Ex-Aid 风格（旧配置一次性切换，之后尊重玩家选择）
+        if (data.uiVersion < 1) {
+            data.limbHudStyle = 2;
+            data.uiVersion = 1;
+            dirty = true;
+        }
+        if (data.limbHudStyle < 0 || data.limbHudStyle > 2) data.limbHudStyle = 2;
         if (data.activeBar < 0 || data.activeBar > 1) data.activeBar = 0;
     }
 

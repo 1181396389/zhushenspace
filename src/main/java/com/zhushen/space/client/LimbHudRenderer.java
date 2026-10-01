@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.zhushen.space.ZhuShenSpace;
 import com.zhushen.space.data.LimbPart;
 import com.zhushen.space.screen.ZsAnim;
+import com.zhushen.space.screen.ZsShapes;
 import com.zhushen.space.screen.ZsTheme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -25,6 +26,9 @@ import java.util.Random;
 /**
  * 战斗模式肢体 HUD（仅战斗模式显示，可在界面设置中拖动 / 缩放 / 关闭 / 切换风格）。
  * <ul>
+ *   <li>风格 2「艾克赛德」（默认）：假面骑士 Ex-Aid 胸甲 VR Life Guard——银色手柄型胸甲板，左侧 X 控制器四色按键
+ *       对应四肢（中心灯 = 头部），右侧液晶屏五行 Rider Gauge 斜切阶梯血格；受击弹出「HIT!」漫画字、
+ *       掉血残影、断肢「BREAK!」、濒危「DANGER!」、恢复「RECOVERY!」，昏迷时液晶屏显示「CONTINUE?」。</li>
  *   <li>风格 0「LV.999 终端」：银狼式像素科幻终端，小面积。每个部位一行分段像素血条 + 百分比，
  *       扫描线、闪烁光标、受击时 RGB 分离 + 横向切片故障；断肢显示 ERR / DISCONNECTED 乱码。</li>
  *   <li>风格 1「大黑塔桌宠」：Q 版大黑塔趴在小台子上，不显示任何血条，
@@ -39,18 +43,20 @@ public final class LimbHudRenderer {
     }
 
     public static final float MIN_SCALE = 0.5f, MAX_SCALE = 2.0f;
-    public static final int STYLE_TERMINAL = 0, STYLE_HERTA = 1;
+    public static final int STYLE_TERMINAL = 0, STYLE_HERTA = 1, STYLE_EXAID = 2;
 
     private static final int TW = 90, TH = 60;   // 终端尺寸
     private static final int PW = 50, PH = 48;   // 桌宠尺寸
+    private static final int EW = 128, EH = 64;  // 艾克赛德胸甲尺寸
 
     private static int style() {
-        return ClientUiConfig.get().limbHudStyle == STYLE_HERTA ? STYLE_HERTA : STYLE_TERMINAL;
+        int s = ClientUiConfig.get().limbHudStyle;
+        return s == STYLE_HERTA || s == STYLE_EXAID ? s : STYLE_TERMINAL;
     }
 
-    private static int baseW() { return style() == STYLE_HERTA ? PW : TW; }
+    private static int baseW() { return style() == STYLE_HERTA ? PW : style() == STYLE_EXAID ? EW : TW; }
 
-    private static int baseH() { return style() == STYLE_HERTA ? PH : TH; }
+    private static int baseH() { return style() == STYLE_HERTA ? PH : style() == STYLE_EXAID ? EH : TH; }
 
     /** 面板位置：配置优先，默认伤势面板下方右对齐 */
     public static float[] layout(int screenW, int screenH, float scale) {
@@ -78,6 +84,7 @@ public final class LimbHudRenderer {
         boolean active = CombatModeClient.combatMode() && ClientUiConfig.get().limbHudEnabled;
         if (!active) {
             Herta.reset();
+            ExAid.reset();
             return;
         }
         if (mc.options.hideGui) return;
@@ -122,6 +129,7 @@ public final class LimbHudRenderer {
         g.pose().translate(pos[0], pos[1], 0);
         g.pose().scale(scale, scale, 1f);
         if (style() == STYLE_HERTA) Herta.render(g, font, mask, open, pos[0] + pos[2] / 2f < sw / 2f);
+        else if (style() == STYLE_EXAID) ExAid.render(g, font, mask);
         else Terminal.render(g, font, mask, open);
         g.pose().popPose();
     }
@@ -263,6 +271,297 @@ public final class LimbHudRenderer {
             else { px = 0; py = TH - 1 - (k - 2 * TW - TH); }
             g.fill(px - 1, py, px + 2, py + 1, LIME);
             g.fill(px, py - 1, px + 1, py + 2, LIME);
+        }
+    }
+
+    // =====================================================================
+    // 风格 2：假面骑士 Ex-Aid 胸甲（VR Life Guard + Rider Gauge）
+    // =====================================================================
+
+    private static final class ExAid {
+        static final float LX = 24, LY = 32, LR = 21;          // 左侧 X 控制器圆盘
+        static final float BX = 14, BY = 5, BW = 112, BH = 54;  // 胸甲主体
+        static final float SX = 47, SY = 9, SW = 75, SH = 46;   // 液晶屏
+        static final String[] TAG = {"HD", "RA", "LA", "RL", "LL"};
+        static final int TXT = 0xFFBFD9FF;
+
+        record Pop(String text, int fill, int outline, int burst, float x, float y, long t0, float rot) {}
+
+        static final List<Pop> pops = new ArrayList<>();
+        static final float[] ghost = new float[LimbPart.COUNT];
+        static final long[] ghostAt = new long[LimbPart.COUNT];
+        static final float[] prevRatio = new float[LimbPart.COUNT];
+        static final long[] prevHit = new long[LimbPart.COUNT];
+        static int prevMask;
+        static boolean init;
+        static long lastFrame, lastAlarm, shakeAt;
+        static final Random RNG = new Random();
+
+        static void reset() {
+            init = false;
+            pops.clear();
+        }
+
+        static float rowY(int i) { return 20 + i * 7; }
+
+        static void pop(String text, int fill, int outline, int burst, float y) {
+            if (pops.size() >= 4) pops.remove(0);
+            pops.add(new Pop(text, fill, outline, burst, SX + 40 + RNG.nextInt(9) - 4, y,
+                    System.currentTimeMillis(), RNG.nextFloat() * 18f - 9f));
+        }
+
+        static void sound(float pitch, float volume) {
+            Minecraft.getInstance().getSoundManager().play(
+                    SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_BIT.value(), pitch, volume));
+        }
+
+        /** 对比上一帧：生成弹出字 / 掉血残影 / 抖动 */
+        static void observe(int mask, long now) {
+            if (demo) return;
+            if (!init) {
+                init = true;
+                prevMask = mask;
+                for (LimbPart p : LimbPart.values()) {
+                    int i = p.ordinal();
+                    prevRatio[i] = ghost[i] = ratio(p, mask);
+                    prevHit[i] = ClientLimbData.hitAt(p);
+                }
+                return;
+            }
+            for (LimbPart p : LimbPart.values()) {
+                int i = p.ordinal();
+                float r = ratio(p, mask), pr = prevRatio[i];
+                boolean was = (prevMask & p.bit()) != 0, is = cut(p, mask);
+                float y = rowY(i) + 3;
+                if (is && !was) {
+                    ghost[i] = Math.max(ghost[i], pr);
+                    ghostAt[i] = now;
+                    shakeAt = now;
+                    pop("BREAK!", ExAidStyle.RED, ExAidStyle.WHITE, ExAidStyle.INK, y);
+                    sound(0.6f, 0.7f);
+                } else if (!is && was) {
+                    pop("RECOVERY!", ExAidStyle.LIME, ExAidStyle.INK, ExAidStyle.BTN_GREEN, y);
+                    sound(1.6f, 0.45f);
+                } else if (!is) {
+                    boolean hit = ClientLimbData.hitAt(p) != prevHit[i];
+                    if (r < pr) {
+                        if (ghost[i] < pr) ghost[i] = pr;
+                        ghostAt[i] = now;
+                    }
+                    if (p == LimbPart.HEAD && r <= 0f && pr > 0f) {
+                        pop("STUN!", ExAidStyle.YELLOW, ExAidStyle.INK, ExAidStyle.BTN_BLUE, y);
+                        shakeAt = now;
+                    } else if (r <= 0.3f && pr > 0.3f) {
+                        pop("DANGER!", ExAidStyle.RED, ExAidStyle.WHITE, ExAidStyle.YELLOW, y);
+                        shakeAt = now;
+                        if (now - lastAlarm > 1500) {
+                            lastAlarm = now;
+                            sound(1.9f, 0.5f);
+                        }
+                    } else if (r > pr + 0.25f || (r > 0.6f && pr <= 0.3f)) {
+                        pop("RECOVERY!", ExAidStyle.LIME, ExAidStyle.INK, ExAidStyle.BTN_GREEN, y);
+                    } else if (hit && r < pr) {
+                        boolean big = pr - r >= 0.4f;
+                        pop(big ? "CRITICAL!" : "HIT!", big ? ExAidStyle.ORANGE : ExAidStyle.YELLOW, ExAidStyle.INK,
+                                ExAidStyle.PINK, y);
+                        shakeAt = now;
+                    }
+                }
+                prevRatio[i] = r;
+                prevHit[i] = ClientLimbData.hitAt(p);
+            }
+            prevMask = mask;
+        }
+
+        static boolean danger(int mask) {
+            for (LimbPart p : LimbPart.values()) if (cut(p, mask) || ratio(p, mask) <= 0.3f) return true;
+            return false;
+        }
+
+        static void render(GuiGraphics g, Font font, int mask) {
+            long now = System.currentTimeMillis();
+            observe(mask, now);
+            float dt = lastFrame == 0 ? 0 : Math.min(0.1f, (now - lastFrame) / 1000f);
+            lastFrame = now;
+            long since = demo ? 5000 : ZsAnim.nowMs() - CombatModeClient.combatSince();
+
+            // 残影：停留 0.35 秒后匀速回落到当前值
+            for (LimbPart p : LimbPart.values()) {
+                int i = p.ordinal();
+                float r = demo ? (p == LimbPart.RIGHT_LEG ? 0.45f : ratio(p, mask)) : ratio(p, mask);
+                if (demo) ghost[i] = p == LimbPart.RIGHT_LEG ? 0.7f : r;
+                else if (now - ghostAt[i] > 350) ghost[i] = Math.max(r, ghost[i] - dt * 0.9f);
+                if (ghost[i] < r) ghost[i] = r;
+            }
+
+            float in = ZsAnim.clamp01(since / 380f);
+            float pop = 0.55f + 0.45f * ZsAnim.easeOutBack(in);
+            float fill = ZsAnim.clamp01((since - 220) / 650f);
+            float shake = 0;
+            long st = now - shakeAt;
+            if (!demo && st < 240) shake = (RNG.nextFloat() * 2 - 1) * 1.8f * (1 - st / 240f);
+            boolean danger = danger(mask);
+
+            g.pose().pushPose();
+            g.pose().translate(EW / 2f + shake, EH / 2f + shake * 0.4f, 0);
+            g.pose().scale(pop, pop, 1);
+            g.pose().translate(-EW / 2f, -EH / 2f, 0);
+
+            plateShape(g, now, danger);
+            controller(g, mask, now, fill);
+            screen(g, font, mask, now, fill);
+
+            // 昏迷：CONTINUE?
+            Minecraft mc = Minecraft.getInstance();
+            if (!demo && mc.player != null && UnconsciousClient.isUnconscious(mc.player)) {
+                ExAidStyle.rect(g, SX + 1, SY + 8, SX + SW - 1, SY + SH - 1, 0xC0050A1A);
+                if ((now / 450) % 2 == 0) {
+                    String c = "CONTINUE?";
+                    float sc = 1.4f;
+                    ExAidStyle.pixOutlined(g, c, SX + SW / 2f - ExAidStyle.pixWidth(c) * sc / 2f, SY + 22, sc,
+                            ExAidStyle.YELLOW, ExAidStyle.INK);
+                }
+            }
+            g.pose().popPose();
+
+            // 弹出字（不随胸甲抖动）
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 200);
+            if (demo) {
+                ExAidStyle.comic(g, font, "HIT!", SX + 42, rowY(3) + 3, 0.85f, -8f, ExAidStyle.YELLOW, ExAidStyle.INK,
+                        ExAidStyle.PINK, 1f, 0.3);
+            } else {
+                if (since < 1250) {
+                    float t = since / 1250f;
+                    float a = 1 - ZsAnim.clamp01((since - 950) / 300f);
+                    float sc = 0.5f + 0.5f * ZsAnim.easeOutBack(ZsAnim.clamp01(since / 260f));
+                    ExAidStyle.comic(g, font, "GAME START!", EW / 2f + 6, EH / 2f, sc, -6f, ExAidStyle.YELLOW,
+                            ExAidStyle.INK, ExAidStyle.PINK, a, t * 2);
+                }
+                pops.removeIf(pp -> now - pp.t0() > 1000);
+                for (Pop pp : pops) {
+                    long t = now - pp.t0();
+                    float sc = 0.35f + 0.55f * ZsAnim.easeOutBack(ZsAnim.clamp01(t / 170f));
+                    float a = 1 - ZsAnim.clamp01((t - 720) / 280f);
+                    ExAidStyle.comic(g, font, pp.text(), pp.x(), pp.y() - t / 1000f * 7f, sc, pp.rot(),
+                            pp.fill(), pp.outline(), pp.burst(), a, t / 380.0);
+                }
+            }
+            g.pose().popPose();
+        }
+
+        /** 胸甲轮廓：洋红外圈（濒危时红色脉动）→ 黑描边 → 银色金属 → 荧光绿饰条 */
+        static void plateShape(GuiGraphics g, long now, boolean danger) {
+            float pulse = (float) (0.5 + 0.5 * Math.sin(now / 160.0));
+            int rim = danger ? ZsShapes.lerp(ExAidStyle.PINK, ExAidStyle.RED, pulse) : ExAidStyle.PINK;
+            ZsShapes.disc(g, LX, LY, LR + 3.5f, rim, ExAidStyle.darken(rim, 0.2f));
+            ZsShapes.roundRect(g, BX - 3, BY - 3, BW + 6, BH + 6, 11, rim, ExAidStyle.darken(rim, 0.3f));
+            ZsShapes.disc(g, LX, LY, LR + 1.2f, ExAidStyle.INK);
+            ZsShapes.roundRect(g, BX - 1.2f, BY - 1.2f, BW + 2.4f, BH + 2.4f, 9.2f, ExAidStyle.INK, ExAidStyle.INK);
+            ZsShapes.roundRect(g, BX, BY, BW, BH, 8, ExAidStyle.SILVER_L, ExAidStyle.SILVER_D);
+            ExAidStyle.rectV(g, BX + 8, BY + 0.6f, BX + BW - 8, BY + 1.8f, 0xD0FFFFFF, 0x00FFFFFF);
+            // 圆盘（凸起）+ 倒角
+            ZsShapes.disc(g, LX, LY, LR, ExAidStyle.SILVER_L, ExAidStyle.SILVER);
+            ZsShapes.litRing(g, LX, LY, LR - 2.2f, LR, ExAidStyle.SILVER_D, 0xFFFFFFFF, -Math.PI * 0.72, false);
+            // 荧光绿饰条：右上两道斜切 + 底部长条
+            ExAidStyle.para(g, BX + BW - 30, BY - 4.5f, 10, 3, 2.5f, ExAidStyle.LIME, ExAidStyle.LIME_D);
+            ExAidStyle.para(g, BX + BW - 17, BY - 4.5f, 10, 3, 2.5f, ExAidStyle.LIME, ExAidStyle.LIME_D);
+            ExAidStyle.para(g, SX + 6, BY + BH + 1.5f, SW - 14, 2.2f, -2f, ExAidStyle.LIME, ExAidStyle.LIME_D);
+            // 螺丝
+            screw(g, BX + BW - 5, BY + 5);
+            screw(g, BX + BW - 5, BY + BH - 5);
+            // 状态灯：濒危红闪 / 平时绿
+            int led = danger ? ((now / 200) % 2 == 0 ? ExAidStyle.RED : 0xFF5A1020) : ExAidStyle.LIME;
+            ZsShapes.disc(g, BX + BW - 5, BY + BH / 2f, 2.2f, ExAidStyle.INK);
+            ZsShapes.disc(g, BX + BW - 5, BY + BH / 2f, 1.5f, ExAidStyle.lighten(led, 0.4f), led);
+        }
+
+        static void screw(GuiGraphics g, float x, float y) {
+            ZsShapes.disc(g, x, y, 1.6f, ExAidStyle.SILVER_D, 0xFF5D6470);
+            ExAidStyle.rect(g, x - 1, y - 0.25f, x + 1, y + 0.25f, 0xFF3A3F48);
+        }
+
+        /** X 控制器：四色按键 = 四肢（左上左臂 蓝 / 右上右臂 红 / 左下左腿 绿 / 右下右腿 黄），中心灯 = 头部 */
+        static void controller(GuiGraphics g, int mask, long now, float fill) {
+            ZsShapes.disc(g, LX, LY, 17, 0xFF33384A, ExAidStyle.INK);
+            ZsShapes.litRing(g, LX, LY, 16.4f, 18.2f, ExAidStyle.SILVER_D, ExAidStyle.SILVER_L, -Math.PI * 0.72, true);
+            LimbPart[] parts = {LimbPart.LEFT_ARM, LimbPart.RIGHT_ARM, LimbPart.LEFT_LEG, LimbPart.RIGHT_LEG};
+            int[] cols = {ExAidStyle.BTN_BLUE, ExAidStyle.BTN_RED, ExAidStyle.BTN_GREEN, ExAidStyle.BTN_YELLOW};
+            float[][] off = {{-7.2f, -7.2f}, {7.2f, -7.2f}, {-7.2f, 7.2f}, {7.2f, 7.2f}};
+            for (int k = 0; k < 4; k++) {
+                LimbPart p = parts[k];
+                float r = Math.min(ratio(p, mask), fill);
+                boolean broken = cut(p, mask);
+                long hs = now - hitAt(p);
+                boolean pressed = !demo && hs < 160;
+                float lit = 0.25f + 0.75f * r;
+                if (!broken && r <= 0.3f) lit = 0.15f + 0.85f * (float) Math.abs(Math.sin(now / 140.0));
+                float bx = LX + off[k][0], by = LY + off[k][1];
+                ExAidStyle.button(g, bx, by, 5.3f, cols[k], lit, pressed, broken);
+                if (!demo && hs < 280) {
+                    float t = hs / 280f;
+                    ZsShapes.ring(g, bx, by, 6.3f + t * 4, 7.3f + t * 4, ZsShapes.fade(ExAidStyle.WHITE, 1 - t),
+                            ZsShapes.fade(ExAidStyle.WHITE, 0));
+                }
+            }
+            // 中心：头部灯
+            float rh = Math.min(ratio(LimbPart.HEAD, mask), fill);
+            int hc = ExAidStyle.gaugeColor(rh);
+            if (rh <= 0f) hc = (now / 250) % 2 == 0 ? ExAidStyle.RED : 0xFF3A0A14;
+            else if (rh <= 0.3f && (now / 220) % 2 == 0) hc = ExAidStyle.darken(hc, 0.5f);
+            ZsShapes.disc(g, LX, LY, 3.6f, ExAidStyle.INK);
+            ZsShapes.disc(g, LX, LY, 2.7f, ExAidStyle.lighten(hc, 0.5f), hc);
+            if (rh > 0f) ZsShapes.glow(g, LX, LY, 2.7f, 2.5f, ZsShapes.fade(hc, 0.5f));
+        }
+
+        /** 液晶屏：LIFE GAUGE 标题 + 五行 Rider Gauge */
+        static void screen(GuiGraphics g, Font font, int mask, long now, float fill) {
+            ExAidStyle.lcd(g, SX, SY, SW, SH, now);
+            ExAidStyle.pix(g, "LIFE", SX + 4, SY + 3, ExAidStyle.CYAN);
+            ExAidStyle.pix(g, "GAUGE", SX + 22, SY + 3, ExAidStyle.CYAN_D);
+            boolean blink = (now / 500) % 2 == 0;
+            ExAidStyle.pix(g, "1P", SX + SW - 10, SY + 3, blink ? ExAidStyle.YELLOW : ExAidStyle.ORANGE);
+            ExAidStyle.rect(g, SX + 3, SY + 9.5f, SX + SW - 3, SY + 10, 0x6056F2FF);
+            for (int i = 0; i < LimbPart.COUNT; i++) row(g, LimbPart.values()[i], i, mask, now, fill);
+        }
+
+        static void row(GuiGraphics g, LimbPart p, int i, int mask, long now, float fill) {
+            float y = rowY(i);
+            boolean severed = cut(p, mask);
+            float real = ratio(p, mask);
+            float r = Math.min(real, fill);
+            boolean crit = !severed && real <= 0.3f;
+            boolean blink = (now / 220) % 2 == 0;
+            int tc = severed ? ExAidStyle.RED : crit && blink ? ExAidStyle.RED : TXT;
+            ExAidStyle.pix(g, TAG[i], SX + 4, y + 0.5f, tc);
+            float x0 = SX + 14;
+            if (severed) {
+                for (int k = 0; k < 9; k++) ExAidStyle.para(g, x0 + k * 4.8f, y, 2.4f, 6, 1.5f, 0x55FF3B4E, 0x55FF3B4E);
+                if ((now / 300) % 2 == 0) ExAidStyle.pixShadow(g, "BREAK", x0 + 8, y + 0.5f, ExAidStyle.RED, 0xFF2A0008);
+                ExAidStyle.pix(g, "---", SX + SW - 15, y + 0.5f, ExAidStyle.RED);
+                return;
+            }
+            int col = ExAidStyle.gaugeColor(real);
+            int on = (int) Math.ceil(r * 10 - 1e-4);
+            int ghostOn = (int) Math.ceil(Math.min(ghost[p.ordinal()], fill) * 10 - 1e-4);
+            for (int k = 0; k < 10; k++) {
+                float sx = x0 + k * 4.4f;
+                float hk = 3f + 3f * k / 9f;
+                float top = y + 6 - hk;
+                if (k < on) {
+                    int c = crit && !blink ? ExAidStyle.darken(col, 0.35f) : col;
+                    ExAidStyle.para(g, sx, top, 3f, hk, 1.2f, ExAidStyle.lighten(c, 0.45f), c);
+                    if (k == on - 1 && (now / 160) % 4 == 0) ExAidStyle.para(g, sx, top, 3f, 1f, 1.2f, 0xFFFFFFFF, 0xFFFFFFFF);
+                } else if (k < ghostOn) {
+                    float a = 0.55f + 0.45f * (float) Math.abs(Math.sin(now / 90.0));
+                    ExAidStyle.para(g, sx, top, 3f, hk, 1.2f, ZsShapes.fade(ExAidStyle.PINK_L, a), ZsShapes.fade(ExAidStyle.PINK, a));
+                } else {
+                    ExAidStyle.para(g, sx, top, 3f, hk, 1.2f, ExAidStyle.LCD_OFF, 0xFF132A55);
+                }
+            }
+            if (p == LimbPart.HEAD && real <= 0f && blink) ExAidStyle.pixShadow(g, "STUN", x0 + 12, y + 0.5f, ExAidStyle.YELLOW, ExAidStyle.INK);
+            String num = String.format("%03d", Math.round(r * 100));
+            ExAidStyle.pix(g, num, SX + SW - 15, y + 0.5f, col);
         }
     }
 

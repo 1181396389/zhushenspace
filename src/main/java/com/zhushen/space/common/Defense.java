@@ -5,6 +5,7 @@ import com.zhushen.space.data.AttributeType;
 import com.zhushen.space.data.FeatType;
 import com.zhushen.space.data.LimbPart;
 import com.zhushen.space.data.SkillType;
+import com.zhushen.space.network.DefenseHudPayload;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -237,22 +238,61 @@ public final class Defense {
 
     /** 意志豁免 = 决心 + 感受 + 传奇决心 + 能量加值 − 减值 */
     public static int will(ServerPlayer p) {
+        return will(p, PoolEffects.checkBonus(p, AttributeType.RESOLVE));
+    }
+
+    private static int will(ServerPlayer p, int bonus) {
         return attr(p, AttributeType.RESOLVE) + skill(p, SkillType.FEELING) + legend(p, AttributeType.RESOLVE)
-                + PoolEffects.checkBonus(p, AttributeType.RESOLVE) - StatusEffects.savePenalty(p, AttributeType.RESOLVE)
-                - StatusEffects.willMod(p);
+                + bonus - StatusEffects.savePenalty(p, AttributeType.RESOLVE) - StatusEffects.willMod(p);
     }
 
     /** 反射豁免 = 敏捷 + 运动 + 传奇敏捷 + 能量加值 ± 修正；area = 范围豁免（对抗范围效果，倒地加值） */
     public static int reflex(ServerPlayer p, boolean area) {
+        return reflex(p, area, PoolEffects.checkBonus(p, AttributeType.AGILITY));
+    }
+
+    private static int reflex(ServerPlayer p, boolean area, int bonus) {
         return attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + legend(p, AttributeType.AGILITY)
-                + PoolEffects.checkBonus(p, AttributeType.AGILITY) - StatusEffects.savePenalty(p, AttributeType.AGILITY)
-                + StatusEffects.reflexMod(p, area);
+                + bonus - StatusEffects.savePenalty(p, AttributeType.AGILITY) + StatusEffects.reflexMod(p, area);
     }
 
     /** 强韧豁免 = 耐力 + 求生 + 传奇耐力 + 能量加值 − 减值 */
     public static int fort(ServerPlayer p) {
+        return fort(p, PoolEffects.checkBonus(p, AttributeType.ENDURANCE));
+    }
+
+    private static int fort(ServerPlayer p, int bonus) {
         return attr(p, AttributeType.ENDURANCE) + skill(p, SkillType.SURVIVAL) + legend(p, AttributeType.ENDURANCE)
-                + PoolEffects.checkBonus(p, AttributeType.ENDURANCE) - StatusEffects.savePenalty(p, AttributeType.ENDURANCE);
+                + bonus - StatusEffects.savePenalty(p, AttributeType.ENDURANCE);
+    }
+
+    // ===== HUD 同步（不消耗能量：能量加值按「若开启则 +3」预览） =====
+
+    public static final int HUD_FULL = 1, HUD_FLAT = 2, HUD_NO_REFLEX = 4, HUD_NO_PARRY = 8;
+    private static final java.util.Map<UUID, DefenseHudPayload> LAST_HUD = new java.util.HashMap<>();
+
+    /** 当前防御与豁免的显示值（防御按整套盔甲、无特定攻击者计算） */
+    public static DefenseHudPayload hud(ServerPlayer p) {
+        Parts x = parts(p, null, null, false);
+        int flags = 0;
+        if (fullActive(p)) flags |= HUD_FULL;
+        if (flatVs(p, null) || StatusEffects.loseNatural(p)) flags |= HUD_FLAT;
+        boolean reflexOk = StatusEffects.canReflex(p) && DamageRules.canReflex(p, null);
+        if (!reflexOk) flags |= HUD_NO_REFLEX;
+        if (flatVs(p, null) || StatusEffects.cantBlock(p)) flags |= HUD_NO_PARRY;
+        int agi = PoolEffects.peekBonus(p, AttributeType.AGILITY);
+        return new DefenseHudPayload(x.total(), x.base(), x.armor(),
+                Math.max(0, will(p, PoolEffects.peekBonus(p, AttributeType.RESOLVE))),
+                Math.max(0, reflex(p, false, agi)),
+                Math.max(0, fort(p, PoolEffects.peekBonus(p, AttributeType.ENDURANCE))),
+                reflexOk ? Math.max(0, reflex(p, true, agi)) : 0, flags);
+    }
+
+    private static void syncHud(ServerPlayer p, boolean force) {
+        DefenseHudPayload now = hud(p);
+        if (!force && now.equals(LAST_HUD.get(p.getUUID()))) return;
+        LAST_HUD.put(p.getUUID(), now);
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(p, now);
     }
 
     /** 豁免成功数：确定值 × 20%~100% 浮动 */
@@ -316,11 +356,14 @@ public final class Defense {
 
     @SubscribeEvent
     public static void onTick(ServerTickEvent.Post e) {
-        if (FULL.isEmpty() || e.getServer().getTickCount() % 10 != 0) return;
+        int tc = e.getServer().getTickCount();
+        if (tc % 5 != 0) return;
         for (ServerPlayer p : e.getServer().getPlayerList().getPlayers()) {
-            if (!fullActive(p)) continue;
-            if (!StatusEffects.canAct(p, false)) { endFull(p); continue; }
-            refreshFull(p);
+            if (tc % 10 == 0 && fullActive(p)) {
+                if (!StatusEffects.canAct(p, false)) endFull(p);
+                else refreshFull(p);
+            }
+            syncHud(p, tc % 400 == 0); // 防御 / 豁免 HUD：变化时同步，每 20 秒强制一次
         }
     }
 
@@ -330,7 +373,19 @@ public final class Defense {
     }
 
     @SubscribeEvent
-    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent e) { FULL.remove(e.getEntity().getUUID()); }
+    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent e) {
+        FULL.remove(e.getEntity().getUUID());
+        LAST_HUD.remove(e.getEntity().getUUID());
+    }
+
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent e) { LAST_HUD.remove(e.getEntity().getUUID()); }
+
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent e) { LAST_HUD.remove(e.getEntity().getUUID()); }
+
+    @SubscribeEvent
+    public static void onDim(PlayerEvent.PlayerChangedDimensionEvent e) { LAST_HUD.remove(e.getEntity().getUUID()); }
 
     // ===== 结算 =====
 
