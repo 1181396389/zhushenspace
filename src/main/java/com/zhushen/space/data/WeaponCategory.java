@@ -8,7 +8,8 @@ package com.zhushen.space.data;
  *   <li>弓（含弩）：敏捷 + 运动，射程上限 8 倍射程单位，必须双手</li>
  *   <li>投掷：敏捷 + 运动，射程上限 = 射程单位 × 力量</li>
  *   <li>未分类人造物品：力量 + 白刃，不需要专业；天生武器（空手）：力量 + 肉搏</li>
- *   <li>基础冷兵器：短棍、长棍、战锤、巨锤、匕首（白刃组专业）；拳套（肉搏组专业）</li>
+ *   <li>基础冷兵器：短棍、长棍、战锤、巨锤、匕首、短剑、弯刀、刀、长刀、斧（白刃组专业）；拳套（肉搏组专业）</li>
+ *   <li>专业以位掩码存档（int），分类序号必须 &lt; 32</li>
  * </ul>
  * 注意：按 key 存档（专业选择），新分类可以追加。
  */
@@ -36,7 +37,15 @@ public enum WeaponCategory {
     LONG_STAFF(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "long_staff"),
     WAR_HAMMER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "war_hammer"),
     GREAT_HAMMER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "great_hammer"),
-    DAGGER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "dagger");
+    DAGGER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "dagger"),
+    SHORT_SWORD(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "short_sword"),
+    SCIMITAR(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "scimitar"),
+    /** 刀（中国传统大环刀） */
+    SABER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "saber"),
+    /** 长刀（青龙偃月刀） */
+    GLAIVE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "glaive"),
+    /** 斧（原版斧头也归入此类，见 weapons/axe 标签） */
+    AXE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "axe");
 
     public enum Group { GUN, BLADE, BOW, THROWN, BRAWL }
 

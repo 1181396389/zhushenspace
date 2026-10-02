@@ -86,7 +86,7 @@ public final class WeaponRules {
 
     /** 记录本次攻击的伤势等级 / 伤害类型 / 破甲（由 DamageRules 在 LOWEST 结算时读取） */
     public static void note(LivingEntity v, DamageSource src, MeleeWeapon w, ItemStack stack) {
-        DamageRules.noteMelee(v, src, w.severityFor(stack), EnumSet.of(w.kind), w.armorPierce);
+        DamageRules.noteMelee(v, src, w.severityFor(stack), EnumSet.of(w.kindFor(stack)), w.armorPierce);
     }
 
     /** 目标耐力（玩家 = 耐力属性；其他生物按生命上限估算） */

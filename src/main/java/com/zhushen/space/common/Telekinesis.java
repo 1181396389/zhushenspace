@@ -289,7 +289,7 @@ public final class Telekinesis {
         if (st.getItem() instanceof TridentItem) return DamageKind.PIERCE;
         if (st.getItem() instanceof MaceItem) return DamageKind.BLUNT;
         com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(st);
-        if (mw != null) return mw.kind;
+        if (mw != null) return mw.kindFor(st);
         WeaponCategory c = CombatFormula.classify(st);
         if (c == WeaponCategory.RAPIER) return DamageKind.PIERCE;
         return DamageKind.SLASH;

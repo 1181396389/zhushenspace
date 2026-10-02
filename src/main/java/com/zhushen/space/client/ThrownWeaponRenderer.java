@@ -21,8 +21,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 
 /**
- * 投出的冷兵器：直接渲染物品模型，刀尖沿飞行方向（物品贴图的刀尖朝右上，绕 Z 轴转 −45° 对齐 +X）；
- * 飞行中带一点沿刀身的旋转让投掷更有速度感，插在地上 / 目标上后静止。
+ * 投出的冷兵器：直接渲染物品模型，刀尖 / 斧头沿飞行方向（物品贴图的头部朝右上，绕 Z 轴转 −45° 对齐 +X）；
+ * 飞行中匕首沿刀身滚转、飞斧 / 飞锤首尾翻滚，插在地上 / 目标上后静止。
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeapon> {
@@ -47,8 +47,14 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeapon> {
         pose.mulPose(Axis.YP.rotationDegrees(Mth.lerp(pt, e.yRotO, e.getYRot()) - 90.0f));
         pose.mulPose(Axis.ZP.rotationDegrees(Mth.lerp(pt, e.xRotO, e.getXRot())));
         if (!e.inGround()) {
-            // 沿刀身轴（+X）滚转
-            pose.mulPose(Axis.XP.rotationDegrees((e.tickCount + pt) * 40f));
+            var w = com.zhushen.space.data.MeleeWeapon.of(st);
+            if (w != null && w.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_THROWN)) {
+                // 飞斧 / 飞锤：首尾翻滚
+                pose.mulPose(Axis.ZP.rotationDegrees(-(e.tickCount + pt) * 45f));
+            } else {
+                // 匕首：沿刀身轴（+X）滚转
+                pose.mulPose(Axis.XP.rotationDegrees((e.tickCount + pt) * 40f));
+            }
         }
         pose.translate(0.15f, 0f, 0f); // 刀尖前置：插入方块 / 目标时刀尖没入、刀柄露在外面
         pose.mulPose(Axis.ZP.rotationDegrees(-45.0f));

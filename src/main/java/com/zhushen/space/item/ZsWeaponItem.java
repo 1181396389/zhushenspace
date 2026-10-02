@@ -35,8 +35,8 @@ import java.util.Locale;
  * 基础冷兵器（数据见 {@link MeleeWeapon}）。
  * <ul>
  *   <li>原版攻击伤害 = 武器伤害（攻击判定公式取「除力量加成外」的部分作为武器伤害）；长柄武器 +2 米触及。</li>
- *   <li>冲击武器：潜行 + 右键在「严重伤害 / 冲击伤害」之间切换（存于物品自定义数据 ZsImpact）。</li>
- *   <li>可投掷的武器（匕首）：按住右键蓄力（至少半秒）后松开投出，命中后落地可捡回。</li>
+ *   <li>攻击方式：潜行 + 右键切换伤害类型（长剑：穿刺 / 挥砍）与冲击武器的「严重 / 冲击」（自定义数据 ZsMode）。</li>
+ *   <li>可投掷的武器（匕首、飞斧、飞锤）：按住右键蓄力（至少半秒）后松开投出，命中后落地可捡回。</li>
  * </ul>
  */
 public class ZsWeaponItem extends Item {
@@ -76,13 +76,17 @@ public class ZsWeaponItem extends Item {
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack st = player.getItemInHand(hand);
-        if (weapon.has(Trait.IMPACT) && player.isSecondaryUseActive()) {
+        if (weapon.modeCount() > 1 && player.isSecondaryUseActive()) {
             if (!level.isClientSide) {
-                boolean on = !MeleeWeapon.impactMode(st);
-                CustomData.update(DataComponents.CUSTOM_DATA, st, tag -> tag.putBoolean("ZsImpact", on));
-                player.displayClientMessage(Component.translatable(on ? "msg.zhushenspace.weapon.impact_on"
-                        : "msg.zhushenspace.weapon.impact_off", Component.translatable(weapon.nameKey())), true);
-                level.playSound(null, player.blockPosition(), SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.PLAYERS, 0.7f, on ? 0.8f : 1.3f);
+                int next = (weapon.mode(st) + 1) % weapon.modeCount();
+                CustomData.update(DataComponents.CUSTOM_DATA, st, tag -> {
+                    tag.remove("ZsImpact");
+                    tag.putInt("ZsMode", next);
+                });
+                player.displayClientMessage(Component.translatable("msg.zhushenspace.weapon.mode",
+                        Component.translatable(weapon.nameKey()), modeLabel(weapon, next)), true);
+                level.playSound(null, player.blockPosition(), SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.PLAYERS, 0.7f,
+                        0.8f + 0.5f * next / Math.max(1, weapon.modeCount() - 1));
             }
             return InteractionResultHolder.sidedSuccess(st, level.isClientSide());
         }
@@ -121,6 +125,13 @@ public class ZsWeaponItem extends Item {
         p.awardStat(Stats.ITEM_USED.get(this));
     }
 
+    /** 攻击方式名称：伤害类型（+ 冲击武器的伤势等级） */
+    public static Component modeLabel(MeleeWeapon w, int mode) {
+        MutableComponent c = Component.translatable(w.kindOf(mode).nameKey());
+        if (w.has(Trait.IMPACT)) c.append(" · ").append(Component.translatable("tooltip.zhushenspace.weapon.sev_" + w.severityOf(mode).name().toLowerCase(java.util.Locale.ROOT)));
+        return c;
+    }
+
     // ===== 说明 =====
 
     private static String num(float v) {
@@ -137,7 +148,11 @@ public class ZsWeaponItem extends Item {
                 ? "tooltip.zhushenspace.weapon.natural" : "tooltip.zhushenspace.weapon.damage", dmg);
         if (weapon.armorPierce > 0)
             line.append(" · ").append(Component.translatable("tooltip.zhushenspace.weapon.pierce", weapon.armorPierce));
-        line.append(" · ").append(Component.translatable(weapon.kind.nameKey()));
+        line.append(" · ");
+        for (int i = 0; i < weapon.kinds.length; i++) {
+            if (i > 0) line.append(Component.translatable("tooltip.zhushenspace.weapon.or"));
+            line.append(Component.translatable(weapon.kinds[i].nameKey()));
+        }
         if (weapon.throwRange > 0)
             line.append(" · ").append(Component.translatable("tooltip.zhushenspace.weapon.throw", weapon.throwRange));
         tips.add(line.withStyle(ChatFormatting.WHITE));
@@ -158,9 +173,9 @@ public class ZsWeaponItem extends Item {
                     .append(Component.literal("：").withStyle(ChatFormatting.YELLOW))
                     .append(Component.translatable(t.descKey()).withStyle(ChatFormatting.GRAY)));
         }
-        if (weapon.has(Trait.IMPACT)) {
-            tips.add(Component.translatable(MeleeWeapon.impactMode(stack) ? "tooltip.zhushenspace.weapon.mode_b"
-                    : "tooltip.zhushenspace.weapon.mode_l").withStyle(ChatFormatting.GREEN));
+        if (weapon.modeCount() > 1) {
+            tips.add(Component.translatable("tooltip.zhushenspace.weapon.mode", modeLabel(weapon, weapon.mode(stack)))
+                    .withStyle(ChatFormatting.GREEN));
         }
         if (weapon.throwRange > 0)
             tips.add(Component.translatable("tooltip.zhushenspace.weapon.throw_hint").withStyle(ChatFormatting.DARK_GRAY));

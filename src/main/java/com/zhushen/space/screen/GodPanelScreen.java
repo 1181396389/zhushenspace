@@ -1080,9 +1080,15 @@ public class GodPanelScreen extends Screen {
     private int[] profBox() {
         int n = com.zhushen.space.data.WeaponCategory.choices(
                 com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]).size();
-        int rows = (n + 1) / 2;
-        int w = PROF_BTN_W * 2 + 18, h = 44 + rows * (PROF_BTN_H + 4) + 22;
+        int cols = profCols(), rows = (n + cols - 1) / cols;
+        int w = PROF_BTN_W * cols + 6 * (cols - 1) + 12, h = 44 + rows * (PROF_BTN_H + 4) + 22;
         return new int[]{panelX + (panelW - w) / 2, panelY + (panelH - h) / 2, w, h};
+    }
+
+    /** 选项超过 8 个（白刃组）时排成 3 列 */
+    private int profCols() {
+        return com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]).size() > 8 ? 3 : 2;
     }
 
     /** 专业选择框：列出该组分类，点击即选定（不可更改） */
@@ -1101,7 +1107,8 @@ public class GodPanelScreen extends Screen {
         var list = com.zhushen.space.data.WeaponCategory.choices(
                 com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
         for (int k = 0; k < list.size(); k++) {
-            int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
+            int cols = profCols();
+            int bx = b[0] + 6 + (k % cols) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / cols) * (PROF_BTN_H + 4);
             boolean owned = (ClientSkillData.professionMask(profChooser) & (1 << list.get(k).ordinal())) != 0;
             if (owned) {
                 g.fill(bx, by, bx + PROF_BTN_W, by + PROF_BTN_H, 0x55000000);
@@ -1123,7 +1130,8 @@ public class GodPanelScreen extends Screen {
         var list = com.zhushen.space.data.WeaponCategory.choices(
                 com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]);
         for (int k = 0; k < list.size(); k++) {
-            int bx = b[0] + 6 + (k % 2) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / 2) * (PROF_BTN_H + 4);
+            int cols = profCols();
+            int bx = b[0] + 6 + (k % cols) * (PROF_BTN_W + 6), by = b[1] + 36 + (k / cols) * (PROF_BTN_H + 4);
             if (over(mouseX, mouseY, bx, by, PROF_BTN_W, PROF_BTN_H)
                     && (ClientSkillData.professionMask(profChooser) & (1 << list.get(k).ordinal())) == 0) {
                 PacketDistributor.sendToServer(new com.zhushen.space.network.ChooseProfessionPayload(
@@ -1619,14 +1627,15 @@ public class GodPanelScreen extends Screen {
             dy += 10;
         }
         // 代表物品：魔虚罗法阵 + 冷兵器（小图标排成一行）
-        int ix = cx + 8;
+        String detail = Component.translatable("screen.zhushenspace.shop.detail").getString();
+        int ix = cx + 8, ixMax = cx + cw - font.width(detail) - 12 - 16;
         g.renderItem(new net.minecraft.world.item.ItemStack(ZhuShenSpace.MAHORAGA_WHEEL.get()), ix, cy + 35);
         ix += 18;
         for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
+            if (ix > ixMax) break;
             g.renderItem(new net.minecraft.world.item.ItemStack(ZhuShenSpace.weaponItem(w)), ix, cy + 35);
-            ix += 17;
+            ix += 16;
         }
-        String detail = Component.translatable("screen.zhushenspace.shop.detail").getString();
         g.drawString(font, detail, cx + cw - font.width(detail) - 8, cy + 39, ACCENT, true);
         g.flush();
         g.disableScissor();
@@ -1647,11 +1656,21 @@ public class GodPanelScreen extends Screen {
         return base + com.zhushen.space.data.ShopGear.COUNT * (GEAR_CARD_H + 4) + GEAR_SECTION_H + i * (WEAPON_ROW_H + WEAPON_ROW_GAP);
     }
 
+    /** 伤害类型（可选多种时以「/」分隔） */
+    private static String kindsText(com.zhushen.space.data.MeleeWeapon w) {
+        StringBuilder b = new StringBuilder();
+        for (var k : w.kinds) {
+            if (b.length() > 0) b.append("/");
+            b.append(Component.translatable(k.nameKey()).getString());
+        }
+        return b.toString();
+    }
+
     /** 武器行副标题：分类 · 伤害 · 重量 */
     private String weaponLine(com.zhushen.space.data.MeleeWeapon w) {
         String dmg = (w == com.zhushen.space.data.MeleeWeapon.KNUCKLE ? "+" : "") + w.damage + w.severity.name()
                 + (w.armorPierce > 0 ? " " + Component.translatable("tooltip.zhushenspace.weapon.pierce", w.armorPierce).getString() : "")
-                + " " + Component.translatable(w.kind.nameKey()).getString();
+                + " " + kindsText(w);
         String kg = (w.weight == Math.floor(w.weight) ? String.valueOf((int) w.weight) : String.valueOf(w.weight)) + " kg";
         return Component.translatable(w.category.nameKey()).getString() + " · " + dmg + " · " + kg;
     }

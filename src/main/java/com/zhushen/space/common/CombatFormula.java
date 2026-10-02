@@ -67,6 +67,7 @@ public final class CombatFormula {
     }
 
     public static final TagKey<Item> LONGSWORD = tag("longsword");
+    public static final TagKey<Item> AXE = tag("axe");
     public static final TagKey<Item> GREATSWORD = tag("greatsword");
     public static final TagKey<Item> RAPIER = tag("rapier");
     public static final TagKey<Item> FAN = tag("fan");
@@ -100,6 +101,7 @@ public final class CombatFormula {
         if (stack.is(RAPIER)) return WeaponCategory.RAPIER;
         if (stack.is(FAN)) return WeaponCategory.FAN;
         if (stack.is(LONGSWORD)) return WeaponCategory.LONGSWORD;
+        if (stack.is(AXE)) return WeaponCategory.AXE;
         return WeaponCategory.GENERIC;
     }
 

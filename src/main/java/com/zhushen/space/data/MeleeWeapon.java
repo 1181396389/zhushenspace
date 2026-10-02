@@ -16,23 +16,52 @@ import java.util.Set;
  */
 public enum MeleeWeapon {
     /** 手指虎：提升双拳天生武器 1L；【肉搏武器】；钝击武器 */
-    KNUCKLE("knuckle", WeaponCategory.KNUCKLE, 1, 0.3f, 1, Severity.L, DamageKind.BLUNT, 0, -1.0f, 0,
+    KNUCKLE("knuckle", WeaponCategory.KNUCKLE, 1, 0.3f, 1, Severity.L, K(DamageKind.BLUNT), 0, -1.0f, 0,
             EnumSet.of(Trait.BRAWL_WEAPON, Trait.BLUNT_ONLY)),
     /** 短棍：2L 钝击；【眩晕】；冲击武器 */
-    SHORT_STAFF("short_staff", WeaponCategory.SHORT_STAFF, 2, 1.0f, 2, Severity.L, DamageKind.BLUNT, 0, -2.2f, 0,
+    SHORT_STAFF("short_staff", WeaponCategory.SHORT_STAFF, 2, 1.0f, 2, Severity.L, K(DamageKind.BLUNT), 0, -2.2f, 0,
             EnumSet.of(Trait.STUN, Trait.IMPACT)),
     /** 长棍：2L 钝击；【长柄武器】【沉重】【双手】；冲击武器 */
-    LONG_STAFF("long_staff", WeaponCategory.LONG_STAFF, 4, 2.5f, 2, Severity.L, DamageKind.BLUNT, 0, -2.9f, 0,
+    LONG_STAFF("long_staff", WeaponCategory.LONG_STAFF, 4, 2.5f, 2, Severity.L, K(DamageKind.BLUNT), 0, -2.9f, 0,
             EnumSet.of(Trait.REACH, Trait.HEAVY, Trait.TWO_HANDED, Trait.IMPACT)),
     /** 战锤：2L 钝击；【威猛】 */
-    WAR_HAMMER("war_hammer", WeaponCategory.WAR_HAMMER, 2, 2.0f, 2, Severity.L, DamageKind.BLUNT, 0, -2.8f, 0,
+    WAR_HAMMER("war_hammer", WeaponCategory.WAR_HAMMER, 2, 2.0f, 2, Severity.L, K(DamageKind.BLUNT), 0, -2.8f, 0,
             EnumSet.of(Trait.MIGHTY)),
     /** 巨锤：2L 破甲 1 钝击；【威猛】【沉重】【双手】；重武器 */
-    GREAT_HAMMER("great_hammer", WeaponCategory.GREAT_HAMMER, 4, 8.0f, 2, Severity.L, DamageKind.BLUNT, 1, -3.2f, 0,
+    GREAT_HAMMER("great_hammer", WeaponCategory.GREAT_HAMMER, 4, 8.0f, 2, Severity.L, K(DamageKind.BLUNT), 1, -3.2f, 0,
             EnumSet.of(Trait.MIGHTY, Trait.HEAVY, Trait.TWO_HANDED, Trait.HEAVY_WEAPON)),
     /** 匕首：1L 穿刺，基本投掷射程 10 米；【轻投掷武器】；轻型武器 */
-    DAGGER("dagger", WeaponCategory.DAGGER, 1, 0.5f, 1, Severity.L, DamageKind.PIERCE, 0, -1.6f, 10,
-            EnumSet.of(Trait.LIGHT_THROWN, Trait.LIGHT_WEAPON));
+    DAGGER("dagger", WeaponCategory.DAGGER, 1, 0.5f, 1, Severity.L, K(DamageKind.PIERCE), 0, -1.6f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.LIGHT_WEAPON)),
+    /** 短剑：1L 破甲 1 穿刺；轻型武器 */
+    SHORT_SWORD("short_sword", WeaponCategory.SHORT_SWORD, 2, 1.0f, 1, Severity.L, K(DamageKind.PIERCE), 1, -1.8f, 0,
+            EnumSet.of(Trait.LIGHT_WEAPON)),
+    /** 长剑：2L 破甲 1，穿刺或挥砍 */
+    LONGSWORD("longsword", WeaponCategory.LONGSWORD, 3, 1.5f, 2, Severity.L, K(DamageKind.PIERCE, DamageKind.SLASH), 1, -2.4f, 0,
+            EnumSet.noneOf(Trait.class)),
+    /** 重剑（巨剑）：2L，钝击或挥砍；【威猛】【沉重】【双手】 */
+    GREATSWORD("greatsword", WeaponCategory.GREATSWORD, 4, 6.0f, 2, Severity.L, K(DamageKind.BLUNT, DamageKind.SLASH), 0, -3.0f, 0,
+            EnumSet.of(Trait.MIGHTY, Trait.HEAVY, Trait.TWO_HANDED)),
+    /** 弯刀：1L 破甲 1 挥砍；轻型武器 */
+    SCIMITAR("scimitar", WeaponCategory.SCIMITAR, 3, 1.5f, 1, Severity.L, K(DamageKind.SLASH), 1, -2.0f, 0,
+            EnumSet.of(Trait.LIGHT_WEAPON)),
+    /** 刀（大环刀）：2L 挥砍；【威猛】 */
+    SABER("saber", WeaponCategory.SABER, 3, 2.0f, 2, Severity.L, K(DamageKind.SLASH), 0, -2.5f, 0,
+            EnumSet.of(Trait.MIGHTY)),
+    /** 长刀（青龙偃月刀）：1L 挥砍；【威猛】【长柄武器】【沉重】【双手】；重武器 */
+    GLAIVE("glaive", WeaponCategory.GLAIVE, 4, 10.0f, 1, Severity.L, K(DamageKind.SLASH), 0, -3.2f, 0,
+            EnumSet.of(Trait.MIGHTY, Trait.REACH, Trait.HEAVY, Trait.TWO_HANDED, Trait.HEAVY_WEAPON)),
+    /** 飞斧：2L 挥砍，基本投掷射程 10 米；【重投掷武器】 */
+    THROWING_AXE("throwing_axe", WeaponCategory.AXE, 2, 1.0f, 2, Severity.L, K(DamageKind.SLASH), 0, -2.6f, 10,
+            EnumSet.of(Trait.HEAVY_THROWN)),
+    /** 飞锤（飞斧的锤形）：2L 钝击，基本投掷射程 10 米；【重投掷武器】 */
+    THROWING_HAMMER("throwing_hammer", WeaponCategory.WAR_HAMMER, 2, 1.0f, 2, Severity.L, K(DamageKind.BLUNT), 0, -2.6f, 10,
+            EnumSet.of(Trait.HEAVY_THROWN)),
+    /** 战斧：2L 破甲 2 挥砍 */
+    BATTLE_AXE("battle_axe", WeaponCategory.AXE, 3, 2.0f, 2, Severity.L, K(DamageKind.SLASH), 2, -2.9f, 0,
+            EnumSet.noneOf(Trait.class));
+
+    private static DamageKind[] K(DamageKind... k) { return k; }
 
     /** 模板价格（奖励点数） */
     public static final int PRICE = 200;
@@ -46,6 +75,7 @@ public enum MeleeWeapon {
         TWO_HANDED("two_handed", false),
         MIGHTY("mighty", false),
         LIGHT_THROWN("light_thrown", false),
+        HEAVY_THROWN("heavy_thrown", false),
         /** 钝击武器（手指虎） */
         BLUNT_ONLY("blunt_only", true),
         /** 冲击武器：可选择造成冲击伤害 */
@@ -77,7 +107,10 @@ public enum MeleeWeapon {
     /** 武器伤害（手指虎：天生武器伤害的提升值） */
     public final int damage;
     public final Severity severity;
+    /** 主要伤害类型（= kinds[0]） */
     public final DamageKind kind;
+    /** 可选择的伤害类型（如长剑：穿刺或挥砍） */
+    public final DamageKind[] kinds;
     public final int armorPierce;
     /** 原版攻击速度修饰（基础 4.0 之上） */
     public final float attackSpeed;
@@ -86,14 +119,15 @@ public enum MeleeWeapon {
     private final Set<Trait> traits;
 
     MeleeWeapon(String key, WeaponCategory category, int volume, float weight, int damage, Severity severity,
-                DamageKind kind, int armorPierce, float attackSpeed, int throwRange, Set<Trait> traits) {
+                DamageKind[] kinds, int armorPierce, float attackSpeed, int throwRange, Set<Trait> traits) {
         this.key = key;
         this.category = category;
         this.volume = volume;
         this.weight = weight;
         this.damage = damage;
         this.severity = severity;
-        this.kind = kind;
+        this.kind = kinds[0];
+        this.kinds = kinds;
         this.armorPierce = armorPierce;
         this.attackSpeed = attackSpeed;
         this.throwRange = throwRange;
@@ -122,14 +156,27 @@ public enum MeleeWeapon {
         return stack.getItem() instanceof com.zhushen.space.item.ZsWeaponItem w ? w.weapon() : null;
     }
 
-    /** 冲击武器当前是否选择造成冲击伤害（物品自定义数据 ZsImpact） */
-    public static boolean impactMode(ItemStack stack) {
+    // ===== 攻击方式（潜行 + 右键切换）：伤害类型 × 伤势等级（冲击武器可选 B） =====
+
+    /** 可切换的攻击方式数（1 = 不可切换） */
+    public int modeCount() { return kinds.length * (has(Trait.IMPACT) ? 2 : 1); }
+
+    /** 物品当前的攻击方式序号（自定义数据 ZsMode；旧版 ZsImpact = true 视为 1） */
+    public int mode(ItemStack stack) {
         var data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
-        return data != null && data.copyTag().getBoolean("ZsImpact");
+        if (data == null) return 0;
+        var tag = data.copyTag();
+        int m = tag.contains("ZsMode") ? tag.getInt("ZsMode") : tag.getBoolean("ZsImpact") ? 1 : 0;
+        return Math.floorMod(m, modeCount());
     }
 
+    public DamageKind kindOf(int mode) { return kinds[has(Trait.IMPACT) ? mode / 2 : mode]; }
+
+    public Severity severityOf(int mode) { return has(Trait.IMPACT) && mode % 2 == 1 ? Severity.B : severity; }
+
+    /** 本次攻击的伤害类型 */
+    public DamageKind kindFor(ItemStack stack) { return kindOf(mode(stack)); }
+
     /** 本次攻击的伤势等级：冲击武器选择冲击伤害时为 B */
-    public Severity severityFor(ItemStack stack) {
-        return has(Trait.IMPACT) && impactMode(stack) ? Severity.B : severity;
-    }
+    public Severity severityFor(ItemStack stack) { return severityOf(mode(stack)); }
 }
