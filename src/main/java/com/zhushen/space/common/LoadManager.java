@@ -66,7 +66,9 @@ public final class LoadManager {
     public static float weight(ItemStack st) {
         if (st.isEmpty()) return 0f;
         MeleeWeapon w = MeleeWeapon.of(st);
-        return w != null ? w.weight * st.getCount() : 0f;
+        if (w != null) return w.weight * st.getCount();
+        com.zhushen.space.data.ShieldType sh = com.zhushen.space.item.ZsShieldItem.of(st);
+        return sh != null ? sh.weight * st.getCount() : 0f;
     }
 
     /** 当前携带的总重量 */

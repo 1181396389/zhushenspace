@@ -83,7 +83,7 @@ public final class MagicSpells {
         if (!ArtManager.pay(p, s, s.cost)) return false;
         ItemStack held = p.getMainHandItem();
         WeaponCategory cat = CombatFormula.classify(held);
-        boolean blade = !held.isEmpty() && cat.group == WeaponCategory.Group.BLADE;
+        boolean blade = !held.isEmpty() && cat.group == WeaponCategory.Group.BLADE && cat != WeaponCategory.HIDDEN_WEAPON;
         // 手中白刃武器：武器伤害代替威力值，并继承武器的力量前提 / 专业减值与附魔效果
         float weapon = blade ? ArtManager.heldWeapon(p) : 0f;
         int pen = 0;

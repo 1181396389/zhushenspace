@@ -1649,7 +1649,7 @@ public class GodPanelScreen extends Screen {
 
     private int gearContentH() {
         return com.zhushen.space.data.ShopGear.COUNT * (GEAR_CARD_H + 4) + GEAR_SECTION_H
-                + (com.zhushen.space.data.MeleeWeapon.COUNT + 1) * (WEAPON_ROW_H + WEAPON_ROW_GAP); // +1 = 弩矢
+                + (com.zhushen.space.data.MeleeWeapon.COUNT + 2) * (WEAPON_ROW_H + WEAPON_ROW_GAP); // +2 = 弩矢、盾牌
     }
 
     private int gearMaxScroll() { return Math.max(0, gearContentH() - (listBottom - gearContentTop())); }
@@ -1673,6 +1673,9 @@ public class GodPanelScreen extends Screen {
         String dmg = (w == com.zhushen.space.data.MeleeWeapon.KNUCKLE ? "+" : "") + w.damage + w.severity.name()
                 + (w.armorPierce > 0 ? " " + Component.translatable("tooltip.zhushenspace.weapon.pierce", w.armorPierce).getString() : "")
                 + " " + kindsText(w);
+        if (w.hidden()) // 暗器：一次购买 1000 个
+            return Component.translatable(w.category.nameKey()).getString() + " · " + dmg + " · "
+                    + Component.translatable("screen.zhushenspace.shop.bulk_price", w.shopCount(), w.price()).getString();
         String kg = (w.weight == Math.floor(w.weight) ? String.valueOf((int) w.weight) : String.valueOf(w.weight)) + " kg";
         return Component.translatable(w.category.nameKey()).getString() + " · " + dmg + " · " + kg;
     }
@@ -1741,7 +1744,7 @@ public class GodPanelScreen extends Screen {
             g.drawString(font, Component.translatable(w.nameKey()), cx + 24, ry + 3, TEXT_MAIN, true);
             g.drawString(font, weaponLine(w), cx + 24, ry + 13, TEXT_SUB, true);
             int bx = cx + cw - 46;
-            if (ClientProgressData.score() >= com.zhushen.space.data.MeleeWeapon.PRICE) buyGlow(g, bx, ry + 5, 40, 14);
+            if (ClientProgressData.score() >= w.price()) buyGlow(g, bx, ry + 5, 40, 14);
             renderSmallButton(g, mouseX, mouseY, bx, ry + 5, 40, 14, Component.translatable("screen.zhushenspace.shop.buy"));
             if (hover && !over(mouseX, mouseY, bx, ry + 5, 40, 14)) hoverStack = st;
         }
@@ -1758,6 +1761,24 @@ public class GodPanelScreen extends Screen {
                 boolean ok = ClientProgressData.score() >= ProgressManager.BOLT_PRICE;
                 g.drawString(font, Component.translatable("screen.zhushenspace.shop.bolt_line", ProgressManager.BOLT_COUNT,
                         ProgressManager.BOLT_PRICE), cx + 24, ry + 13, ok ? TEXT_SUB : 0xFFFF8A80, true);
+                int bx = cx + cw - 46;
+                if (ok) buyGlow(g, bx, ry + 5, 40, 14);
+                renderSmallButton(g, mouseX, mouseY, bx, ry + 5, 40, 14, Component.translatable("screen.zhushenspace.shop.buy"));
+                if (hover && !over(mouseX, mouseY, bx, ry + 5, 40, 14)) hoverStack = st;
+            }
+        }
+        { // 盾牌（防具）
+            com.zhushen.space.data.ShieldType sh = com.zhushen.space.data.ShieldType.SHIELD;
+            int ry = weaponRowY(com.zhushen.space.data.MeleeWeapon.COUNT + 1, base);
+            if (ry + WEAPON_ROW_H >= top && ry < listBottom) {
+                boolean hover = inView && over(mouseX, mouseY, cx, ry, cw, WEAPON_ROW_H);
+                ZsTheme.card(g, cx, ry, cw, WEAPON_ROW_H, hover);
+                net.minecraft.world.item.ItemStack st = new net.minecraft.world.item.ItemStack(ZhuShenSpace.SHIELD.get());
+                g.renderItem(st, cx + 4, ry + 4);
+                g.drawString(font, Component.translatable(sh.nameKey()), cx + 24, ry + 3, TEXT_MAIN, true);
+                boolean ok = ClientProgressData.score() >= com.zhushen.space.data.ShieldType.PRICE;
+                g.drawString(font, Component.translatable("screen.zhushenspace.shop.shield_line", sh.melee, sh.ranged,
+                        String.valueOf((int) sh.weight), com.zhushen.space.data.ShieldType.PRICE), cx + 24, ry + 13, ok ? TEXT_SUB : 0xFFFF8A80, true);
                 int bx = cx + cw - 46;
                 if (ok) buyGlow(g, bx, ry + 5, 40, 14);
                 renderSmallButton(g, mouseX, mouseY, bx, ry + 5, 40, 14, Component.translatable("screen.zhushenspace.shop.buy"));
@@ -1804,6 +1825,11 @@ public class GodPanelScreen extends Screen {
                 playClick(1.0f);
                 return true;
             }
+        }
+        if (over(mouseX, mouseY, cx + cw - 46, weaponRowY(com.zhushen.space.data.MeleeWeapon.COUNT + 1, base) + 5, 40, 14)) {
+            PacketDistributor.sendToServer(new com.zhushen.space.network.GearPurchasePayload(ProgressManager.SHIELD_PURCHASE_ID));
+            playClick(1.0f);
+            return true;
         }
         if (over(mouseX, mouseY, cx + cw - 46, weaponRowY(com.zhushen.space.data.MeleeWeapon.COUNT, base) + 5, 40, 14)) {
             PacketDistributor.sendToServer(new com.zhushen.space.network.GearPurchasePayload(ProgressManager.BOLT_PURCHASE_ID));

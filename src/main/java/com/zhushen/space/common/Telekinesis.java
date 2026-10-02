@@ -270,7 +270,7 @@ public final class Telekinesis {
         if (st.getItem() instanceof SwordItem || st.getItem() instanceof AxeItem
                 || st.getItem() instanceof TridentItem || st.getItem() instanceof MaceItem) return true;
         com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(st);
-        if (mw != null) return mw.category.group == WeaponCategory.Group.BLADE; // 基础冷兵器（拳套除外）
+        if (mw != null) return mw.category.group == WeaponCategory.Group.BLADE && !mw.hidden(); // 基础冷兵器（拳套、暗器除外）
         WeaponCategory c = CombatFormula.classify(st);
         return c == WeaponCategory.LONGSWORD || c == WeaponCategory.GREATSWORD || c == WeaponCategory.RAPIER || c == WeaponCategory.FAN;
     }

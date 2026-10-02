@@ -66,6 +66,13 @@ public class ThrownWeapon extends AbstractArrow {
     public void tick() {
         if (this.inGroundTime > 4) this.dealtDamage = true;
         super.tick();
+        // 暗器（消耗品）：落地 2 秒后消失
+        if (!level().isClientSide && this.inGroundTime > 40 && hiddenWeapon()) discard();
+    }
+
+    private boolean hiddenWeapon() {
+        MeleeWeapon w = weapon();
+        return w != null && w.hidden();
     }
 
     @Nullable
@@ -85,6 +92,11 @@ public class ThrownWeapon extends AbstractArrow {
         if (target.hurt(src, amount) && target instanceof LivingEntity le) {
             doKnockback(le, src);
             doPostHurtEffects(le);
+        }
+        if (w != null && w.hidden()) { // 暗器命中即消耗
+            playSound(SoundEvents.ARROW_HIT, 0.5f, 1.8f);
+            discard();
+            return;
         }
         setDeltaMovement(getDeltaMovement().multiply(-0.01, -0.1, -0.01));
         playSound(SoundEvents.TRIDENT_HIT, 0.7f, 1.6f);

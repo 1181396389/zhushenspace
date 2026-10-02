@@ -55,6 +55,27 @@ public class ClientSetup {
         com.zhushen.space.common.GearManager.CLIENT_LOCKED = ClientGearData::locked;
         com.zhushen.space.common.GearManager.CLIENT_CONCEPT_SWAP = ClientRest::active;
         event.enqueueWork(ClientSetup::crossbowProperties);
+        event.enqueueWork(ClientSetup::bowAndShieldProperties);
+    }
+
+    /** 弓箭：拉弓谓词；盾牌：举盾谓词（与原版相同） */
+    private static void bowAndShieldProperties() {
+        net.minecraft.world.item.Item bow = com.zhushen.space.ZhuShenSpace.weaponItem(com.zhushen.space.data.MeleeWeapon.BOW);
+        net.minecraft.client.renderer.item.ItemProperties.register(bow,
+                net.minecraft.resources.ResourceLocation.withDefaultNamespace("pull"), (stack, level, ent, seed) ->
+                        ent == null || ent.getUseItem() != stack ? 0f
+                                : (float) (stack.getUseDuration(ent) - ent.getUseItemRemainingTicks()) / 20.0f);
+        net.minecraft.client.renderer.item.ItemProperties.register(bow,
+                net.minecraft.resources.ResourceLocation.withDefaultNamespace("pulling"), (stack, level, ent, seed) ->
+                        ent != null && ent.isUsingItem() && ent.getUseItem() == stack ? 1f : 0f);
+        net.minecraft.client.renderer.item.ItemProperties.register(com.zhushen.space.ZhuShenSpace.SHIELD.get(),
+                net.minecraft.resources.ResourceLocation.withDefaultNamespace("blocking"), (stack, level, ent, seed) ->
+                        ent != null && ent.isUsingItem() && ent.getUseItem() == stack ? 1f : 0f);
+    }
+
+    @SubscribeEvent
+    public static void onClientExtensions(net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent event) {
+        event.registerItem(ZsShieldRenderer.EXTENSIONS, com.zhushen.space.ZhuShenSpace.SHIELD.get());
     }
 
     /** 轻弩 / 重弩：与原版弩相同的拉弦 / 装填模型谓词 */

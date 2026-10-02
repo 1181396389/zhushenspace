@@ -221,8 +221,8 @@ public final class GrappleManager {
     }
 
     private static boolean attempt(ServerPlayer p, LivingEntity t) {
-        // 天生武器接触攻击：举盾正面格挡视为未命中
-        if (t.isBlocking() && t.getViewVector(1f).dot(p.position().subtract(t.position()).normalize()) > 0.3) {
+        // 天生武器接触攻击：举起主神盾牌正面格挡视为未命中（原版盾牌无效）
+        if (com.zhushen.space.item.ZsShieldItem.raised(t) != null && t.getViewVector(1f).dot(p.position().subtract(t.position()).normalize()) > 0.3) {
             msg(p, "msg.zhushenspace.grapple.miss", t.getDisplayName());
             fx(p, t, false);
             return true;

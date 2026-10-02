@@ -80,6 +80,8 @@ public final class CombatFormula {
     }
 
     public static Spec spec(ItemStack stack) {
+        com.zhushen.space.data.MeleeWeapon zw = com.zhushen.space.data.MeleeWeapon.of(stack);
+        if (zw != null) return new Spec(zw.strReq, zw.throwRange); // 基础冷兵器：模板的前提力量 / 射程
         if (stack.is(Items.BOW)) return new Spec(2, 8);
         if (stack.is(Items.CROSSBOW)) return new Spec(3, 10);
         if (stack.is(Items.TRIDENT)) return new Spec(2, 4);
@@ -197,7 +199,7 @@ public final class CombatFormula {
             WeaponCategory cat = classify(stack);
             // 枪托 / 弓身 / 投掷武器拿在手里砸人：视为普通人造物品的白刃攻击
             if (cat.group == WeaponCategory.Group.GUN || cat.group == WeaponCategory.Group.BOW
-                    || cat.group == WeaponCategory.Group.THROWN) cat = WeaponCategory.GENERIC;
+                    || cat.group == WeaponCategory.Group.THROWN || cat == WeaponCategory.HIDDEN_WEAPON) cat = WeaponCategory.GENERIC;
             int deficit = strengthDeficit(p, stack);
             if (deficit > WeaponCategory.MAX_DEFICIT) {
                 deny(p, "message.zhushenspace.weapon.too_heavy");
@@ -242,6 +244,7 @@ public final class CombatFormula {
                 zeroArmor(event);
                 return;
             }
+            if (w.has(com.zhushen.space.data.MeleeWeapon.Trait.HIDDEN)) hiddenCheck(p, victim);
             def = defense(victim, src);
             def = Math.max(0f, def - WeaponRules.pierce(victim, src, p, w.armorPierce));
             int distPen = rangeExcess(dist, range) * WeaponCategory.RANGE_PENALTY;
@@ -276,29 +279,32 @@ public final class CombatFormula {
                     + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
             base = Math.max(0f, Math.min(base, wd + ath + str)) * StatusEffects.successFactor(p);
             event.setAmount(base);
-        } else if (direct instanceof AbstractArrow arrow && crossbowOf(arrow) != null) {
-            // 基础冷兵器的弩（轻弩 / 重弩）：敏捷 + 运动 + 武器伤害 − (防御 − 破甲) − 距离减值；上限 = 武器伤害 × 2 + 运动
-            com.zhushen.space.data.MeleeWeapon w = crossbowOf(arrow);
+        } else if (direct instanceof AbstractArrow arrow && rangedOf(arrow) != null) {
+            // 基础冷兵器的弓 / 弩：敏捷 + 运动 + 武器伤害 − (防御 − 破甲) − 距离减值；上限 = 武器伤害 × 2 + 运动 + 前提力量
+            // 前提力量不足（弓箭）：同原版弓规则——每差 1 点 −2、距离上限缩短、超射程减值加重
+            com.zhushen.space.data.MeleeWeapon w = rangedOf(arrow);
+            ItemStack fired = arrow.getWeaponItem();
+            int deficit = Math.max(0, w.strReq - attr(p, AttributeType.STRENGTH));
             double dist = p.distanceTo(victim);
             float range = w.throwRange;
-            if (dist > range * 8) {
+            if (deficit > WeaponCategory.MAX_DEFICIT || dist > range * (8 - deficit)) {
                 event.setAmount(0f);
                 zeroArmor(event);
                 return;
             }
             def = defense(victim, src);
             def = Math.max(0f, def - WeaponRules.pierce(victim, src, p, w.armorPierce));
-            int distPen = rangeExcess(dist, range) * WeaponCategory.RANGE_PENALTY;
+            int n = rangeExcess(dist, range);
+            int distPen = n * WeaponCategory.RANGE_PENALTY + deficit * n * (n + 1) + deficit * 2;
             float wd = w.damage;
             DamageRules.noteWeapon(victim, wd);
             int ath = skill(p, SkillType.ATHLETICS);
             base = attr(p, AttributeType.AGILITY) + ath + wd - def - distPen
                     + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY) - StatusManager.attackPenalty(p, true, victim);
-            base = Math.max(0f, Math.min(base, wd * 2 + ath)) * StatusEffects.successFactor(p);
+            base = Math.max(0f, Math.min(base, wd * 2 + ath + w.strReq)) * StatusEffects.successFactor(p);
             if (arrow.getPersistentData().getBoolean(com.zhushen.space.item.ZsCrossbowItem.ONE_HAND_TAG))
                 base *= 0.5f; // 【双手】单手发射：失去一半自然成功数
             event.setAmount(base);
-            ItemStack fired = arrow.getWeaponItem();
             WeaponRules.note(victim, src, w, fired == null ? ItemStack.EMPTY : fired);
         } else if (direct instanceof AbstractArrow arrow) {
             ItemStack weapon = arrow.getWeaponItem();
@@ -328,8 +334,22 @@ public final class CombatFormula {
         zeroArmor(event);
     }
 
-    /** 由基础冷兵器的弩射出的弩矢 → 弩模板，否则 null */
-    private static com.zhushen.space.data.MeleeWeapon crossbowOf(AbstractArrow arrow) {
+    /**
+     * 【暗器】：目标进行感知检定（本模组没有调查 / 侦察技能，只用感知），DC 2；
+     * 失败则针对本次攻击措手不及（无支线）。非玩家生物没有感知，视为失败。
+     */
+    private static void hiddenCheck(ServerPlayer p, LivingEntity victim) {
+        boolean noticed = victim instanceof ServerPlayer tp
+                && Defense.roll(tp, Defense.attr(tp, AttributeType.PERCEPTION)) >= HIDDEN_DC;
+        if (noticed) return;
+        DamageRules.flatFooted(victim, p, 2); // 由本次攻击附带，防御结算时消耗
+        p.displayClientMessage(Component.translatable("msg.zhushenspace.weapon.hidden_unnoticed", victim.getDisplayName()), true);
+    }
+
+    public static final int HIDDEN_DC = 2;
+
+    /** 由基础冷兵器的弓 / 弩射出的箭矢 / 弩矢 → 模板，否则 null */
+    private static com.zhushen.space.data.MeleeWeapon rangedOf(AbstractArrow arrow) {
         ItemStack w = arrow.getWeaponItem();
         if (w == null || w.isEmpty()) return null;
         com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(w);
@@ -347,7 +367,7 @@ public final class CombatFormula {
             ItemStack stack = p.getMainHandItem();
             WeaponCategory cat = classify(stack);
             if (cat.group == WeaponCategory.Group.GUN || cat.group == WeaponCategory.Group.BOW
-                    || cat.group == WeaponCategory.Group.THROWN) cat = WeaponCategory.GENERIC;
+                    || cat.group == WeaponCategory.Group.THROWN || cat == WeaponCategory.HIDDEN_WEAPON) cat = WeaponCategory.GENERIC;
             int deficit = strengthDeficit(p, stack);
             if (deficit > WeaponCategory.MAX_DEFICIT) return 0f;
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
@@ -357,8 +377,8 @@ public final class CombatFormula {
             base = attr(p, key) + skill(p, cat.skill) + weaponDamage(p, amount) - pen
                     + PoolEffects.skillBonus(p, cat.skill, key);
             if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.TWO_HANDED) && !WeaponRules.twoHanded(p)) base *= 0.5f;
-        } else if (direct instanceof AbstractArrow arrow && crossbowOf(arrow) != null) {
-            base = attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + crossbowOf(arrow).damage
+        } else if (direct instanceof AbstractArrow arrow && rangedOf(arrow) != null) {
+            base = attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + rangedOf(arrow).damage
                     + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY);
         } else if (direct instanceof AbstractArrow || direct instanceof ThrownTrident) {
             base = attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + amount
@@ -446,9 +466,10 @@ public final class CombatFormula {
         switch (cat.group) {
             case BOW -> {
                 com.zhushen.space.data.MeleeWeapon cw = com.zhushen.space.data.MeleeWeapon.of(stack);
-                if (cw != null) { // 基础冷兵器的弩
+                if (cw != null) { // 基础冷兵器的弓 / 弩
                     int ath = skill(p, SkillType.ATHLETICS);
-                    float v = Math.max(0f, Math.min(attr(p, AttributeType.AGILITY) + ath + cw.damage, cw.damage * 2f + ath));
+                    float v = Math.max(0f, Math.min(attr(p, AttributeType.AGILITY) + ath + cw.damage - deficit * 2,
+                            cw.damage * 2f + ath + cw.strReq));
                     if (cw.has(com.zhushen.space.data.MeleeWeapon.Trait.TWO_HANDED)
                             && !com.zhushen.space.item.ZsCrossbowItem.twoHanded(p, stack)) v *= 0.5f;
                     return v;
@@ -463,6 +484,12 @@ public final class CombatFormula {
                 return Math.max(0f, Math.min(attr(p, AttributeType.AGILITY) + ath + wd - deficit * WeaponCategory.REQ_PENALTY, wd + ath + str));
             }
             default -> {
+                com.zhushen.space.data.MeleeWeapon hw = com.zhushen.space.data.MeleeWeapon.of(stack);
+                if (hw != null && hw.hidden()) { // 暗器：显示投掷面板（敏捷 + 运动 + 武器伤害 − 专业减值）
+                    int ath = skill(p, SkillType.ATHLETICS), str = attr(p, AttributeType.STRENGTH);
+                    return Math.max(0f, Math.min(attr(p, AttributeType.AGILITY) + ath + hw.damage - professionPenalty(p, hw.category),
+                            hw.damage + ath + str));
+                }
                 if (cat.group == WeaponCategory.Group.GUN) cat = WeaponCategory.GENERIC;
                 float wd = weaponDamage(p, vanillaAttackDamage);
                 com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.melee(stack);

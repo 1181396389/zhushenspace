@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("31"); // 协议版本：基础冷兵器（剑 / 刀 / 斧）+ 负重 + 肉搏专业
+        PayloadRegistrar registrar = event.registrar("32"); // 协议版本：基础冷兵器（剑 / 刀 / 斧）+ 负重 + 肉搏专业
         // 装备位穿脱状态 / 魔虚罗法阵适应 / 商城装备
         registrar.playToClient(SyncGearPayload.TYPE, SyncGearPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
@@ -38,6 +38,11 @@ public class ModNetworking {
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer serverPlayer) {
                         int ord = payload.gear();
+                        if (ord == com.zhushen.space.common.ProgressManager.SHIELD_PURCHASE_ID) {
+                            String err = com.zhushen.space.common.ProgressManager.purchaseShield(serverPlayer);
+                            if (err != null) serverPlayer.displayClientMessage(net.minecraft.network.chat.Component.translatable(err), true);
+                            return;
+                        }
                         if (ord == com.zhushen.space.common.ProgressManager.BOLT_PURCHASE_ID) {
                             String err = com.zhushen.space.common.ProgressManager.purchaseBolts(serverPlayer);
                             if (err != null) serverPlayer.displayClientMessage(net.minecraft.network.chat.Component.translatable(err), true);

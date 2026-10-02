@@ -71,7 +71,7 @@ public final class WeaponRules {
         if (x <= 0) return 0;
         if (v instanceof ServerPlayer sp) {
             Defense.Parts d = Defense.parts(sp, src, attacker, false);
-            return Math.min(x, Math.max(0, d.armor() + d.natural()));
+            return Math.min(x, Math.max(0, d.shield() + d.armor() + d.natural()));
         }
         return Math.min(x, Math.max(0, v.getArmorValue()));
     }

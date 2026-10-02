@@ -76,8 +76,8 @@ public final class Defense {
     private static final Set<ResourceLocation> DODGE = Set.of(rl("art_basic_palm"));
 
     /** 防御组成 */
-    public record Parts(int base, int full, int parry, int dodge, int natural, int armor, int insight, int other, int status) {
-        public int total() { return Math.max(0, base + full + parry + dodge + natural + armor + insight + other + status); }
+    public record Parts(int base, int full, int parry, int dodge, int natural, int armor, int insight, int other, int status, int shield) {
+        public int total() { return Math.max(0, base + full + parry + dodge + natural + armor + insight + other + status + shield); }
     }
 
     static int attr(ServerPlayer p, AttributeType t) { return StatusManager.attr(p, t); }
@@ -172,7 +172,16 @@ public final class Defense {
         }
         if (flat || StatusEffects.cantBlock(p)) parry = 0;
         int status = Math.round(StatusEffects.defenseMod(p, ranged, attacker));
-        return new Parts(base, full, parry, dodge, natural, armor, 0, other, status);
+        // 盾牌防御：举盾（【格挡】）期间；措手不及不失去，无法格挡时放不下盾（StatusEffects 已强制放下）
+        com.zhushen.space.data.ShieldType sh = com.zhushen.space.item.ZsShieldItem.raised(p);
+        int shield = sh == null || bypass ? 0 : (ranged ? sh.ranged : sh.melee);
+        return new Parts(base, full, parry, dodge, natural, armor, 0, other, status, shield);
+    }
+
+    /** 举盾不再「正面完全挡住伤害」：盾牌只按【格挡】提供盾牌防御（原版盾牌不提供任何防御） */
+    @SubscribeEvent
+    public static void onShieldBlock(net.neoforged.neoforge.event.entity.living.LivingShieldBlockEvent e) {
+        e.setBlocked(false);
     }
 
     /** 措手不及，或擒抱中面对组外攻击 */

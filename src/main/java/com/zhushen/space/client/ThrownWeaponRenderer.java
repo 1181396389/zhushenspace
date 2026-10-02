@@ -51,6 +51,9 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeapon> {
             if (w != null && w.tumbles()) {
                 // 飞斧 / 飞锤：首尾翻滚
                 pose.mulPose(Axis.ZP.rotationDegrees(-(e.tickCount + pt) * 45f));
+            } else if (w != null && w.hidden()) {
+                // 暗器：高速自旋
+                pose.mulPose(Axis.ZP.rotationDegrees(-(e.tickCount + pt) * 70f));
             } else if (w != null && w.category == com.zhushen.space.data.WeaponCategory.SHORT_SPEAR) {
                 // 短矛：矛尖朝前笔直飞行，只带一点自旋
                 pose.mulPose(Axis.XP.rotationDegrees((e.tickCount + pt) * 12f));
@@ -61,10 +64,16 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeapon> {
         }
         pose.translate(0.15f, 0f, 0f); // 刀尖前置：插入方块 / 目标时刀尖没入、刀柄露在外面
         pose.mulPose(Axis.ZP.rotationDegrees(-45.0f));
-        pose.scale(0.85f, 0.85f, 0.85f);
+        float sc = isHidden(st) ? 0.45f : 0.85f;
+        pose.scale(sc, sc, sc);
         items.renderStatic(st, ItemDisplayContext.NONE, light, OverlayTexture.NO_OVERLAY, pose, buf, e.level(), e.getId());
         pose.popPose();
         super.render(e, yaw, pt, pose, buf, light);
+    }
+
+    private static boolean isHidden(ItemStack st) {
+        var w = com.zhushen.space.data.MeleeWeapon.of(st);
+        return w != null && w.hidden();
     }
 
     @Override

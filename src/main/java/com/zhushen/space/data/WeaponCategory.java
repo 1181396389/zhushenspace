@@ -53,7 +53,9 @@ public enum WeaponCategory {
     /** 镰刀（巨镰也归入此类） */
     SICKLE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "sickle"),
     /** 弩（基础冷兵器的轻弩 / 重弩；与弓一样不需要专业。原版弩仍归「弓」） */
-    CROSSBOW(Group.BOW, AttributeType.AGILITY, SkillType.ATHLETICS, "crossbow");
+    CROSSBOW(Group.BOW, AttributeType.AGILITY, SkillType.ATHLETICS, "crossbow"),
+    /** 暗器（飞针 / 飞镖 / 手里剑……）：白刃组的独立专业，攻击为轻投掷（敏捷 + 运动）。第 31 个分类（专业位掩码上限 32） */
+    HIDDEN_WEAPON(Group.BLADE, AttributeType.AGILITY, SkillType.ATHLETICS, "hidden_weapon");
 
     public enum Group { GUN, BLADE, BOW, THROWN, BRAWL }
 

@@ -54,6 +54,7 @@ public class ZsWeaponItem extends Item implements com.zhushen.space.data.ZsWeapo
     public MeleeWeapon weapon() { return weapon; }
 
     private static ItemAttributeModifiers modifiers(MeleeWeapon w) {
+        if (w.hidden()) return ItemAttributeModifiers.EMPTY; // 暗器：拿在手里不是近战武器
         ItemAttributeModifiers.Builder b = ItemAttributeModifiers.builder()
                 .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_ID, w.attackModifier(),
                         AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
@@ -91,6 +92,21 @@ public class ZsWeaponItem extends Item implements com.zhushen.space.data.ZsWeapo
             }
             return InteractionResultHolder.sidedSuccess(st, level.isClientSide());
         }
+        if (weapon.hidden()) {
+            // 暗器：右键直接甩出（不需要蓄力），每次一枚，短暂冷却
+            if (!level.isClientSide) {
+                ThrownWeapon tw = new ThrownWeapon(level, player, st.copyWithCount(1));
+                tw.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0f, 2.2f, 0.8f);
+                tw.pickup = AbstractArrow.Pickup.DISALLOWED; // 消耗品：不可捡回
+                level.addFreshEntity(tw);
+                level.playSound(null, tw, SoundEvents.ARROW_SHOOT, SoundSource.PLAYERS, 0.5f, 2.0f);
+                if (!player.hasInfiniteMaterials()) st.shrink(1);
+            }
+            player.getCooldowns().addCooldown(this, HIDDEN_COOLDOWN);
+            player.swing(hand, true);
+            player.awardStat(Stats.ITEM_USED.get(this));
+            return InteractionResultHolder.sidedSuccess(st, level.isClientSide());
+        }
         if (weapon.throwable()) {
             player.startUsingItem(hand);
             return InteractionResultHolder.consume(st);
@@ -100,20 +116,23 @@ public class ZsWeaponItem extends Item implements com.zhushen.space.data.ZsWeapo
 
     @Override
     public UseAnim getUseAnimation(ItemStack stack) {
-        return weapon.throwable() ? UseAnim.SPEAR : UseAnim.NONE;
+        return weapon.throwable() && !weapon.hidden() ? UseAnim.SPEAR : UseAnim.NONE;
     }
 
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity entity) {
-        return weapon.throwable() ? 72000 : 0;
+        return weapon.throwable() && !weapon.hidden() ? 72000 : 0;
     }
+
+    /** 暗器连续甩出的间隔（tick） */
+    public static final int HIDDEN_COOLDOWN = 10;
 
     /** 蓄力至少 10 tick 才投出 */
     public static final int THROW_CHARGE = 10;
 
     @Override
     public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
-        if (!weapon.throwable() || !(entity instanceof Player p)) return;
+        if (!weapon.throwable() || weapon.hidden() || !(entity instanceof Player p)) return;
         if (getUseDuration(stack, entity) - timeLeft < THROW_CHARGE) return;
         if (!level.isClientSide) {
             ThrownWeapon tw = new ThrownWeapon(level, p, stack.copyWithCount(1));
@@ -163,8 +182,13 @@ public class ZsWeaponItem extends Item implements com.zhushen.space.data.ZsWeapo
             line.append(" · ").append(Component.translatable(weapon.ranged() ? "tooltip.zhushenspace.weapon.range"
                     : "tooltip.zhushenspace.weapon.throw", weapon.throwRange));
         tips.add(line.withStyle(ChatFormatting.WHITE));
-        tips.add(Component.translatable("tooltip.zhushenspace.weapon.bulk", weapon.volume, num(weapon.weight))
-                .withStyle(ChatFormatting.GRAY));
+        if (weapon.hidden())
+            tips.add(Component.translatable("tooltip.zhushenspace.weapon.bulk_hidden").withStyle(ChatFormatting.GRAY));
+        else
+            tips.add(Component.translatable("tooltip.zhushenspace.weapon.bulk", weapon.volume, num(weapon.weight))
+                    .withStyle(ChatFormatting.GRAY));
+        if (weapon.strReq > 0)
+            tips.add(Component.translatable("tooltip.zhushenspace.weapon.str_req", weapon.strReq).withStyle(ChatFormatting.RED));
 
         MutableComponent kw = Component.empty();
         boolean any = false;
@@ -184,7 +208,9 @@ public class ZsWeaponItem extends Item implements com.zhushen.space.data.ZsWeapo
             tips.add(Component.translatable("tooltip.zhushenspace.weapon.mode", modeLabel(weapon, weapon.mode(stack)))
                     .withStyle(ChatFormatting.GREEN));
         }
-        if (weapon.throwable())
+        if (weapon.hidden())
+            tips.add(Component.translatable("tooltip.zhushenspace.weapon.hidden_hint").withStyle(ChatFormatting.DARK_GRAY));
+        else if (weapon.throwable())
             tips.add(Component.translatable("tooltip.zhushenspace.weapon.throw_hint").withStyle(ChatFormatting.DARK_GRAY));
         boolean shift = net.neoforged.fml.loading.FMLEnvironment.dist.isClient()
                 && com.zhushen.space.client.ClientHooks.shiftDown();

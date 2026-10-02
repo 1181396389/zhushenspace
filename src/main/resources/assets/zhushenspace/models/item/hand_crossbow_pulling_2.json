@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/crossbow",
+  "textures": {
+    "layer0": "zhushenspace:item/hand_crossbow_pulling_2"
+  }
+}

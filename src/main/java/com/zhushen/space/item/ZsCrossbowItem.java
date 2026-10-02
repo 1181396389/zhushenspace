@@ -7,6 +7,7 @@ import com.zhushen.space.data.LimbPart;
 import com.zhushen.space.data.ModAttachments;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -56,6 +57,22 @@ public class ZsCrossbowItem extends CrossbowItem implements ZsWeapon {
     }
 
     private static final Predicate<ItemStack> BOLT = s -> s.is(ZhuShenSpace.CROSSBOW_BOLT.get());
+
+    /** 手弩的装填需要一只空手：另一只手拿着东西时不能开始拉弦 */
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack st = player.getItemInHand(hand);
+        if (weapon.has(MeleeWeapon.Trait.RELOAD_HAND) && !isCharged(st)) {
+            ItemStack other = player.getItemInHand(hand == InteractionHand.MAIN_HAND ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND);
+            var limbs = player.getData(ModAttachments.PLAYER_LIMBS);
+            boolean armMissing = limbs.isSevered(LimbPart.RIGHT_ARM) || limbs.isSevered(LimbPart.LEFT_ARM);
+            if (!other.isEmpty() || armMissing) {
+                if (!level.isClientSide) player.displayClientMessage(Component.translatable("msg.zhushenspace.weapon.reload_hand"), true);
+                return InteractionResultHolder.fail(st);
+            }
+        }
+        return super.use(level, player, hand);
+    }
 
     @Override
     public Predicate<ItemStack> getSupportedHeldProjectiles() { return BOLT; }

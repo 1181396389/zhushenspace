@@ -920,7 +920,7 @@ public final class DamageRules {
     private static int armorLayers(LivingEntity v) {
         if (v instanceof ServerPlayer sp) {
             Defense.Parts x = Defense.parts(sp, null, null, false);
-            return x.armor() + x.natural();
+            return x.shield() + x.armor() + x.natural();
         }
         return (int) Math.floor(v.getArmorValue());
     }

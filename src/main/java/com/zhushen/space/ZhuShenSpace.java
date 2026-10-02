@@ -56,14 +56,17 @@ public class ZhuShenSpace {
 
     static {
         for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
-            if (w.ranged()) {
+            if (w.category == com.zhushen.space.data.WeaponCategory.BOW) {
+                WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsBowItem(w, props),
+                        new Item.Properties().stacksTo(1)));
+            } else if (w.ranged()) {
                 WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsCrossbowItem(w, props),
                         new Item.Properties().stacksTo(1)
                                 .component(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES,
                                         net.minecraft.world.item.component.ChargedProjectiles.EMPTY)));
             } else {
                 WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsWeaponItem(w, props),
-                        new Item.Properties().stacksTo(w.throwable() ? 8 : 1)));
+                        new Item.Properties().stacksTo(w.hidden() ? 99 : w.throwable() ? 8 : 1)));
             }
         }
     }
@@ -71,6 +74,11 @@ public class ZhuShenSpace {
     /** 弩矢（轻弩 / 重弩的弹药） */
     public static final DeferredItem<com.zhushen.space.item.CrossbowBoltItem> CROSSBOW_BOLT =
             ITEMS.registerItem("crossbow_bolt", com.zhushen.space.item.CrossbowBoltItem::new, new Item.Properties());
+
+    /** 盾牌（防具，不是冷兵器）：举盾 = 格挡，获得盾牌防御 */
+    public static final DeferredItem<com.zhushen.space.item.ZsShieldItem> SHIELD =
+            ITEMS.registerItem("shield", props -> new com.zhushen.space.item.ZsShieldItem(com.zhushen.space.data.ShieldType.SHIELD, props),
+                    new Item.Properties().stacksTo(1));
 
     public static Item weaponItem(com.zhushen.space.data.MeleeWeapon w) { return WEAPONS.get(w).get(); }
 
@@ -85,6 +93,7 @@ public class ZhuShenSpace {
                 output.accept(MAHORAGA_WHEEL.get());
                 for (var w : WEAPONS.values()) output.accept(w.get());
                 output.accept(CROSSBOW_BOLT.get());
+                output.accept(SHIELD.get());
                 output.accept(T_VIRUS_ZOMBIE_SPAWN_EGG.get());
             }).build());
 

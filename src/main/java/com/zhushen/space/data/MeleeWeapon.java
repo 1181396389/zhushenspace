@@ -83,7 +83,31 @@ public enum MeleeWeapon {
             EnumSet.of(Trait.HEAVY, Trait.TWO_HANDED, Trait.RELOAD, Trait.AMMO)),
     /** 轻弩（十字弓）：2L 破甲 1 穿刺，基本射程 20 米；【双手】；装填；弹药（弩矢） */
     LIGHT_CROSSBOW("light_crossbow", WeaponCategory.CROSSBOW, 3, 2.5f, 2, Severity.L, K(DamageKind.PIERCE), 1, 0f, 20,
-            EnumSet.of(Trait.TWO_HANDED, Trait.RELOAD, Trait.AMMO));
+            EnumSet.of(Trait.TWO_HANDED, Trait.RELOAD, Trait.AMMO)),
+    /** 手弩：2L 穿刺，基本射程 20 米；装填（需要一只空手）；弹药（弩矢） */
+    HAND_CROSSBOW("hand_crossbow", WeaponCategory.CROSSBOW, 1, 2.5f, 2, Severity.L, K(DamageKind.PIERCE), 0, 0f, 20,
+            EnumSet.of(Trait.RELOAD_HAND, Trait.AMMO)),
+    /** 弓箭：前提力量 3；2L 穿刺，基本射程 20 米；弹药（箭矢） */
+    BOW("bow", WeaponCategory.BOW, 3, 1.0f, 2, Severity.L, K(DamageKind.PIERCE), 0, 0f, 20,
+            EnumSet.of(Trait.ARROWS), 3),
+    /** 飞针（暗器）：1L 穿刺，基本射程 10 米；【轻投掷武器】【暗器】；消耗品 */
+    FLYING_NEEDLE("flying_needle", WeaponCategory.HIDDEN_WEAPON, 0, 0.05f, 1, Severity.L, K(DamageKind.PIERCE), 0, 0f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.HIDDEN)),
+    /** 飞镖（暗器）：1L 穿刺，基本射程 10 米；【轻投掷武器】【暗器】；消耗品 */
+    DART("dart", WeaponCategory.HIDDEN_WEAPON, 0, 0.05f, 1, Severity.L, K(DamageKind.PIERCE), 0, 0f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.HIDDEN)),
+    /** 手里剑（暗器）：1L 穿刺，基本射程 10 米；【轻投掷武器】【暗器】；消耗品 */
+    SHURIKEN("shuriken", WeaponCategory.HIDDEN_WEAPON, 0, 0.05f, 1, Severity.L, K(DamageKind.PIERCE), 0, 0f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.HIDDEN)),
+    /** 铁蒺藜（暗器）：1L 穿刺，基本射程 10 米；【轻投掷武器】【暗器】；消耗品 */
+    CALTROP("caltrop", WeaponCategory.HIDDEN_WEAPON, 0, 0.05f, 1, Severity.L, K(DamageKind.PIERCE), 0, 0f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.HIDDEN)),
+    /** 铜钱镖（暗器）：1L 穿刺，基本射程 10 米；【轻投掷武器】【暗器】；消耗品 */
+    COIN_DART("coin_dart", WeaponCategory.HIDDEN_WEAPON, 0, 0.05f, 1, Severity.L, K(DamageKind.PIERCE), 0, 0f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.HIDDEN)),
+    /** 细针（暗器）：1L 穿刺，基本射程 10 米；【轻投掷武器】【暗器】；消耗品 */
+    FINE_NEEDLE("fine_needle", WeaponCategory.HIDDEN_WEAPON, 0, 0.05f, 1, Severity.L, K(DamageKind.PIERCE), 0, 0f, 10,
+            EnumSet.of(Trait.LIGHT_THROWN, Trait.HIDDEN));
 
     private static DamageKind[] K(DamageKind... k) { return k; }
 
@@ -116,7 +140,13 @@ public enum MeleeWeapon {
         /** 装填：每次发射需要一个移动动作 */
         RELOAD("reload", true),
         /** 弹药：弩矢 */
-        AMMO("ammo", true);
+        AMMO("ammo", true),
+        /** 装填（手弩）：每次发射需要一个移动动作，并需要一只空手 */
+        RELOAD_HAND("reload_hand", true),
+        /** 弹药：箭矢（弓箭） */
+        ARROWS("arrows", true),
+        /** 【暗器】：必然是轻投掷武器；目标感知检定 DC 2 失败则对本次攻击措手不及 */
+        HIDDEN("hidden", false);
 
         public final String key;
         public final boolean special;
@@ -147,12 +177,20 @@ public enum MeleeWeapon {
     public final int armorPierce;
     /** 原版攻击速度修饰（基础 4.0 之上） */
     public final float attackSpeed;
+    /** 前提：需求力量（0 = 无） */
+    public final int strReq;
     /** 基本投掷射程（米），0 = 不能投掷；弩为基本射程 */
     public final int throwRange;
     private final Set<Trait> traits;
 
     MeleeWeapon(String key, WeaponCategory category, int volume, float weight, int damage, Severity severity,
                 DamageKind[] kinds, int armorPierce, float attackSpeed, int throwRange, Set<Trait> traits) {
+        this(key, category, volume, weight, damage, severity, kinds, armorPierce, attackSpeed, throwRange, traits, 0);
+    }
+
+    MeleeWeapon(String key, WeaponCategory category, int volume, float weight, int damage, Severity severity,
+                DamageKind[] kinds, int armorPierce, float attackSpeed, int throwRange, Set<Trait> traits, int strReq) {
+        this.strReq = strReq;
         this.key = key;
         this.category = category;
         this.volume = volume;
@@ -171,8 +209,17 @@ public enum MeleeWeapon {
 
     public boolean has(Trait t) { return traits.contains(t); }
 
-    /** 远程武器（弩）：不参与近战公式 */
+    /** 远程武器（弓 / 弩）：不参与近战公式 */
     public boolean ranged() { return category.group == WeaponCategory.Group.BOW; }
+
+    /** 暗器：消耗品，只能投掷（拿在手里打人视为普通物品） */
+    public boolean hidden() { return category == WeaponCategory.HIDDEN_WEAPON; }
+
+    /** 商城价格（奖励点数）：暗器 100 点一次 1000 个，其余每件 PRICE */
+    public int price() { return hidden() ? 100 : PRICE; }
+
+    /** 商城一次购买的数量 */
+    public int shopCount() { return hidden() ? 1000 : 1; }
 
     /** 可以投掷（右键蓄力投出） */
     public boolean throwable() { return throwRange > 0 && !ranged(); }
@@ -201,7 +248,7 @@ public enum MeleeWeapon {
     /** 手持物对应的近战模板（弩等远程武器 = null） */
     public static MeleeWeapon melee(ItemStack stack) {
         MeleeWeapon w = of(stack);
-        return w != null && !w.ranged() ? w : null;
+        return w != null && !w.ranged() && !w.hidden() ? w : null;
     }
 
     // ===== 攻击方式（潜行 + 右键切换）：伤害类型 × 伤势等级（冲击武器可选 B） =====

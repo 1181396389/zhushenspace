@@ -164,11 +164,35 @@ public class ProgressManager {
     /** 主神商城：购买基础冷兵器模板（每件 200 奖励点数，可重复购买） */
     public static String purchaseWeapon(ServerPlayer player, com.zhushen.space.data.MeleeWeapon w) {
         PlayerCurrencyData currency = player.getData(ModAttachments.PLAYER_CURRENCY);
-        if (currency.score() < com.zhushen.space.data.MeleeWeapon.PRICE) return "commands.zhushenspace.school.lack_currency";
-        currency.addScore(-com.zhushen.space.data.MeleeWeapon.PRICE);
-        ItemStack stack = new ItemStack(com.zhushen.space.ZhuShenSpace.weaponItem(w));
-        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        if (currency.score() < w.price()) return "commands.zhushenspace.school.lack_currency";
+        currency.addScore(-w.price());
+        give(player, com.zhushen.space.ZhuShenSpace.weaponItem(w), w.shopCount()); // 暗器一次 1000 个
         player.displayClientMessage(Component.translatable("msg.zhushenspace.shop.gear_bought", Component.translatable(w.nameKey())), false);
+        sync(player);
+        return null;
+    }
+
+    /** 按最大堆叠拆分发放，背包放不下的掉在脚下 */
+    private static void give(ServerPlayer player, net.minecraft.world.item.Item item, int count) {
+        int max = Math.max(1, new ItemStack(item).getMaxStackSize());
+        while (count > 0) {
+            int n = Math.min(max, count);
+            ItemStack stack = new ItemStack(item, n);
+            if (!player.getInventory().add(stack)) player.drop(stack, false);
+            count -= n;
+        }
+    }
+
+    /** 商城购买包中「盾牌」的序号（200 奖励点数） */
+    public static final int SHIELD_PURCHASE_ID = 198;
+
+    public static String purchaseShield(ServerPlayer player) {
+        PlayerCurrencyData currency = player.getData(ModAttachments.PLAYER_CURRENCY);
+        if (currency.score() < com.zhushen.space.data.ShieldType.PRICE) return "commands.zhushenspace.school.lack_currency";
+        currency.addScore(-com.zhushen.space.data.ShieldType.PRICE);
+        give(player, com.zhushen.space.ZhuShenSpace.SHIELD.get(), 1);
+        player.displayClientMessage(Component.translatable("msg.zhushenspace.shop.gear_bought",
+                Component.translatable(com.zhushen.space.data.ShieldType.SHIELD.nameKey())), false);
         sync(player);
         return null;
     }
