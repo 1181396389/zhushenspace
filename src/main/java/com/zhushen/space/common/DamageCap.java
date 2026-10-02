@@ -68,6 +68,8 @@ public final class DamageCap {
         ItemStack main = player.getMainHandItem();
         var skills = player.getData(ModAttachments.PLAYER_SKILLS);
         if (main.isEmpty()) return capFor(skills.get(SkillType.BRAWL.ordinal()));
+        com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(main);
+        if (mw != null) return capFor(skills.get(mw.category.skill.ordinal())); // 拳套 = 肉搏，其余冷兵器 = 白刃
         if (isColdWeapon(main)) return capFor(skills.get(SkillType.BLADE.ordinal()));
         return capFor(0);
     }
@@ -75,6 +77,7 @@ public final class DamageCap {
     /** 冷兵器判定（与白刃技能一致） */
     public static boolean isColdWeapon(ItemStack stack) {
         return stack.getItem() instanceof SwordItem
+                || stack.getItem() instanceof com.zhushen.space.item.ZsWeaponItem
                 || stack.getItem() instanceof AxeItem
                 || stack.getItem() instanceof TridentItem
                 || stack.getItem() instanceof MaceItem;

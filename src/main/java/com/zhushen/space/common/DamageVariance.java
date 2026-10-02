@@ -97,8 +97,23 @@ public final class DamageVariance {
         // TACZ 子弹已在 Pre 事件中对基础伤害掷过（普通 + 穿甲两次结算共用）
         if (GunDamage.isGun(source) && GunDamage.current(player, event.getEntity(), source) != null) return;
         float factor = roll(player.getRandom());
-        event.setAmount(event.getAmount() * factor);
+        float after = event.getAmount() * factor;
+        Integer bonus = takeAfter(event.getEntity());
+        if (bonus != null && after > 0f) after += bonus; // 重武器：浮动后 +2 附加成功
+        event.setAmount(after);
         DamageCap.scaleMeleeBase(player, event.getEntity(), factor);
+    }
+
+    /** 浮动之后追加的附加成功（本刻对该目标的下一次伤害；重武器等） */
+    private static final Map<UUID, long[]> AFTER = new HashMap<>();
+
+    public static void addAfterRoll(net.minecraft.world.entity.LivingEntity victim, int successes) {
+        AFTER.put(victim.getUUID(), new long[]{victim.level().getGameTime(), successes});
+    }
+
+    private static Integer takeAfter(net.minecraft.world.entity.LivingEntity victim) {
+        long[] v = AFTER.remove(victim.getUUID());
+        return v != null && v[0] == victim.level().getGameTime() ? (int) v[1] : null;
     }
 
     // ===== 面板伤害同步 =====
@@ -108,6 +123,7 @@ public final class DamageVariance {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
+        AFTER.clear();
         if (event.getServer().getTickCount() % SYNC_INTERVAL != 0) return;
         for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
             DamagePanelPayload panel = compute(player);

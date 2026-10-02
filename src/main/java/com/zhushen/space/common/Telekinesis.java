@@ -269,6 +269,8 @@ public final class Telekinesis {
         if (st.isEmpty() || com.zhushen.space.compat.TaczCompat.gunCategory(st) != null) return false;
         if (st.getItem() instanceof SwordItem || st.getItem() instanceof AxeItem
                 || st.getItem() instanceof TridentItem || st.getItem() instanceof MaceItem) return true;
+        com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(st);
+        if (mw != null) return mw.category.group == WeaponCategory.Group.BLADE; // 基础冷兵器（拳套除外）
         WeaponCategory c = CombatFormula.classify(st);
         return c == WeaponCategory.LONGSWORD || c == WeaponCategory.GREATSWORD || c == WeaponCategory.RAPIER || c == WeaponCategory.FAN;
     }
@@ -286,6 +288,8 @@ public final class Telekinesis {
     static DamageKind weaponKind(ItemStack st) {
         if (st.getItem() instanceof TridentItem) return DamageKind.PIERCE;
         if (st.getItem() instanceof MaceItem) return DamageKind.BLUNT;
+        com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(st);
+        if (mw != null) return mw.kind;
         WeaponCategory c = CombatFormula.classify(st);
         if (c == WeaponCategory.RAPIER) return DamageKind.PIERCE;
         return DamageKind.SLASH;
@@ -641,13 +645,17 @@ public final class Telekinesis {
             WeaponCategory cat = CombatFormula.classify(w);
             SkillType sk = cat.skill == SkillType.FIREARMS || cat.skill == SkillType.ATHLETICS ? SkillType.BLADE : cat.skill;
             float wd = weaponDamage(w);
-            int pen = Math.max(0, CombatFormula.spec(w).strReq() - str(p)) * WeaponCategory.REQ_PENALTY;
+            int pen = Math.max(0, CombatFormula.spec(w).strReq() - str(p)) * WeaponCategory.REQ_PENALTY
+                    + CombatFormula.professionPenalty(p, cat); // 专业：按悬浮武器自身的分类
+            com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(w);
+            if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_WEAPON)) pen += WeaponRules.HEAVY_PENALTY;
             int check = strCheck(p) + ArtManager.skill(p, sk);
             int cap = Math.round(wd * 1.5f) + check;
             float def = ArtManager.defense(p, t, 0, 0, false);
             float v = ArtManager.attackRoll(p, check, Math.round(wd) - pen, def, cap, 0);
             if (v < 0) return;
-            ArtManager.hit(p, t, v, ArtManager.spec(PlayerHealthData.Severity.B, 0, 0, true, weaponKind(w)));
+            ArtManager.hit(p, t, v, ArtManager.spec(mw != null ? mw.severityFor(w) : PlayerHealthData.Severity.B,
+                    mw != null ? mw.armorPierce : 0, 0, true, weaponKind(w)));
             p.level().playSound(null, t.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.7f, 1.3f);
         });
     }

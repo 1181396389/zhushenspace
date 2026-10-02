@@ -369,7 +369,8 @@ public final class GrappleManager {
         if (grappled(attacker)) {
             if (!sameGroup(attacker, victim)) { e.setCanceled(true); return; } // 不能对组外目标做出肢体动作
             ItemStack main = attacker.getMainHandItem();
-            if (!main.isEmpty() && src.getDirectEntity() == attacker) {
+            // 拳套（【肉搏武器】）视为肉搏攻击：不受人造武器的擒抱减值
+            if (!main.isEmpty() && !main.is(GAUNTLET) && src.getDirectEntity() == attacker) {
                 int pen = points(attacker) + weaponVolume(main);
                 e.setAmount(Math.max(0, e.getAmount() - pen));
             }
@@ -406,8 +407,11 @@ public final class GrappleManager {
         }
     }
 
-    /** 武器体积调整（后续武器系统提供；目前为 0） */
-    public static int weaponVolume(ItemStack stack) { return 0; }
+    /** 武器体积调整：基础冷兵器取模板体积，其他物品为 0 */
+    public static int weaponVolume(ItemStack stack) {
+        com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(stack);
+        return mw != null ? mw.volume : 0;
+    }
 
     @SubscribeEvent
     public static void onUseItem(PlayerInteractEvent.RightClickItem e) {

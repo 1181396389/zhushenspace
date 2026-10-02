@@ -1070,10 +1070,10 @@ public class GodPanelScreen extends Screen {
     }
 
     /** 专业选择入口（技能行内）：[0] 白刃，[1] 枪械；x = -1 表示不可见 */
-    private final int[] profChipX = {-1, -1}, profChipY = new int[2], profChipW = new int[2];
+    private final int[] profChipX = {-1, -1, -1}, profChipY = new int[3], profChipW = new int[3];
     /** 正在选择的专业组（-1 = 未打开选择框） */
     private int profChooser = -1;
-    private final int[] profPending = new int[2];
+    private final int[] profPending = new int[3];
 
     private static final int PROF_BTN_W = 70, PROF_BTN_H = 16;
 
@@ -1093,8 +1093,8 @@ public class GodPanelScreen extends Screen {
         g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xAA000000);
         int[] b = profBox();
         XytStyle.chrome(g, b[0], b[1], b[2], b[3]);
-        Component title = Component.translatable(profChooser == 0
-                ? "screen.zhushenspace.profession.title_blade" : "screen.zhushenspace.profession.title_gun");
+        Component title = Component.translatable(profChooser == 0 ? "screen.zhushenspace.profession.title_blade"
+                : profChooser == 2 ? "screen.zhushenspace.profession.title_brawl" : "screen.zhushenspace.profession.title_gun");
         g.drawCenteredString(font, title, b[0] + b[2] / 2, b[1] + 8, XytStyle.INK);
         g.drawCenteredString(font, Component.translatable("screen.zhushenspace.profession.warn"),
                 b[0] + b[2] / 2, b[1] + 20, XytStyle.WARN);
@@ -1165,7 +1165,7 @@ public class GodPanelScreen extends Screen {
         g.drawString(font, lv, end + 3, ty, lvColor, false);
 
         // 专业：技能达到 3、4 时各免费获得一个（加点最多共 3 个），选择后不可更改
-        int grp = i == SkillType.BLADE.ordinal() ? 0 : i == SkillType.FIREARMS.ordinal() ? 1 : -1;
+        int grp = i == SkillType.BLADE.ordinal() ? 0 : i == SkillType.FIREARMS.ordinal() ? 1 : i == SkillType.BRAWL.ordinal() ? 2 : -1;
         if (grp >= 0) {
             profChipX[grp] = -1;
             int mask = ClientSkillData.professionMask(grp);
@@ -1520,12 +1520,16 @@ public class GodPanelScreen extends Screen {
             renderArtPages(g, mouseX, mouseY);
             return;
         }
+        if (gearPage) {
+            renderGearPage(g, mouseX, mouseY);
+            return;
+        }
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             renderSchoolDetail(g, mouseX, mouseY);
             return;
         }
         renderArtCard(g, mouseX, mouseY);
-        renderGearCards(g, mouseX, mouseY);
+        renderGearGroupCard(g, mouseX, mouseY);
         for (int i = 0; i < SchoolType.COUNT; i++) {
             SchoolType school = SchoolType.values()[i];
             int cy = shopCardY(i);
@@ -1584,9 +1588,12 @@ public class GodPanelScreen extends Screen {
         }
     }
 
-    // ===== 商城：装备 =====
+    // ===== 商城：装备与武器 =====
 
-    private int gearCardY(int i) { return shopCardY(SchoolType.COUNT + 1 + i); }
+    /** 商城首页第 3 张卡片「装备与武器」→ 进入可滚动的装备页（魔虚罗法阵 + 基础冷兵器） */
+    private boolean gearPage = false;
+
+    private int gearGroupCardY() { return shopCardY(SchoolType.COUNT + 1); }
 
     private static net.minecraft.world.item.Item gearItem(com.zhushen.space.data.ShopGear gear) {
         return switch (gear) {
@@ -1594,15 +1601,83 @@ public class GodPanelScreen extends Screen {
         };
     }
 
-    /** 装备卡片：物品图标 + 名称 + 等级 / 装备位 + 说明 + 价格与购买按钮（可重复购买） */
-    private void renderGearCards(GuiGraphics g, int mouseX, int mouseY) {
-        int cx = panelX + 5, cw = panelW - 10;
+    /** 首页大分类卡：标题 + 件数 + 说明 + 代表物品图标 */
+    private void renderGearGroupCard(GuiGraphics g, int mouseX, int mouseY) {
+        int cx = panelX + 5, cw = panelW - 10, cy = gearGroupCardY();
+        if (cy >= listBottom) return;
         g.flush();
         g.enableScissor(panelX, listTop, panelX + panelW, listBottom);
+        ZsTheme.card(g, cx, cy, cw, 52, over(mouseX, mouseY, cx, cy, cw, 52));
+        g.drawString(font, Component.translatable("screen.zhushenspace.shop.gear_group"), cx + 8, cy + 5, TEXT_MAIN, true);
+        String cnt = Component.translatable("screen.zhushenspace.shop.gear_count",
+                com.zhushen.space.data.ShopGear.COUNT + com.zhushen.space.data.MeleeWeapon.COUNT).getString();
+        g.drawString(font, cnt, cx + cw - font.width(cnt) - 8, cy + 6, GOLD, true);
+        int dy = cy + 17;
+        for (FormattedCharSequence l : font.split(Component.translatable("screen.zhushenspace.shop.gear_group_desc"), cw - 16)) {
+            if (dy > cy + 30) break;
+            g.drawString(font, l, cx + 8, dy, TEXT_SUB, true);
+            dy += 10;
+        }
+        // 代表物品：魔虚罗法阵 + 冷兵器（小图标排成一行）
+        int ix = cx + 8;
+        g.renderItem(new net.minecraft.world.item.ItemStack(ZhuShenSpace.MAHORAGA_WHEEL.get()), ix, cy + 35);
+        ix += 18;
+        for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
+            g.renderItem(new net.minecraft.world.item.ItemStack(ZhuShenSpace.weaponItem(w)), ix, cy + 35);
+            ix += 17;
+        }
+        String detail = Component.translatable("screen.zhushenspace.shop.detail").getString();
+        g.drawString(font, detail, cx + cw - font.width(detail) - 8, cy + 39, ACCENT, true);
+        g.flush();
+        g.disableScissor();
+    }
+
+    private static final int GEAR_CARD_H = 52, WEAPON_ROW_H = 24, WEAPON_ROW_GAP = 2, GEAR_SECTION_H = 16;
+
+    private int gearContentTop() { return listTop + 18; }
+
+    private int gearContentH() {
+        return com.zhushen.space.data.ShopGear.COUNT * (GEAR_CARD_H + 4) + GEAR_SECTION_H
+                + com.zhushen.space.data.MeleeWeapon.COUNT * (WEAPON_ROW_H + WEAPON_ROW_GAP);
+    }
+
+    private int gearMaxScroll() { return Math.max(0, gearContentH() - (listBottom - gearContentTop())); }
+
+    private int weaponRowY(int i, int base) {
+        return base + com.zhushen.space.data.ShopGear.COUNT * (GEAR_CARD_H + 4) + GEAR_SECTION_H + i * (WEAPON_ROW_H + WEAPON_ROW_GAP);
+    }
+
+    /** 武器行副标题：分类 · 伤害 · 重量 */
+    private String weaponLine(com.zhushen.space.data.MeleeWeapon w) {
+        String dmg = (w == com.zhushen.space.data.MeleeWeapon.KNUCKLE ? "+" : "") + w.damage + w.severity.name()
+                + (w.armorPierce > 0 ? " " + Component.translatable("tooltip.zhushenspace.weapon.pierce", w.armorPierce).getString() : "")
+                + " " + Component.translatable(w.kind.nameKey()).getString();
+        String kg = (w.weight == Math.floor(w.weight) ? String.valueOf((int) w.weight) : String.valueOf(w.weight)) + " kg";
+        return Component.translatable(w.category.nameKey()).getString() + " · " + dmg + " · " + kg;
+    }
+
+    private void renderGearPage(GuiGraphics g, int mouseX, int mouseY) {
+        int y = listTop + 2;
+        renderSmallButton(g, mouseX, mouseY, panelX + 5, y, 30, 12, Component.translatable("screen.zhushenspace.shop.back"));
+        g.drawString(font, Component.translatable("screen.zhushenspace.shop.gear_group"), panelX + 42, y + 2, TEXT_MAIN, true);
+        String bal = Component.translatable("screen.zhushenspace.shop.score_balance", ClientProgressData.score()).getString();
+        g.drawString(font, bal, panelX + panelW - font.width(bal) - 8, y + 2, GOLD, true);
+
+        int top = gearContentTop();
+        int maxScroll = gearMaxScroll();
+        detailScroll = Mth.clamp(detailScroll, 0, maxScroll);
+        int base = top - detailScroll;
+        int cx = panelX + 5, cw = panelW - 10 - (maxScroll > 0 ? 5 : 0);
+        net.minecraft.world.item.ItemStack hoverStack = net.minecraft.world.item.ItemStack.EMPTY;
+        boolean inView = mouseY >= top && mouseY < listBottom;
+
+        g.flush();
+        g.enableScissor(panelX, top, panelX + panelW, listBottom);
+        // —— 装备（概念武装）——
         for (com.zhushen.space.data.ShopGear gear : com.zhushen.space.data.ShopGear.values()) {
-            int cy = gearCardY(gear.ordinal());
-            if (cy >= listBottom) break;
-            ZsTheme.card(g, cx, cy, cw, 52, over(mouseX, mouseY, cx, cy, cw, 52));
+            int cy = base + gear.ordinal() * (GEAR_CARD_H + 4);
+            if (cy + GEAR_CARD_H < top || cy >= listBottom) continue;
+            ZsTheme.card(g, cx, cy, cw, GEAR_CARD_H, inView && over(mouseX, mouseY, cx, cy, cw, GEAR_CARD_H));
             g.renderItem(new net.minecraft.world.item.ItemStack(gearItem(gear)), cx + 4, cy + 2);
             g.drawString(font, Component.translatable(gear.nameKey()), cx + 23, cy + 5, TEXT_MAIN, true);
             String tag = Component.translatable("screen.zhushenspace.shop.gear_tag", gear.rank.label()).getString();
@@ -1622,18 +1697,70 @@ public class GodPanelScreen extends Screen {
                     cx + 8, cy + 39, affordable ? ACCENT : 0xFFFF8A80, true);
             String slot = Component.translatable("screen.zhushenspace.shop.gear_slot").getString();
             g.drawString(font, slot, cx + cw - font.width(slot) - 8, cy + 39, TEXT_SUB, true);
+            if (inView && over(mouseX, mouseY, cx + 4, cy + 2, 16, 16)) hoverStack = new net.minecraft.world.item.ItemStack(gearItem(gear));
+        }
+        // —— 基础冷兵器 ——
+        int sy = base + com.zhushen.space.data.ShopGear.COUNT * (GEAR_CARD_H + 4);
+        if (sy + GEAR_SECTION_H >= top && sy < listBottom) {
+            g.drawString(font, Component.translatable("screen.zhushenspace.shop.cold_weapons"), cx + 3, sy + 4, TEXT_MAIN, true);
+            boolean affordable = ClientProgressData.score() >= com.zhushen.space.data.MeleeWeapon.PRICE;
+            String price = Component.translatable("screen.zhushenspace.shop.weapon_price", com.zhushen.space.data.MeleeWeapon.PRICE).getString();
+            g.drawString(font, price, cx + cw - font.width(price) - 4, sy + 4, affordable ? GOLD : 0xFFFF8A80, true);
+            int lx = cx + 3 + font.width(Component.translatable("screen.zhushenspace.shop.cold_weapons")) + 6;
+            int rx = cx + cw - font.width(price) - 10;
+            if (rx > lx) g.fill(lx, sy + 8, rx, sy + 9, 0x40D8C8FF);
+        }
+        for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
+            int ry = weaponRowY(w.ordinal(), base);
+            if (ry + WEAPON_ROW_H < top || ry >= listBottom) continue;
+            boolean hover = inView && over(mouseX, mouseY, cx, ry, cw, WEAPON_ROW_H);
+            ZsTheme.card(g, cx, ry, cw, WEAPON_ROW_H, hover);
+            net.minecraft.world.item.ItemStack st = new net.minecraft.world.item.ItemStack(ZhuShenSpace.weaponItem(w));
+            g.renderItem(st, cx + 4, ry + 4);
+            g.drawString(font, Component.translatable(w.nameKey()), cx + 24, ry + 3, TEXT_MAIN, true);
+            g.drawString(font, weaponLine(w), cx + 24, ry + 13, TEXT_SUB, true);
+            int bx = cx + cw - 46;
+            if (ClientProgressData.score() >= com.zhushen.space.data.MeleeWeapon.PRICE) buyGlow(g, bx, ry + 5, 40, 14);
+            renderSmallButton(g, mouseX, mouseY, bx, ry + 5, 40, 14, Component.translatable("screen.zhushenspace.shop.buy"));
+            if (hover && !over(mouseX, mouseY, bx, ry + 5, 40, 14)) hoverStack = st;
         }
         g.flush();
         g.disableScissor();
+        if (maxScroll > 0) ZsTheme.scrollbar(g, panelX + panelW - 7, top, listBottom, gearContentH(), detailScroll, maxScroll);
+        if (!hoverStack.isEmpty()) {
+            g.pose().pushPose();
+            g.pose().translate(0, 0, 400);
+            g.renderComponentTooltip(font, getTooltipFromItem(minecraft, hoverStack), mouseX, mouseY);
+            g.pose().popPose();
+        }
     }
 
-    private boolean handleGearClick(double mouseX, double mouseY) {
-        int cx = panelX + 5, cw = panelW - 10;
+    private boolean handleGearPageClick(double mouseX, double mouseY) {
+        if (over(mouseX, mouseY, panelX + 5, listTop + 2, 30, 12)) {
+            gearPage = false;
+            detailScroll = 0;
+            playClick(1.0f);
+            return true;
+        }
+        int top = gearContentTop();
+        if (mouseY < top || mouseY >= listBottom) return false;
+        int maxScroll = gearMaxScroll();
+        detailScroll = Mth.clamp(detailScroll, 0, maxScroll);
+        int base = top - detailScroll;
+        int cx = panelX + 5, cw = panelW - 10 - (maxScroll > 0 ? 5 : 0);
         for (com.zhushen.space.data.ShopGear gear : com.zhushen.space.data.ShopGear.values()) {
-            int cy = gearCardY(gear.ordinal());
-            if (cy >= listBottom || mouseY >= listBottom) break;
+            int cy = base + gear.ordinal() * (GEAR_CARD_H + 4);
             if (over(mouseX, mouseY, cx + cw - 48, cy + 3, 42, 14)) {
                 PacketDistributor.sendToServer(new com.zhushen.space.network.GearPurchasePayload(gear.ordinal()));
+                playClick(1.0f);
+                return true;
+            }
+        }
+        for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
+            int ry = weaponRowY(w.ordinal(), base);
+            if (over(mouseX, mouseY, cx + cw - 46, ry + 5, 40, 14)) {
+                PacketDistributor.sendToServer(new com.zhushen.space.network.GearPurchasePayload(
+                        ProgressManager.WEAPON_OFFSET + w.ordinal()));
                 playClick(1.0f);
                 return true;
             }
@@ -2073,9 +2200,16 @@ public class GodPanelScreen extends Screen {
 
     /** 商城页点击 */
     private boolean handleShopClick(double mouseX, double mouseY) {
+        if (gearPage) return handleGearPageClick(mouseX, mouseY);
         if (detailArt >= 0 || artPage > 0) return handleArtClick(mouseX, mouseY);
         if (detailSchool < 0 && handleArtClick(mouseX, mouseY)) return true;
-        if (detailSchool < 0 && handleGearClick(mouseX, mouseY)) return true;
+        if (detailSchool < 0 && gearGroupCardY() < listBottom && mouseY < listBottom
+                && over(mouseX, mouseY, panelX + 5, gearGroupCardY(), panelW - 10, 52)) {
+            gearPage = true;
+            detailScroll = 0;
+            playClick(1.0f);
+            return true;
+        }
         // 详情页
         if (detailSchool >= 0 && detailSchool < SchoolType.COUNT) {
             SchoolType school = SchoolType.values()[detailSchool];
@@ -2175,7 +2309,7 @@ public class GodPanelScreen extends Screen {
             return true;
         }
         if (button == 0 && tab == Tab.SKILLS) {
-            for (int gi = 0; gi < 2; gi++) {
+            for (int gi = 0; gi < 3; gi++) {
                 if (profChipX[gi] >= 0 && profPending[gi] > 0
                         && over(mouseX, mouseY, profChipX[gi], profChipY[gi], profChipW[gi], 11)
                         && mouseY >= listTop && mouseY < listBottom) {
@@ -2259,7 +2393,7 @@ public class GodPanelScreen extends Screen {
             return true;
         }
         if (tab == Tab.PRESET && presetTab.mouseScrolled(mouseX, mouseY, scrollY)) return true;
-        if (tab == Tab.SHOP && (detailSchool >= 0 || detailArt >= 0)) {
+        if (tab == Tab.SHOP && (detailSchool >= 0 || detailArt >= 0 || gearPage)) {
             // 详情页像素级滚动（固定行高，向下滚动查看后续内容，上限在渲染时 clamp）
             detailScroll = Math.max(0, detailScroll + dir * 16);
             return true;
@@ -2367,6 +2501,7 @@ public class GodPanelScreen extends Screen {
         if (profChooser >= 0) { profChooser = -1; playClick(0.8f); return; }
         if (tab == Tab.SHOP && detailArt >= 0) { detailArt = -1; detailScroll = 0; playClick(0.8f); return; }
         if (tab == Tab.SHOP && artPage > 0) { artPage--; playClick(0.8f); return; }
+        if (tab == Tab.SHOP && gearPage) { gearPage = false; detailScroll = 0; playClick(0.8f); return; }
         if (tab == Tab.SHOP && detailSchool >= 0) { detailSchool = -1; playClick(0.8f); return; }
         if (tab == Tab.PRESET && presetTab.back()) return;
         if (buildDirty()) { discardConfirm = true; playClick(0.6f); return; }

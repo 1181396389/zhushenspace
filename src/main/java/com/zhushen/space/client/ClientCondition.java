@@ -389,6 +389,7 @@ public final class ClientCondition {
             out.add(new Chip(Component.translatable(standing() ? "hud.zhushenspace.prone.standing" : "hud.zhushenspace.prone.hint").getString(),
                     0xFFFFD27F, -1, -1, false));
         }
+        ClientLoad.chip(out); // 负重（中度及以上）
         for (Condition c : Condition.values()) {
             if (!has(c)) continue;
             String t = Component.translatable(c.nameKey()).getString();

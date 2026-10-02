@@ -381,6 +381,7 @@ public final class StatusEffects {
         if (social && light(p, StatusType.PAIN)) pen += StatusManager.LIGHT_PENALTY;
         if (strAgi && light(p, StatusType.FATIGUE)) pen += StatusManager.LIGHT_PENALTY;
         if (active && light(p, StatusType.DEPRESSION)) pen += 9;
+        if (active && physical) pen += LoadManager.checkPenalty(p); // 负重：主动身体检定减值
         return pen;
     }
 

@@ -69,11 +69,11 @@ public class SkillServer {
         int[] active = SkillManager.activeStateTicks(player);
         PacketDistributor.sendToPlayer(player, new SyncSkillsPayload(
                 data.points(), data.totalSkillPoints(), data.bars(),
-                SkillManager.remainingCooldowns(player), active[0], active[1], new int[]{data.professionMask(0), data.professionMask(1), data.extraProfessions()}));
+                SkillManager.remainingCooldowns(player), active[0], active[1], new int[]{data.professionMask(0), data.professionMask(1), data.extraProfessions(), data.professionMask(2)}));
     }
 
     private static com.zhushen.space.data.SkillType skillOf(int group) {
-        return group == 0 ? com.zhushen.space.data.SkillType.BLADE : com.zhushen.space.data.SkillType.FIREARMS;
+        return com.zhushen.space.data.WeaponCategory.ProfGroup.values()[group].skill;
     }
 
     /** 某组尚可免费选择的专业数（技能 3、4 各一个；加点最多共 3 个，特殊效果可加） */
@@ -85,7 +85,7 @@ public class SkillServer {
     /** 选择专业：该组有剩余名额、分类属于该组且尚未拥有；选择后不可更改 */
     public static void chooseProfession(ServerPlayer player, int group, int category) {
         PlayerSkillData data = player.getData(ModAttachments.PLAYER_SKILLS);
-        if (group < 0 || group > 1 || category < 0 || category >= com.zhushen.space.data.WeaponCategory.values().length) return;
+        if (group < 0 || group >= com.zhushen.space.data.WeaponCategory.ProfGroup.COUNT || category < 0 || category >= com.zhushen.space.data.WeaponCategory.values().length) return;
         com.zhushen.space.data.WeaponCategory c = com.zhushen.space.data.WeaponCategory.values()[category];
         if (c.profGroup() == null || c.profGroup().ordinal() != group || data.hasProfession(c)
                 || pendingProfessions(data, group) <= 0) {

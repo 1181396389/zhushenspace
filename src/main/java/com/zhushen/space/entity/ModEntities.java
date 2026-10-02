@@ -50,6 +50,13 @@ public class ModEntities {
                     .sized(0.5f, 0.5f).clientTrackingRange(10).updateInterval(1).noSummon().fireImmune()
                     .build("art_vfx"));
 
+    /** 投出的冷兵器（匕首等） */
+    public static final DeferredHolder<EntityType<?>, EntityType<ThrownWeapon>> THROWN_WEAPON =
+            ENTITY_TYPES.register("thrown_weapon", () -> EntityType.Builder
+                    .<ThrownWeapon>of(ThrownWeapon::new, MobCategory.MISC)
+                    .sized(0.5f, 0.5f).clientTrackingRange(4).updateInterval(20)
+                    .build("thrown_weapon"));
+
     @SubscribeEvent
     public static void onRegisterAttributes(EntityAttributeCreationEvent event) {
         event.put(T_VIRUS_ZOMBIE.get(), TVirusZombie.createAttributes().build());

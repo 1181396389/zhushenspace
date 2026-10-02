@@ -158,6 +158,21 @@ public class ProgressManager {
         return null;
     }
 
+    /** 商城购买包中「基础冷兵器」的序号偏移（GearPurchasePayload：100 + 模板序号） */
+    public static final int WEAPON_OFFSET = 100;
+
+    /** 主神商城：购买基础冷兵器模板（每件 200 奖励点数，可重复购买） */
+    public static String purchaseWeapon(ServerPlayer player, com.zhushen.space.data.MeleeWeapon w) {
+        PlayerCurrencyData currency = player.getData(ModAttachments.PLAYER_CURRENCY);
+        if (currency.score() < com.zhushen.space.data.MeleeWeapon.PRICE) return "commands.zhushenspace.school.lack_currency";
+        currency.addScore(-com.zhushen.space.data.MeleeWeapon.PRICE);
+        ItemStack stack = new ItemStack(com.zhushen.space.ZhuShenSpace.weaponItem(w));
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        player.displayClientMessage(Component.translatable("msg.zhushenspace.shop.gear_bought", Component.translatable(w.nameKey())), false);
+        sync(player);
+        return null;
+    }
+
     /** 直接解锁（调试指令，不扣费） */
     public static void grantSchool(ServerPlayer player, SchoolType school) {
         player.getData(ModAttachments.PLAYER_SCHOOLS).unlock(school);

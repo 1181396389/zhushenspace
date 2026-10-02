@@ -500,6 +500,28 @@ public final class DamageRules {
         WEAPON.put(victim.getUUID(), new Timed<>(victim.level().getGameTime(), weaponDamage));
     }
 
+    /** 基础冷兵器近战 / 投掷：本次攻击的伤势等级、伤害类型与破甲（WeaponRules.note 调用） */
+    public record MeleeNote(Severity severity, Set<DamageKind> kinds, int armorPierce) {}
+
+    private static final Map<UUID, Timed<MeleeNote>> MELEE = new HashMap<>();
+
+    public static void noteMelee(LivingEntity victim, DamageSource src, Severity sev, Set<DamageKind> kinds, int armorPierce) {
+        MELEE.put(victim.getUUID(), new Timed<>(victim.level().getGameTime(), new MeleeNote(sev, kinds, armorPierce)));
+    }
+
+    /** 同刻记录（武器伤害 / 冷兵器）未被结算的残留：每刻末清空 */
+    @SubscribeEvent
+    public static void onServerTick(net.neoforged.neoforge.event.tick.ServerTickEvent.Post e) {
+        MELEE.clear();
+        WEAPON.clear();
+        NEXT_BREAKS.clear();
+    }
+
+    private static MeleeNote peekMelee(LivingEntity e) {
+        Timed<MeleeNote> t = MELEE.get(e.getUUID());
+        return t != null && t.tick == e.level().getGameTime() ? t.value : null;
+    }
+
     private static <T> T take(Map<UUID, Timed<T>> m, LivingEntity e) {
         Timed<T> t = m.remove(e.getUUID());
         return t != null && t.tick == e.level().getGameTime() ? t.value : null;
@@ -510,6 +532,8 @@ public final class DamageRules {
     public static Set<DamageKind> kinds(DamageSource src, LivingEntity victim) {
         Spec sp = PENDING.get(victim.getUUID());
         if (sp != null) return sp.kinds;
+        MeleeNote mn = peekMelee(victim);
+        if (mn != null && src.getEntity() != null) return mn.kinds();
         DamageKind art = ArtDamage.kindOf(src);
         if (art != null) return EnumSet.of(art);
         if (src.is(DamageTypes.IN_FIRE) || src.is(DamageTypes.ON_FIRE) || src.is(DamageTypes.LAVA) || src.is(DamageTypes.HOT_FLOOR)
@@ -580,11 +604,13 @@ public final class DamageRules {
         DamageSource src = e.getSource();
         List<Break> oneShot = take(NEXT_BREAKS, v);
         Float weapon = take(WEAPON, v);
-        if (bypass(src) || e.getAmount() <= 0) return;
         Spec spec = PENDING.get(v.getUUID());
         Set<DamageKind> ks = kinds(src, v);
+        MeleeNote melee = spec == null && src.getEntity() != null ? take(MELEE, v) : null;
+        MELEE.remove(v.getUUID());
+        if (bypass(src) || e.getAmount() <= 0) return;
         float amt = e.getAmount();
-        Severity sev = spec != null ? spec.severity : Severity.B;
+        Severity sev = spec != null ? spec.severity : melee != null ? melee.severity() : Severity.B;
 
         // 坠落：起算 3 米，每超 2 米 1 点物理钝击严重伤害（原版伤害已扣除起算高度、安全高度与软地形），上限 100，无视护甲，倒地
         if (isFall(src)) {
@@ -641,7 +667,7 @@ public final class DamageRules {
         // 2~3) 攻击方能力：特性 / 击破 / 转化 / 附加部分
         if (!h.transferred()) for (var f : ATTACK) f.accept(h, pr);
         // 3) 破甲：依次击破盾牌 / 盔甲 / 天生防御，剩余击破硬度
-        int pierce = spec != null ? spec.armorPierce : 0;
+        int pierce = spec != null ? spec.armorPierce : melee != null ? melee.armorPierce() : 0;
         if (pierce > 0) {
             int left = pierce - armorLayers(v);
             if (left > 0) h.breaks.add(Break.points(Stage.HARDNESS, left));

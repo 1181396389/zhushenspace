@@ -50,6 +50,19 @@ public class ZhuShenSpace {
                     props -> new com.zhushen.space.item.MahoragaWheelItem(com.zhushen.space.item.ModArmorMaterials.MAHORAGA, props),
                     new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
 
+    /** 基础冷兵器模板（主神商城 · 每件 200 奖励点数） */
+    public static final java.util.Map<com.zhushen.space.data.MeleeWeapon, DeferredItem<com.zhushen.space.item.ZsWeaponItem>> WEAPONS =
+            new java.util.EnumMap<>(com.zhushen.space.data.MeleeWeapon.class);
+
+    static {
+        for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
+            WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsWeaponItem(w, props),
+                    new Item.Properties().stacksTo(w.throwRange > 0 ? 8 : 1)));
+        }
+    }
+
+    public static Item weaponItem(com.zhushen.space.data.MeleeWeapon w) { return WEAPONS.get(w).get(); }
+
     // Creative Tab
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> ZHUSHEN_TAB = CREATIVE_MODE_TABS.register("zhushen_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.zhushenspace"))
@@ -59,6 +72,7 @@ public class ZhuShenSpace {
                 output.accept(INVITATION_ENVELOPE.get());
                 output.accept(TAI_CHI_EMBLEM.get());
                 output.accept(MAHORAGA_WHEEL.get());
+                for (var w : WEAPONS.values()) output.accept(w.get());
                 output.accept(T_VIRUS_ZOMBIE_SPAWN_EGG.get());
             }).build());
 

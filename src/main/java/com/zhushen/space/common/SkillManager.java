@@ -577,6 +577,7 @@ public class SkillManager {
     /** 冷兵器：剑 / 斧 / 三叉戟 / 重锤（枪械暂不存在于原版） */
     private static boolean isColdWeapon(ItemStack stack) {
         return stack.getItem() instanceof SwordItem
+                || stack.getItem() instanceof com.zhushen.space.item.ZsWeaponItem
                 || stack.getItem() instanceof AxeItem
                 || stack.getItem() instanceof TridentItem
                 || stack.getItem() instanceof MaceItem;

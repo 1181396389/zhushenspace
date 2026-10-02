@@ -52,6 +52,9 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
  * 器械减值：力量前提每差 1 点 −6（弓为 −2 且距离上限少 1 个射程单位），差超过 3 点无法使用；
  * 需要专业的分类（白刃 / 枪械的细分）没有对应专业 −9。
  * 距离减值：每超过 1 个射程单位 −6；力量不足时额外叠加（投掷每单位再 −6；弓为 2、6、12、20…× 差值）。
+ * <p>
+ * 基础冷兵器（{@link com.zhushen.space.data.MeleeWeapon}）：轻型武器敏捷代替力量、重武器 −6 / +2 附加成功、
+ * 【双手】单手持用减半、【威猛】、破甲，伤势等级与伤害类型按模板（见 {@link WeaponRules}）；投出的匕首走投掷公式。
  */
 @EventBusSubscriber(modid = ZhuShenSpace.MODID)
 public final class CombatFormula {
@@ -87,6 +90,8 @@ public final class CombatFormula {
     /** 手持物品的分类（空手 = 天生武器；TACZ 枪按枪械类型；其余按标签，未分类 = 普通人造物品） */
     public static WeaponCategory classify(ItemStack stack) {
         if (stack.isEmpty()) return WeaponCategory.NATURAL;
+        com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(stack);
+        if (mw != null) return mw.category;
         WeaponCategory gun = TaczCompat.gunCategory(stack);
         if (gun != null) return gun;
         if (stack.is(BOW)) return WeaponCategory.BOW;
@@ -118,6 +123,19 @@ public final class CombatFormula {
 
     public static int strengthDeficit(ServerPlayer p, ItemStack stack) {
         return Math.max(0, spec(stack).strReq() - attr(p, AttributeType.STRENGTH));
+    }
+
+    /** 近战攻击的关键属性：轻型武器（匕首）力量 / 敏捷取较高者，其余为力量 */
+    public static AttributeType meleeKey(ServerPlayer p, com.zhushen.space.data.MeleeWeapon mw) {
+        if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.LIGHT_WEAPON)
+                && attr(p, AttributeType.AGILITY) > attr(p, AttributeType.STRENGTH)) return AttributeType.AGILITY;
+        return AttributeType.STRENGTH;
+    }
+
+    /** 天生武器伤害（拳）：基础 1；手持拳套（肉搏武器）时加上其提升值 */
+    public static int naturalWeapon(ServerPlayer p) {
+        com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(p.getMainHandItem());
+        return 1 + (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.BRAWL_WEAPON) ? mw.damage : 0);
     }
 
     /** 目标防御（本次攻击结算：消耗攻击附带的措手不及与意志守御） */
@@ -187,12 +205,53 @@ public final class CombatFormula {
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
             float wd = weaponDamage(p, event.getAmount());
             DamageRules.noteWeapon(victim, wd); // 「忽略武器伤害 X 点以下」等条件
-            base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + wd - def - pen
-                    + PoolEffects.skillBonus(p, cat.skill, AttributeType.STRENGTH) - StatusManager.attackPenalty(p, false, victim);
+            // 基础冷兵器：轻型武器（敏捷代替力量）/ 重武器（−6）/ 破甲 / 威猛
+            com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(stack);
+            AttributeType key = meleeKey(p, mw);
+            int dp = 0;
+            if (mw != null) {
+                if (mw.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_WEAPON)) pen += WeaponRules.HEAVY_PENALTY;
+                def = Math.max(0f, def - WeaponRules.pierce(victim, src, p, mw.armorPierce));
+                if (mw.has(com.zhushen.space.data.MeleeWeapon.Trait.MIGHTY)) dp += WeaponRules.mighty(victim, src, p, skill(p, cat.skill));
+            }
+            base = attr(p, key) + skill(p, cat.skill) + wd - def - pen + dp
+                    + PoolEffects.skillBonus(p, cat.skill, key) - StatusManager.attackPenalty(p, false, victim);
             base = Math.max(0f, base) * StatusEffects.successFactor(p); // 肌肉痉挛：失去一半自然成功数
+            if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.TWO_HANDED) && !WeaponRules.twoHanded(p)) {
+                base *= 0.5f; // 【双手】单手持用：失去一半自然成功数
+                WeaponRules.oneHandHint(p);
+            }
             base = Math.max(0f, base);
             event.setAmount(base);
             DamageCap.setMeleeBase(p, victim, base);
+            if (mw != null) {
+                WeaponRules.note(victim, src, mw, stack);
+                if (mw.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_WEAPON))
+                    DamageVariance.addAfterRoll(victim, WeaponRules.HEAVY_BONUS);
+            }
+        } else if (direct instanceof com.zhushen.space.entity.ThrownWeapon tw && tw.weapon() != null) {
+            // 投出的冷兵器：轻投掷武器以敏捷、重投掷武器以力量为关键属性；距离上限 = 基本射程 × 力量
+            com.zhushen.space.data.MeleeWeapon w = tw.weapon();
+            int str = attr(p, AttributeType.STRENGTH);
+            double dist = p.distanceTo(victim);
+            float range = w.throwRange;
+            if (dist > range * Math.max(1, str)) {
+                event.setAmount(0f);
+                zeroArmor(event);
+                return;
+            }
+            def = defense(victim, src);
+            def = Math.max(0f, def - WeaponRules.pierce(victim, src, p, w.armorPierce));
+            int distPen = rangeExcess(dist, range) * WeaponCategory.RANGE_PENALTY;
+            float wd = w.damage;
+            DamageRules.noteWeapon(victim, wd);
+            int ath = skill(p, SkillType.ATHLETICS);
+            AttributeType key = w.has(com.zhushen.space.data.MeleeWeapon.Trait.LIGHT_THROWN) ? AttributeType.AGILITY : AttributeType.STRENGTH;
+            base = attr(p, key) + ath + wd - def - distPen - professionPenalty(p, w.category)
+                    + PoolEffects.skillBonus(p, SkillType.ATHLETICS, key) - StatusManager.attackPenalty(p, true, victim);
+            base = Math.max(0f, Math.min(base, wd + ath + str)) * StatusEffects.successFactor(p);
+            event.setAmount(base);
+            WeaponRules.note(victim, src, w, tw.getWeaponItem());
         } else if (direct instanceof ThrownTrident trident) {
             ItemStack weapon = trident.getWeaponItem();
             if (weapon == null || weapon.isEmpty()) weapon = new ItemStack(Items.TRIDENT);
@@ -258,8 +317,12 @@ public final class CombatFormula {
             int deficit = strengthDeficit(p, stack);
             if (deficit > WeaponCategory.MAX_DEFICIT) return 0f;
             int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
-            base = attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + weaponDamage(p, amount) - pen
-                    + PoolEffects.skillBonus(p, cat.skill, AttributeType.STRENGTH);
+            com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(stack);
+            if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_WEAPON)) pen += WeaponRules.HEAVY_PENALTY;
+            AttributeType key = meleeKey(p, mw);
+            base = attr(p, key) + skill(p, cat.skill) + weaponDamage(p, amount) - pen
+                    + PoolEffects.skillBonus(p, cat.skill, key);
+            if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.TWO_HANDED) && !WeaponRules.twoHanded(p)) base *= 0.5f;
         } else if (direct instanceof AbstractArrow || direct instanceof ThrownTrident) {
             base = attr(p, AttributeType.AGILITY) + skill(p, SkillType.ATHLETICS) + amount
                     + PoolEffects.skillBonus(p, SkillType.ATHLETICS, AttributeType.AGILITY);
@@ -356,8 +419,13 @@ public final class CombatFormula {
             default -> {
                 if (cat.group == WeaponCategory.Group.GUN) cat = WeaponCategory.GENERIC;
                 float wd = weaponDamage(p, vanillaAttackDamage);
-                return Math.max(0f, attr(p, AttributeType.STRENGTH) + skill(p, cat.skill) + wd
-                        - deficit * WeaponCategory.REQ_PENALTY - professionPenalty(p, cat));
+                com.zhushen.space.data.MeleeWeapon mw = com.zhushen.space.data.MeleeWeapon.of(stack);
+                int pen = deficit * WeaponCategory.REQ_PENALTY + professionPenalty(p, cat);
+                boolean heavy = mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_WEAPON);
+                if (heavy) pen += WeaponRules.HEAVY_PENALTY;
+                float v = Math.max(0f, attr(p, meleeKey(p, mw)) + skill(p, cat.skill) + wd - pen);
+                if (mw != null && mw.has(com.zhushen.space.data.MeleeWeapon.Trait.TWO_HANDED) && !WeaponRules.twoHanded(p)) v *= 0.5f;
+                return heavy && v > 0 ? v + WeaponRules.HEAVY_BONUS : v;
             }
         }
     }

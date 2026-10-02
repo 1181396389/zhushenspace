@@ -26,7 +26,7 @@ public class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("28"); // 协议版本：装备位 + 魔虚罗法阵
+        PayloadRegistrar registrar = event.registrar("29"); // 协议版本：基础冷兵器 + 负重 + 肉搏专业
         // 装备位穿脱状态 / 魔虚罗法阵适应 / 商城装备
         registrar.playToClient(SyncGearPayload.TYPE, SyncGearPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
@@ -38,6 +38,15 @@ public class ModNetworking {
                 (payload, ctx) -> ctx.enqueueWork(() -> {
                     if (ctx.player() instanceof ServerPlayer serverPlayer) {
                         int ord = payload.gear();
+                        // 100 + 序号 = 基础冷兵器模板
+                        if (ord >= com.zhushen.space.common.ProgressManager.WEAPON_OFFSET) {
+                            int w = ord - com.zhushen.space.common.ProgressManager.WEAPON_OFFSET;
+                            if (w >= com.zhushen.space.data.MeleeWeapon.COUNT) return;
+                            String err = com.zhushen.space.common.ProgressManager.purchaseWeapon(serverPlayer,
+                                    com.zhushen.space.data.MeleeWeapon.values()[w]);
+                            if (err != null) serverPlayer.displayClientMessage(net.minecraft.network.chat.Component.translatable(err), true);
+                            return;
+                        }
                         if (ord < 0 || ord >= com.zhushen.space.data.ShopGear.COUNT) return;
                         String err = com.zhushen.space.common.ProgressManager.purchaseGear(serverPlayer,
                                 com.zhushen.space.data.ShopGear.values()[ord]);
@@ -146,6 +155,10 @@ public class ModNetworking {
         registrar.playToClient(DamagePanelPayload.TYPE, DamagePanelPayload.STREAM_CODEC,
                 (payload, ctx) -> ctx.enqueueWork(() ->
                         com.zhushen.space.client.ClientDamagePanel.update(payload.kind(), payload.panel(), payload.pellets())));
+
+        // ===== 负重 =====
+        registrar.playToClient(SyncLoadPayload.TYPE, SyncLoadPayload.STREAM_CODEC,
+                (payload, ctx) -> ctx.enqueueWork(() -> com.zhushen.space.client.ClientLoad.update(payload)));
 
         // ===== B/L/A 伤势池 =====
         registrar.playToClient(SyncHealthPayload.TYPE, SyncHealthPayload.STREAM_CODEC,

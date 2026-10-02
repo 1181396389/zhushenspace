@@ -129,7 +129,7 @@ public final class Defense {
         int base = base(p);
         int full = fullActive(p) ? base : 0;
         int parry = 0, natural = FeatEffects.has(p, FeatType.GIANT_BODY) ? 1 : 0;
-        int dodge = FeatEffects.dodgeDefenseBonus(p);
+        int dodge = FeatEffects.dodgeDefenseBonus(p) - LoadManager.dodgePenalty(p); // 负重：闪避减值
 
         // 盔甲防御：只计覆盖命中部位的盔甲；无视护甲的伤害不计
         boolean known = src != null;
@@ -254,7 +254,8 @@ public final class Defense {
     /** 身体防御（基础 + 全力 + 闪避 + 天生；不考虑措手不及与状态） */
     public static int body(ServerPlayer p) {
         int base = base(p);
-        int v = base + (fullActive(p) ? base : 0) + FeatEffects.dodgeDefenseBonus(p) + (FeatEffects.has(p, FeatType.GIANT_BODY) ? 1 : 0);
+        int v = base + (fullActive(p) ? base : 0) + FeatEffects.dodgeDefenseBonus(p) - LoadManager.dodgePenalty(p)
+                + (FeatEffects.has(p, FeatType.GIANT_BODY) ? 1 : 0);
         AttributeInstance inst = p.getAttribute(Attributes.ARMOR);
         if (inst != null) for (AttributeModifier m : inst.getModifiers()) {
             if (NATURAL.contains(m.id()) || DODGE.contains(m.id())) v += (int) Math.round(m.amount());

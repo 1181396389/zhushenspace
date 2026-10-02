@@ -63,7 +63,7 @@ public final class ArtBallistics {
         float charge = ArtCharge.supports(s) ? 1f + Math.max(0, Math.min(ArtCharge.MAX_TICKS, chargeTicks)) / (float) ArtCharge.MAX_TICKS : 1;
         switch (s) {
             case HADOKEN -> {
-                check = ArtManager.attr(p, AttributeType.STRENGTH) + ArtManager.skill(p, SkillType.BRAWL) + 1;
+                check = ArtManager.attr(p, AttributeType.STRENGTH) + ArtManager.skill(p, SkillType.BRAWL) + CombatFormula.naturalWeapon(p); // 天生武器（拳套加成）
                 cap = check; kind = ArtProjectile.WAVE; color = 0xFFB4F4FF; range = 50; speed = 1.25;
                 size = 0.75f + 0.5f * (charge - 1); animation = "art_hadoken";
             }

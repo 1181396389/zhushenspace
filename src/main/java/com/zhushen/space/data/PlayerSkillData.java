@@ -22,7 +22,7 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
     private boolean envelopeUsed = false;
     /** 已选专业（WeaponCategory 序号，-1 = 未选）：[0] 白刃，[1] 枪械 */
     /** 每组专业位掩码（bit = WeaponCategory 序号） */
-    private final int[] professions = {0, 0};
+    private final int[] professions = {0, 0, 0};
     /** 特殊效果额外给予的专业上限 */
     private int extraProfessions = 0;
     /** 两套战斗预设栏：每格 -1 为空，否则为 SkillAbility 序号 */
@@ -70,7 +70,7 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
     }
 
     public int professionCount() {
-        return Integer.bitCount(professions[0]) + Integer.bitCount(professions[1]);
+        return Integer.bitCount(professions[0]) + Integer.bitCount(professions[1]) + Integer.bitCount(professions[2]);
     }
 
     public int extraProfessions() {
@@ -86,8 +86,7 @@ public class PlayerSkillData implements INBTSerializable<CompoundTag> {
     }
 
     public void clearProfessions() {
-        professions[0] = 0;
-        professions[1] = 0;
+        java.util.Arrays.fill(professions, 0);
     }
 
     public boolean envelopeUsed() {

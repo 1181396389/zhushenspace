@@ -41,20 +41,21 @@ public class ClientSkillData {
     }
 
     /** 同步进行中的增益状态（跳跃 / 攀爬剩余 tick，0 表示不活跃） */
-    private static final int[] PROFESSIONS = {0, 0, 0};
+    /** [0] 白刃专业位掩码 · [1] 枪械 · [2] 额外专业数 · [3] 肉搏 */
+    private static final int[] PROFESSIONS = {0, 0, 0, 0};
 
     public static void updateProfessions(int[] p) {
-        if (p != null && p.length == 3) System.arraycopy(p, 0, PROFESSIONS, 0, 3);
+        if (p != null && p.length == 4) System.arraycopy(p, 0, PROFESSIONS, 0, 4);
     }
 
-    /** 已选专业（WeaponCategory 序号，-1 = 未选）；group 0 = 白刃，1 = 枪械 */
+    /** 已选专业（WeaponCategory 序号位掩码）；group 0 = 白刃，1 = 枪械，2 = 肉搏 */
     public static int professionMask(int group) {
-        return PROFESSIONS[group];
+        return PROFESSIONS[group == 2 ? 3 : group];
     }
 
     public static int pendingProfessions(int group, int level) {
-        return com.zhushen.space.data.WeaponCategory.pending(level, PROFESSIONS[group],
-                Integer.bitCount(PROFESSIONS[0]) + Integer.bitCount(PROFESSIONS[1]), PROFESSIONS[2]);
+        return com.zhushen.space.data.WeaponCategory.pending(level, professionMask(group),
+                Integer.bitCount(PROFESSIONS[0]) + Integer.bitCount(PROFESSIONS[1]) + Integer.bitCount(PROFESSIONS[3]), PROFESSIONS[2]);
     }
 
     public static void updateTransient(int leapRemainTicks, int climbRemainTicks) {

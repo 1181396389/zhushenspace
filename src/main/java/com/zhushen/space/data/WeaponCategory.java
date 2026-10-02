@@ -8,6 +8,7 @@ package com.zhushen.space.data;
  *   <li>弓（含弩）：敏捷 + 运动，射程上限 8 倍射程单位，必须双手</li>
  *   <li>投掷：敏捷 + 运动，射程上限 = 射程单位 × 力量</li>
  *   <li>未分类人造物品：力量 + 白刃，不需要专业；天生武器（空手）：力量 + 肉搏</li>
+ *   <li>基础冷兵器：短棍、长棍、战锤、巨锤、匕首（白刃组专业）；拳套（肉搏组专业）</li>
  * </ul>
  * 注意：按 key 存档（专业选择），新分类可以追加。
  */
@@ -27,12 +28,25 @@ public enum WeaponCategory {
     /** 未分类的人造物品（斧、镐、杂物……）：白刃攻击，无专业要求 */
     GENERIC(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "generic"),
     /** 天生武器（拳头 / 肢体） */
-    NATURAL(Group.BRAWL, AttributeType.STRENGTH, SkillType.BRAWL, "natural");
+    NATURAL(Group.BRAWL, AttributeType.STRENGTH, SkillType.BRAWL, "natural"),
+    // ===== 基础冷兵器模板（见 MeleeWeapon；按 key 存档，追加在末尾） =====
+    /** 拳套：【肉搏武器】，攻击视为肉搏攻击（力量 + 肉搏），专业属于肉搏组 */
+    KNUCKLE(Group.BRAWL, AttributeType.STRENGTH, SkillType.BRAWL, "knuckle"),
+    SHORT_STAFF(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "short_staff"),
+    LONG_STAFF(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "long_staff"),
+    WAR_HAMMER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "war_hammer"),
+    GREAT_HAMMER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "great_hammer"),
+    DAGGER(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "dagger");
 
     public enum Group { GUN, BLADE, BOW, THROWN, BRAWL }
 
-    /** 可选专业的两个技能组：白刃 / 枪械（技能达到 3 点可选择一个） */
-    public enum ProfGroup { BLADE, GUN }
+    /** 可选专业的技能组：白刃 / 枪械 / 肉搏（技能达到 3、4 点各可选择一个；序号即存档 / 网络中的组号） */
+    public enum ProfGroup {
+        BLADE(SkillType.BLADE), GUN(SkillType.FIREARMS), BRAWL(SkillType.BRAWL);
+        public final SkillType skill;
+        ProfGroup(SkillType skill) { this.skill = skill; }
+        public static final int COUNT = 3;
+    }
 
     public static final int PROFESSION_LEVEL = 3;
     /** 技能达到 3 与 4 时各免费获得一个专业 */
@@ -74,6 +88,7 @@ public enum WeaponCategory {
     /** 该分类是否需要（可选）专业 */
     public ProfGroup profGroup() {
         if (this == GENERIC || this == NATURAL) return null;
+        if (this == KNUCKLE) return ProfGroup.BRAWL;
         return group == Group.GUN ? ProfGroup.GUN : group == Group.BLADE ? ProfGroup.BLADE : null;
     }
 
