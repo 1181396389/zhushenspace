@@ -1416,7 +1416,7 @@
   "screen.zhushenspace.load.effect.medium": "Speed -25%, dodge -2, active physical checks -3",
   "screen.zhushenspace.load.effect.heavy": "Speed -50%, no sprinting, dodge -4, active physical checks -6",
   "screen.zhushenspace.load.effect.over": "Speed -90%, no sprinting, dodge -4, active physical checks -6",
-  "screen.zhushenspace.load.tip_note": "Only Zhushen Space items count; limits grow with STR and size",
+  "screen.zhushenspace.load.tip_note": "Only items with a listed weight count; limits grow with STR and size",
   "screen.zhushenspace.shop.gear_group": "Gear & Weapons",
   "screen.zhushenspace.shop.gear_group_desc": "Conceptual armaments and basic melee weapon templates. Delivered to your inventory; can be bought repeatedly.",
   "screen.zhushenspace.shop.gear_count": "%s items",

@@ -1416,7 +1416,7 @@
   "screen.zhushenspace.load.effect.medium": "移动速度 −25%，闪避防御 −2，主动身体检定 −3",
   "screen.zhushenspace.load.effect.heavy": "移动速度 −50%，无法疾跑，闪避防御 −4，主动身体检定 −6",
   "screen.zhushenspace.load.effect.over": "移动速度 −90%，无法疾跑，闪避防御 −4，主动身体检定 −6",
-  "screen.zhushenspace.load.tip_note": "只计算主神空间的物品；上限随力量与体型提高",
+  "screen.zhushenspace.load.tip_note": "只计算标注了重量的物品；上限随力量与体型提高",
   "screen.zhushenspace.shop.gear_group": "装备与武器",
   "screen.zhushenspace.shop.gear_group_desc": "概念武装与基础冷兵器模板。购买后直接放入背包，可重复购买。",
   "screen.zhushenspace.shop.gear_count": "%s 件",

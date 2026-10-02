@@ -11,7 +11,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -27,7 +26,8 @@ import java.util.UUID;
 /**
  * 负重（规则见 docs/cold-weapons-v1.md「负重」）。
  * <p>
- * 只计算本模组物品的重量（原版物品不计；TACZ 枪械以后再定）：背包、盔甲、副手、饰品栏与鼠标上拿着的物品。
+ * 只计算标注了重量的物品（目前为基础冷兵器；原版物品与未标注的本模组物品不计；TACZ 枪械以后再定）：
+ * 背包、盔甲、副手、饰品栏与鼠标上拿着的物品。
  * 负重上限（公斤，S = 力量，最少 0）：轻 = 10 + 3S，中 = 2 × 轻 + 2，重 = 3 × 轻 + 4；
  * 体型每大一级 ×（1 + 级数）（巨体 / 怪力各算一级）。
  * <ul>
@@ -61,21 +61,12 @@ public final class LoadManager {
     /** 上次同步（重量 ×10、三档上限 ×10） */
     private static final Map<UUID, int[]> SENT = new HashMap<>();
 
-    /** 其他本模组物品的重量（公斤） */
-    private static float otherWeight(Item item) {
-        if (item == ZhuShenSpace.INVITATION_ENVELOPE.get()) return 0.02f;
-        if (item == ZhuShenSpace.TAI_CHI_EMBLEM.get()) return 0.1f;
-        if (item == ZhuShenSpace.MAHORAGA_WHEEL.get()) return 3.0f;
-        return 0f;
-    }
-
-    /** 单个物品堆叠的重量（公斤）：只计本模组物品 */
+    /** 单个物品堆叠的重量（公斤）：只计有标注重量的物品（目前为基础冷兵器）；
+     *  太极拳饰品、邀请函、魔虚罗法阵等没有标注重量的物品与原版物品一样不计 */
     public static float weight(ItemStack st) {
         if (st.isEmpty()) return 0f;
         MeleeWeapon w = MeleeWeapon.of(st);
-        if (w != null) return w.weight * st.getCount();
-        if (!ZhuShenSpace.MODID.equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(st.getItem()).getNamespace())) return 0f;
-        return otherWeight(st.getItem()) * st.getCount();
+        return w != null ? w.weight * st.getCount() : 0f;
     }
 
     /** 当前携带的总重量 */
