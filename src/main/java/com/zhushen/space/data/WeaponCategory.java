@@ -45,7 +45,15 @@ public enum WeaponCategory {
     /** 长刀（青龙偃月刀） */
     GLAIVE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "glaive"),
     /** 斧（原版斧头也归入此类，见 weapons/axe 标签） */
-    AXE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "axe");
+    AXE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "axe"),
+    SHORT_SPEAR(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "short_spear"),
+    /** 长矛（戟也归入此类） */
+    LONG_SPEAR(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "long_spear"),
+    WHIP(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "whip"),
+    /** 镰刀（巨镰也归入此类） */
+    SICKLE(Group.BLADE, AttributeType.STRENGTH, SkillType.BLADE, "sickle"),
+    /** 弩（基础冷兵器的轻弩 / 重弩；与弓一样不需要专业。原版弩仍归「弓」） */
+    CROSSBOW(Group.BOW, AttributeType.AGILITY, SkillType.ATHLETICS, "crossbow");
 
     public enum Group { GUN, BLADE, BOW, THROWN, BRAWL }
 

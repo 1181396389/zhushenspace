@@ -48,9 +48,12 @@ public class ThrownWeaponRenderer extends EntityRenderer<ThrownWeapon> {
         pose.mulPose(Axis.ZP.rotationDegrees(Mth.lerp(pt, e.xRotO, e.getXRot())));
         if (!e.inGround()) {
             var w = com.zhushen.space.data.MeleeWeapon.of(st);
-            if (w != null && w.has(com.zhushen.space.data.MeleeWeapon.Trait.HEAVY_THROWN)) {
+            if (w != null && w.tumbles()) {
                 // 飞斧 / 飞锤：首尾翻滚
                 pose.mulPose(Axis.ZP.rotationDegrees(-(e.tickCount + pt) * 45f));
+            } else if (w != null && w.category == com.zhushen.space.data.WeaponCategory.SHORT_SPEAR) {
+                // 短矛：矛尖朝前笔直飞行，只带一点自旋
+                pose.mulPose(Axis.XP.rotationDegrees((e.tickCount + pt) * 12f));
             } else {
                 // 匕首：沿刀身轴（+X）滚转
                 pose.mulPose(Axis.XP.rotationDegrees((e.tickCount + pt) * 40f));

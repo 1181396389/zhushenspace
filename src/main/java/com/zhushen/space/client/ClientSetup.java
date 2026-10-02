@@ -54,6 +54,30 @@ public class ClientSetup {
         com.zhushen.space.common.PoseControl.CLIENT = ClientCondition::keepCrawl;
         com.zhushen.space.common.GearManager.CLIENT_LOCKED = ClientGearData::locked;
         com.zhushen.space.common.GearManager.CLIENT_CONCEPT_SWAP = ClientRest::active;
+        event.enqueueWork(ClientSetup::crossbowProperties);
+    }
+
+    /** 轻弩 / 重弩：与原版弩相同的拉弦 / 装填模型谓词 */
+    private static void crossbowProperties() {
+        for (var w : com.zhushen.space.data.MeleeWeapon.values()) {
+            if (!w.ranged()) continue;
+            net.minecraft.world.item.Item item = com.zhushen.space.ZhuShenSpace.weaponItem(w);
+            net.minecraft.client.renderer.item.ItemProperties.register(item,
+                    net.minecraft.resources.ResourceLocation.withDefaultNamespace("pull"), (stack, level, ent, seed) -> {
+                        if (ent == null || net.minecraft.world.item.CrossbowItem.isCharged(stack)) return 0f;
+                        return ent.isUsingItem() && ent.getUseItem() == stack
+                                ? (float) (stack.getUseDuration(ent) - ent.getUseItemRemainingTicks())
+                                        / net.minecraft.world.item.CrossbowItem.getChargeDuration(stack, ent)
+                                : 0f;
+                    });
+            net.minecraft.client.renderer.item.ItemProperties.register(item,
+                    net.minecraft.resources.ResourceLocation.withDefaultNamespace("pulling"), (stack, level, ent, seed) ->
+                            ent != null && ent.isUsingItem() && ent.getUseItem() == stack
+                                    && !net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1f : 0f);
+            net.minecraft.client.renderer.item.ItemProperties.register(item,
+                    net.minecraft.resources.ResourceLocation.withDefaultNamespace("charged"), (stack, level, ent, seed) ->
+                            net.minecraft.world.item.CrossbowItem.isCharged(stack) ? 1f : 0f);
+        }
     }
 
     @SubscribeEvent

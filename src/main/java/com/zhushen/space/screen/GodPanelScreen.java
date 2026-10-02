@@ -1085,10 +1085,12 @@ public class GodPanelScreen extends Screen {
         return new int[]{panelX + (panelW - w) / 2, panelY + (panelH - h) / 2, w, h};
     }
 
-    /** 选项超过 8 个（白刃组）时排成 3 列 */
+    /** 选项超过 8 个时排成 3 列，超过 15 个且面板够宽时 4 列 */
     private int profCols() {
-        return com.zhushen.space.data.WeaponCategory.choices(
-                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]).size() > 8 ? 3 : 2;
+        int n = com.zhushen.space.data.WeaponCategory.choices(
+                com.zhushen.space.data.WeaponCategory.ProfGroup.values()[profChooser]).size();
+        if (n > 15 && panelW >= PROF_BTN_W * 4 + 6 * 3 + 20) return 4; // 白刃组 18 个分类：4 列
+        return n > 8 ? 3 : 2;
     }
 
     /** 专业选择框：列出该组分类，点击即选定（不可更改） */
@@ -1647,7 +1649,7 @@ public class GodPanelScreen extends Screen {
 
     private int gearContentH() {
         return com.zhushen.space.data.ShopGear.COUNT * (GEAR_CARD_H + 4) + GEAR_SECTION_H
-                + com.zhushen.space.data.MeleeWeapon.COUNT * (WEAPON_ROW_H + WEAPON_ROW_GAP);
+                + (com.zhushen.space.data.MeleeWeapon.COUNT + 1) * (WEAPON_ROW_H + WEAPON_ROW_GAP); // +1 = 弩矢
     }
 
     private int gearMaxScroll() { return Math.max(0, gearContentH() - (listBottom - gearContentTop())); }
@@ -1743,6 +1745,25 @@ public class GodPanelScreen extends Screen {
             renderSmallButton(g, mouseX, mouseY, bx, ry + 5, 40, 14, Component.translatable("screen.zhushenspace.shop.buy"));
             if (hover && !over(mouseX, mouseY, bx, ry + 5, 40, 14)) hoverStack = st;
         }
+        { // 弩矢（轻弩 / 重弩的弹药）
+            int ry = weaponRowY(com.zhushen.space.data.MeleeWeapon.COUNT, base);
+            if (ry + WEAPON_ROW_H >= top && ry < listBottom) {
+                boolean hover = inView && over(mouseX, mouseY, cx, ry, cw, WEAPON_ROW_H);
+                ZsTheme.card(g, cx, ry, cw, WEAPON_ROW_H, hover);
+                net.minecraft.world.item.ItemStack st = new net.minecraft.world.item.ItemStack(ZhuShenSpace.CROSSBOW_BOLT.get(),
+                        ProgressManager.BOLT_COUNT);
+                g.renderItem(st, cx + 4, ry + 4);
+                g.renderItemDecorations(font, st, cx + 4, ry + 4);
+                g.drawString(font, Component.translatable("item.zhushenspace.crossbow_bolt"), cx + 24, ry + 3, TEXT_MAIN, true);
+                boolean ok = ClientProgressData.score() >= ProgressManager.BOLT_PRICE;
+                g.drawString(font, Component.translatable("screen.zhushenspace.shop.bolt_line", ProgressManager.BOLT_COUNT,
+                        ProgressManager.BOLT_PRICE), cx + 24, ry + 13, ok ? TEXT_SUB : 0xFFFF8A80, true);
+                int bx = cx + cw - 46;
+                if (ok) buyGlow(g, bx, ry + 5, 40, 14);
+                renderSmallButton(g, mouseX, mouseY, bx, ry + 5, 40, 14, Component.translatable("screen.zhushenspace.shop.buy"));
+                if (hover && !over(mouseX, mouseY, bx, ry + 5, 40, 14)) hoverStack = st;
+            }
+        }
         g.flush();
         g.disableScissor();
         if (maxScroll > 0) ZsTheme.scrollbar(g, panelX + panelW - 7, top, listBottom, gearContentH(), detailScroll, maxScroll);
@@ -1783,6 +1804,11 @@ public class GodPanelScreen extends Screen {
                 playClick(1.0f);
                 return true;
             }
+        }
+        if (over(mouseX, mouseY, cx + cw - 46, weaponRowY(com.zhushen.space.data.MeleeWeapon.COUNT, base) + 5, 40, 14)) {
+            PacketDistributor.sendToServer(new com.zhushen.space.network.GearPurchasePayload(ProgressManager.BOLT_PURCHASE_ID));
+            playClick(1.0f);
+            return true;
         }
         return false;
     }

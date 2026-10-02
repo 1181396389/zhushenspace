@@ -59,7 +59,31 @@ public enum MeleeWeapon {
             EnumSet.of(Trait.HEAVY_THROWN)),
     /** 战斧：2L 破甲 2 挥砍 */
     BATTLE_AXE("battle_axe", WeaponCategory.AXE, 3, 2.0f, 2, Severity.L, K(DamageKind.SLASH), 2, -2.9f, 0,
-            EnumSet.noneOf(Trait.class));
+            EnumSet.noneOf(Trait.class)),
+    /** 短矛：2L 穿刺，基本投掷射程 10 米；【重投掷武器】 */
+    SHORT_SPEAR("short_spear", WeaponCategory.SHORT_SPEAR, 2, 1.0f, 2, Severity.L, K(DamageKind.PIERCE), 0, -2.4f, 10,
+            EnumSet.of(Trait.HEAVY_THROWN)),
+    /** 长矛：2L 破甲 1 穿刺；【长柄武器】【沉重】【双手】 */
+    LONG_SPEAR("long_spear", WeaponCategory.LONG_SPEAR, 4, 9.0f, 2, Severity.L, K(DamageKind.PIERCE), 1, -2.9f, 0,
+            EnumSet.of(Trait.REACH, Trait.HEAVY, Trait.TWO_HANDED)),
+    /** 戟（方天画戟）：2L，挥砍或穿刺；【威猛】【沉重】【双手】；重武器 */
+    HALBERD("halberd", WeaponCategory.LONG_SPEAR, 4, 10.0f, 2, Severity.L, K(DamageKind.SLASH, DamageKind.PIERCE), 0, -3.2f, 0,
+            EnumSet.of(Trait.MIGHTY, Trait.HEAVY, Trait.TWO_HANDED, Trait.HEAVY_WEAPON)),
+    /** 鞭子：1L 穿刺；【软兵器】；剧痛 */
+    WHIP("whip", WeaponCategory.WHIP, 4, 1.5f, 1, Severity.L, K(DamageKind.PIERCE), 0, -2.0f, 0,
+            EnumSet.of(Trait.SOFT, Trait.AGONY)),
+    /** 镰刀（科技本质）：2L 破甲 2 挥砍 */
+    SICKLE("sickle", WeaponCategory.SICKLE, 2, 2.0f, 2, Severity.L, K(DamageKind.SLASH), 2, -2.4f, 0,
+            EnumSet.of(Trait.TECH_ESSENCE)),
+    /** 巨镰（科技本质）：1L 挥砍；【威猛】【长柄武器】【沉重】【双手】；重武器 */
+    SCYTHE("scythe", WeaponCategory.SICKLE, 5, 10.0f, 1, Severity.L, K(DamageKind.SLASH), 0, -3.2f, 0,
+            EnumSet.of(Trait.MIGHTY, Trait.REACH, Trait.HEAVY, Trait.TWO_HANDED, Trait.HEAVY_WEAPON, Trait.TECH_ESSENCE)),
+    /** 重弩：2L 破甲 2 穿刺，基本射程 20 米；【沉重】【双手】；装填；弹药（弩矢） */
+    HEAVY_CROSSBOW("heavy_crossbow", WeaponCategory.CROSSBOW, 4, 9.0f, 2, Severity.L, K(DamageKind.PIERCE), 2, 0f, 20,
+            EnumSet.of(Trait.HEAVY, Trait.TWO_HANDED, Trait.RELOAD, Trait.AMMO)),
+    /** 轻弩（十字弓）：2L 破甲 1 穿刺，基本射程 20 米；【双手】；装填；弹药（弩矢） */
+    LIGHT_CROSSBOW("light_crossbow", WeaponCategory.CROSSBOW, 3, 2.5f, 2, Severity.L, K(DamageKind.PIERCE), 1, 0f, 20,
+            EnumSet.of(Trait.TWO_HANDED, Trait.RELOAD, Trait.AMMO));
 
     private static DamageKind[] K(DamageKind... k) { return k; }
 
@@ -76,6 +100,7 @@ public enum MeleeWeapon {
         MIGHTY("mighty", false),
         LIGHT_THROWN("light_thrown", false),
         HEAVY_THROWN("heavy_thrown", false),
+        SOFT("soft", false),
         /** 钝击武器（手指虎） */
         BLUNT_ONLY("blunt_only", true),
         /** 冲击武器：可选择造成冲击伤害 */
@@ -83,7 +108,15 @@ public enum MeleeWeapon {
         /** 重武器：−6 器械减值，然后 +2 附加成功 */
         HEAVY_WEAPON("heavy_weapon", true),
         /** 轻型武器：近战白刃攻击可用敏捷代替力量 */
-        LIGHT_WEAPON("light_weapon", true);
+        LIGHT_WEAPON("light_weapon", true),
+        /** 剧痛：最终伤害超过目标耐力 → 武器伤害点剧痛 */
+        AGONY("agony", true),
+        /** 本质：科技本质（说明用） */
+        TECH_ESSENCE("tech_essence", true),
+        /** 装填：每次发射需要一个移动动作 */
+        RELOAD("reload", true),
+        /** 弹药：弩矢 */
+        AMMO("ammo", true);
 
         public final String key;
         public final boolean special;
@@ -114,7 +147,7 @@ public enum MeleeWeapon {
     public final int armorPierce;
     /** 原版攻击速度修饰（基础 4.0 之上） */
     public final float attackSpeed;
-    /** 基本投掷射程（米），0 = 不能投掷 */
+    /** 基本投掷射程（米），0 = 不能投掷；弩为基本射程 */
     public final int throwRange;
     private final Set<Trait> traits;
 
@@ -138,6 +171,15 @@ public enum MeleeWeapon {
 
     public boolean has(Trait t) { return traits.contains(t); }
 
+    /** 远程武器（弩）：不参与近战公式 */
+    public boolean ranged() { return category.group == WeaponCategory.Group.BOW; }
+
+    /** 可以投掷（右键蓄力投出） */
+    public boolean throwable() { return throwRange > 0 && !ranged(); }
+
+    /** 投出后首尾翻滚（斧 / 锤），其余沿轴滚转 */
+    public boolean tumbles() { return category == WeaponCategory.AXE || category == WeaponCategory.WAR_HAMMER; }
+
     public Set<Trait> traits() { return traits; }
 
     /** 原版攻击伤害修饰：总值 = 1（空手）+ 修饰 = 武器伤害；手指虎为天生武器 1 + 提升值 */
@@ -153,7 +195,13 @@ public enum MeleeWeapon {
     /** 物品堆叠对应的模板（非本模组冷兵器 = null） */
     public static MeleeWeapon of(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return null;
-        return stack.getItem() instanceof com.zhushen.space.item.ZsWeaponItem w ? w.weapon() : null;
+        return stack.getItem() instanceof ZsWeapon w ? w.weapon() : null;
+    }
+
+    /** 手持物对应的近战模板（弩等远程武器 = null） */
+    public static MeleeWeapon melee(ItemStack stack) {
+        MeleeWeapon w = of(stack);
+        return w != null && !w.ranged() ? w : null;
     }
 
     // ===== 攻击方式（潜行 + 右键切换）：伤害类型 × 伤势等级（冲击武器可选 B） =====

@@ -39,7 +39,7 @@ import java.util.Locale;
  *   <li>可投掷的武器（匕首、飞斧、飞锤）：按住右键蓄力（至少半秒）后松开投出，命中后落地可捡回。</li>
  * </ul>
  */
-public class ZsWeaponItem extends Item {
+public class ZsWeaponItem extends Item implements com.zhushen.space.data.ZsWeapon {
 
     private static final ResourceLocation REACH_ID = ResourceLocation.fromNamespaceAndPath(ZhuShenSpace.MODID, "weapon_reach");
 
@@ -50,6 +50,7 @@ public class ZsWeaponItem extends Item {
         this.weapon = weapon;
     }
 
+    @Override
     public MeleeWeapon weapon() { return weapon; }
 
     private static ItemAttributeModifiers modifiers(MeleeWeapon w) {
@@ -90,7 +91,7 @@ public class ZsWeaponItem extends Item {
             }
             return InteractionResultHolder.sidedSuccess(st, level.isClientSide());
         }
-        if (weapon.throwRange > 0) {
+        if (weapon.throwable()) {
             player.startUsingItem(hand);
             return InteractionResultHolder.consume(st);
         }
@@ -99,12 +100,12 @@ public class ZsWeaponItem extends Item {
 
     @Override
     public UseAnim getUseAnimation(ItemStack stack) {
-        return weapon.throwRange > 0 ? UseAnim.SPEAR : UseAnim.NONE;
+        return weapon.throwable() ? UseAnim.SPEAR : UseAnim.NONE;
     }
 
     @Override
     public int getUseDuration(ItemStack stack, LivingEntity entity) {
-        return weapon.throwRange > 0 ? 72000 : 0;
+        return weapon.throwable() ? 72000 : 0;
     }
 
     /** 蓄力至少 10 tick 才投出 */
@@ -112,7 +113,7 @@ public class ZsWeaponItem extends Item {
 
     @Override
     public void releaseUsing(ItemStack stack, Level level, LivingEntity entity, int timeLeft) {
-        if (weapon.throwRange <= 0 || !(entity instanceof Player p)) return;
+        if (!weapon.throwable() || !(entity instanceof Player p)) return;
         if (getUseDuration(stack, entity) - timeLeft < THROW_CHARGE) return;
         if (!level.isClientSide) {
             ThrownWeapon tw = new ThrownWeapon(level, p, stack.copyWithCount(1));
@@ -140,6 +141,11 @@ public class ZsWeaponItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tips, TooltipFlag flag) {
+        describe(weapon, stack, tips);
+    }
+
+    /** 模板说明（近战武器与弩共用） */
+    public static void describe(MeleeWeapon weapon, ItemStack stack, List<Component> tips) {
         tips.add(Component.translatable("tooltip.zhushenspace.weapon.template",
                 Component.translatable(weapon.category.nameKey())).withStyle(ChatFormatting.GOLD));
         tips.add(Component.translatable(weapon.descKey()).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
@@ -154,7 +160,8 @@ public class ZsWeaponItem extends Item {
             line.append(Component.translatable(weapon.kinds[i].nameKey()));
         }
         if (weapon.throwRange > 0)
-            line.append(" · ").append(Component.translatable("tooltip.zhushenspace.weapon.throw", weapon.throwRange));
+            line.append(" · ").append(Component.translatable(weapon.ranged() ? "tooltip.zhushenspace.weapon.range"
+                    : "tooltip.zhushenspace.weapon.throw", weapon.throwRange));
         tips.add(line.withStyle(ChatFormatting.WHITE));
         tips.add(Component.translatable("tooltip.zhushenspace.weapon.bulk", weapon.volume, num(weapon.weight))
                 .withStyle(ChatFormatting.GRAY));
@@ -177,7 +184,7 @@ public class ZsWeaponItem extends Item {
             tips.add(Component.translatable("tooltip.zhushenspace.weapon.mode", modeLabel(weapon, weapon.mode(stack)))
                     .withStyle(ChatFormatting.GREEN));
         }
-        if (weapon.throwRange > 0)
+        if (weapon.throwable())
             tips.add(Component.translatable("tooltip.zhushenspace.weapon.throw_hint").withStyle(ChatFormatting.DARK_GRAY));
         boolean shift = net.neoforged.fml.loading.FMLEnvironment.dist.isClient()
                 && com.zhushen.space.client.ClientHooks.shiftDown();

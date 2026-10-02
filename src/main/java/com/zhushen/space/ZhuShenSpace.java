@@ -51,15 +51,26 @@ public class ZhuShenSpace {
                     new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
 
     /** 基础冷兵器模板（主神商城 · 每件 200 奖励点数） */
-    public static final java.util.Map<com.zhushen.space.data.MeleeWeapon, DeferredItem<com.zhushen.space.item.ZsWeaponItem>> WEAPONS =
+    public static final java.util.Map<com.zhushen.space.data.MeleeWeapon, DeferredItem<? extends Item>> WEAPONS =
             new java.util.EnumMap<>(com.zhushen.space.data.MeleeWeapon.class);
 
     static {
         for (com.zhushen.space.data.MeleeWeapon w : com.zhushen.space.data.MeleeWeapon.values()) {
-            WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsWeaponItem(w, props),
-                    new Item.Properties().stacksTo(w.throwRange > 0 ? 8 : 1)));
+            if (w.ranged()) {
+                WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsCrossbowItem(w, props),
+                        new Item.Properties().stacksTo(1)
+                                .component(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES,
+                                        net.minecraft.world.item.component.ChargedProjectiles.EMPTY)));
+            } else {
+                WEAPONS.put(w, ITEMS.registerItem(w.key, props -> new com.zhushen.space.item.ZsWeaponItem(w, props),
+                        new Item.Properties().stacksTo(w.throwable() ? 8 : 1)));
+            }
         }
     }
+
+    /** 弩矢（轻弩 / 重弩的弹药） */
+    public static final DeferredItem<com.zhushen.space.item.CrossbowBoltItem> CROSSBOW_BOLT =
+            ITEMS.registerItem("crossbow_bolt", com.zhushen.space.item.CrossbowBoltItem::new, new Item.Properties());
 
     public static Item weaponItem(com.zhushen.space.data.MeleeWeapon w) { return WEAPONS.get(w).get(); }
 
@@ -73,6 +84,7 @@ public class ZhuShenSpace {
                 output.accept(TAI_CHI_EMBLEM.get());
                 output.accept(MAHORAGA_WHEEL.get());
                 for (var w : WEAPONS.values()) output.accept(w.get());
+                output.accept(CROSSBOW_BOLT.get());
                 output.accept(T_VIRUS_ZOMBIE_SPAWN_EGG.get());
             }).build());
 

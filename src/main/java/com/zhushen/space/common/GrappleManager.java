@@ -418,7 +418,7 @@ public final class GrappleManager {
         if (!grappled(e.getEntity())) return;
         ItemStack st = e.getItemStack();
         var cat = CombatFormula.classify(st);
-        if (cat == com.zhushen.space.data.WeaponCategory.BOW || cat == com.zhushen.space.data.WeaponCategory.THROWN
+        if (cat.group == com.zhushen.space.data.WeaponCategory.Group.BOW || cat == com.zhushen.space.data.WeaponCategory.THROWN
                 || cat.group == com.zhushen.space.data.WeaponCategory.Group.GUN) {
             e.setCanceled(true);
             if (e.getEntity() instanceof ServerPlayer sp) msg(sp, "msg.zhushenspace.grapple.no_gesture");

@@ -98,6 +98,34 @@ public final class WeaponRules {
         return Math.max(1, Math.round(v.getMaxHealth() / 10f));
     }
 
+    // ===== 剧痛（鞭子） =====
+
+    /** 最终伤害超过目标耐力：造成武器伤害点剧痛（强韧豁免，不可叠加）；非玩家生物改为虚弱 + 缓慢 */
+    private static void agony(ServerPlayer p, LivingEntity v, MeleeWeapon w, float dmg) {
+        int end = endurance(v);
+        if (dmg <= end) return;
+        int pts = w.damage;
+        int got;
+        if (v instanceof ServerPlayer tp) {
+            pts -= Defense.roll(tp, Defense.fort(tp)); // 强韧豁免
+            if (pts <= 0) return;
+            got = StatusManager.add(tp, StatusType.PAIN, pts, false, p, StatusManager.Source.MALICIOUS, 0, false, null);
+        } else {
+            pts -= Math.round(end * DamageVariance.roll(v.getRandom()));
+            if (pts <= 0) return;
+            int ticks = 60 * pts;
+            v.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, ticks, 0, false, true), p);
+            v.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 0, false, true), p);
+            got = pts;
+        }
+        if (got <= 0) return;
+        p.displayClientMessage(Component.translatable("msg.zhushenspace.weapon.agony", v.getDisplayName(), got), true);
+        if (v.level() instanceof ServerLevel sl) {
+            sl.sendParticles(ParticleTypes.DAMAGE_INDICATOR, v.getX(), v.getEyeY(), v.getZ(), 6, 0.3, 0.2, 0.3, 0.1);
+            sl.playSound(null, v.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.PLAYERS, 0.5f, 1.9f);
+        }
+    }
+
     // ===== 【眩晕】 =====
 
     @SubscribeEvent
@@ -106,8 +134,10 @@ public final class WeaponRules {
         if (!(src.getEntity() instanceof ServerPlayer p) || src.getDirectEntity() != p) return;
         LivingEntity v = e.getEntity();
         if (v == p || !v.isAlive()) return;
-        MeleeWeapon w = MeleeWeapon.of(p.getMainHandItem());
-        if (w == null || !w.has(Trait.STUN)) return;
+        MeleeWeapon w = MeleeWeapon.melee(p.getMainHandItem());
+        if (w == null) return;
+        if (w.has(Trait.AGONY)) agony(p, v, w, e.getNewDamage());
+        if (!w.has(Trait.STUN)) return;
         int end = endurance(v);
         if (e.getNewDamage() <= end) return;
         int pts = w.damage;

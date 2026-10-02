@@ -173,6 +173,21 @@ public class ProgressManager {
         return null;
     }
 
+    /** 商城购买包中「弩矢」的序号；一次购买 BOLT_COUNT 支，花费 BOLT_PRICE 奖励点数 */
+    public static final int BOLT_PURCHASE_ID = 199, BOLT_COUNT = 20, BOLT_PRICE = 20;
+
+    public static String purchaseBolts(ServerPlayer player) {
+        PlayerCurrencyData currency = player.getData(ModAttachments.PLAYER_CURRENCY);
+        if (currency.score() < BOLT_PRICE) return "commands.zhushenspace.school.lack_currency";
+        currency.addScore(-BOLT_PRICE);
+        ItemStack stack = new ItemStack(com.zhushen.space.ZhuShenSpace.CROSSBOW_BOLT.get(), BOLT_COUNT);
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        player.displayClientMessage(Component.translatable("msg.zhushenspace.shop.gear_bought",
+                Component.translatable("item.zhushenspace.crossbow_bolt")), false);
+        sync(player);
+        return null;
+    }
+
     /** 直接解锁（调试指令，不扣费） */
     public static void grantSchool(ServerPlayer player, SchoolType school) {
         player.getData(ModAttachments.PLAYER_SCHOOLS).unlock(school);
